@@ -1,0 +1,12 @@
+x_scan_width	0.010
+y_scan_width	0.010
+z_scan_width	0.010
+x_start	100.000
+y_start	100.000
+z_start	100.000
+x_end	100.100
+y_end	100.100
+z_end	100.100
+x_pos	11
+y_pos	11
+z_pos	11
