@@ -38,6 +38,7 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     '''
     ### get the folder path sting
     folder_path = file_path.replace(file_path.split('/')[-1],'')
+    file_name = file_path.split("/")[-1]
     ### create a data folder to store the data
     os.makedirs('%s/data/'%folder_path, exist_ok=True)
     ### open the bruker bcf file
@@ -96,25 +97,27 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     parameters = np.array([a0, a1, Fano, FWHM, life_time, a0 + a1*(channels), gating_time, real_time])
     ### now save everything to a data h5 file
     print('### now save spectra to a data h5 file')
-    with h5py.File(f'{folder_path}/data/data.h5', 'w') as tofile:
-        pass
-    spectra.to_hdf5(f'{folder_path}/data/data.h5', 'spectra', compression='gzip', shuffle=True)  
+    if os.path.exists(f'{folder_path}/data/data.h5'):
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
+    spectra.to_hdf5(f'{folder_path}/data/data.h5', f'{file_name}/spectra', compression='gzip', shuffle=True)  
     if verbose:
         print('### now save everything to a data h5 file')
     with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
-        tofile.create_dataset('max pixel spec', data=max_pixel_spec, compression='gzip',
+        tofile.create_dataset(f'{file_name}/max pixel spec', data=max_pixel_spec, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('sum spec', data=sum_spec, compression='gzip',
+        tofile.create_dataset(f'{file_name}/sum spec', data=sum_spec, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('counts', data=counts, compression='gzip',
+        tofile.create_dataset(f'{file_name}/counts', data=counts, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('parameters', data=parameters, compression='gzip',
+        tofile.create_dataset(f'{file_name}/parameters', data=parameters, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('positions', data=tensor_positions, compression='gzip',
+        tofile.create_dataset(f'{file_name}/positions', data=tensor_positions, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('tensor positions', data=tensor_positions, compression='gzip',
+        tofile.create_dataset(f'{file_name}/tensor positions', data=tensor_positions, compression='gzip',
                               shuffle=True)
-        tofile.create_dataset('position dimension', data=size, compression='gzip',
+        tofile.create_dataset(f'{file_name}/position dimension', data=size, compression='gzip',
                               shuffle=True)
     del counts
     return spectra, parameters, size, tensor_positions, np.array(sum_spec)
@@ -144,7 +147,7 @@ def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
     except: pass
     
     bcf_file_list = glob('%s/*.bcf'%folder_path)   # creates a list with all .bcf-files stored inside the folder
-    
+    file_name = folder_path.split("/")[-1]
     for file_nr, file_path in enumerate(bcf_file_list):          # iteration over all .bcf-files
         bcf_file = hs.load(file_path, signal_type='EDS_SEM')   # loads one .bcf-file
         bcf_file = bcf_file[-1]
@@ -233,17 +236,20 @@ def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
     parameters = parameters/len(bcf_file_list)     
     print('overall life_time:\t', overall_life_time) # in s   
     print('overall real_time:\t', overall_real_time) # in s   
-    
-    with h5py.File('%s/data/data.h5'%folder_path, 'w') as tofile:
-        tofile.create_dataset('spectra', data=np.array(list(spectra.values())),
+    if os.path.exists(f'{folder_path}/data/data.h5'):
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
+    with h5py.File(f'{folder_path}/data/data.h5', 'w') as tofile:
+        tofile.create_dataset(f'{file_name}/spectra', data=np.array(list(spectra.values())),
                               compression="gzip")
-        tofile.create_dataset('max pixel spec', data=max_pixel_spec,
+        tofile.create_dataset(f'{file_name}/max pixel spec', data=max_pixel_spec,
                               compression="gzip")
-        tofile.create_dataset('sum spec', data=sum_spec,
+        tofile.create_dataset(f'{file_name}/sum spec', data=sum_spec,
                               compression="gzip")
-        tofile.create_dataset('counts', data=all_counts,
+        tofile.create_dataset(f'{file_name}/counts', data=all_counts,
                               compression="gzip")
-        tofile.create_dataset('parameters', data=parameters,
+        tofile.create_dataset(f'{file_name}/parameters', data=parameters,
                               compression="gzip")
     
     return spectra, parameters, position_dimension, tensor_positions, sum_spec

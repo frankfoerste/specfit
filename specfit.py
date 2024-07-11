@@ -138,7 +138,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
         ### initalize main window ###
         super(specFit_GUI_main, self).__init__(parent)
-        self.__version__ = u"SpecFit - 1.4"
+        self.__version__ = u"SpecFit - 1.401"
         self.working_directory = os.getcwd()
         self.bg_color = 'white'   
 #        self.bg_color = 'light grey'   
@@ -629,10 +629,10 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
             self.data.elements = self.elements
             self.data.label_loading_progress = self.statusBar()
             self.data.open_data_folder()
-            self.threshold_handler = fit_threshold_popup(self.data.folderpath)
+            self.threshold_handler = fit_threshold_popup(self.data.folder_path)
             self.popup_properties.data_path = self.data.save_folder_path
             self.right_Splitter.addWidget(self.popup_properties)
-            self.popup_properties.fill_text(f'folder path:\n {self.data.folderpath}\n')
+            self.popup_properties.fill_text(f'folder path:\n {self.data.folder_path}\n')
             self.popup_properties.fill_text(f'files: {len(self.data.file_list)}\n')
             self.load_parameter_in_specfit_deconvolution()
             if self.data.file_type == '.bcf':
@@ -667,7 +667,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
             self.data.elements = self.elements
             self.data.label_loading_progress = self.statusBar()
             self.data.open_data_file(angle_file)
-            self.threshold_handler = fit_threshold_popup(self.data.folderpath)
+            self.threshold_handler = fit_threshold_popup(self.data.folder_path)
             self.load_parameter_in_specfit_deconvolution()
             self.statusBar().showMessage('loading done')
             self.popup_properties.data_path = self.data.save_folder_path
@@ -884,8 +884,6 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         ### fill properties display with measurement information
         self.popup_properties.fill_text(f'channels: {self.data.len_spectrum}\n')
         self.popup_properties.fill_text('energy : [%.2f,%.2f] keV\n'%(self.data.energies[0],self.data.energies[-1]))
-        print('self.data.parameters.shape', self.data.parameters.shape)
-        print('self.data.position_dimension', self.data.position_dimension)
         if np.ndim(self.data.parameters) == 1:
             self.popup_properties.fill_text('life time : %f s \n'%(np.mean(self.data.parameters[4])))
             try: self.popup_properties.fill_text('real time : %f s \n'%(np.mean(self.data.parameters[7]))) #!TODO has to be implemented for every file type
@@ -940,7 +938,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
          # self.ROI_widget.parameters = self.data.parameters_user 
          self.ROI_widget.plot_style_str = self.data.plot_style
          one_d_array = (self.data.position_dimension[0]== 1 and self.data.position_dimension[1]==1)
-         self.ROI_widget.load_spectra(folder_path = self.data.folderpath, 
+         self.ROI_widget.load_spectra(folder_path = self.data.folder_path, 
                                       save_folder_path = self.data.save_folder_path,
                                       save_data_path = self.data.save_data_folder_path, 
                                       load_type = self.data.loadtype, 
@@ -952,16 +950,10 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         '''caution: both radio buttons are activated! '''
         if style != self.data.plot_style:
             self.data.plot_style = style
+            self.clear_ax_canvas_spectrum()
             self.plot_style_changed = True
             for image in self.ax_canvas_spectrum.images:
                 image.remove()
-            # self.ax_canvas_spectrum.images.clear()
-            try: 
-                self.ascii_imshow.remove()
-                for image in self.ax_canvas_spectrum.images:
-                    image.remove()
-                # self.ax_canvas_spectrum.images.clear()
-            except: print('images could not be removed')
             if style == 'lin': 
                 self.plot_style = self.ax_canvas_spectrum.plot
                 self.ax_canvas_spectrum.set_yscale('linear')
@@ -978,7 +970,6 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                     self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec())
             elif style == 'None':
                 self.plot_style = None
-                self.clear_ax_canvas_spectrum()
                 self.ax_canvas_spectrum.set_yscale('linear')
                 self.ascii_imshow = self.ax_canvas_spectrum.imshow(self.ascii_specfit_logo, aspect = 'auto')
                 self.ax_canvas_spectrum.set_xlim(0, self.ascii_imshow.properties()['size'][1])
@@ -1304,7 +1295,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                                     'csv_file']:
             self.save_folder_path = QtWidgets.QFileDialog().getExistingDirectory(self, 
                                                                                  'select save folder',
-                                                                                 self.data.folderpath)
+                                                                                 self.data.folder_path)
         
         
         def create_empty_results(load_type = 'folder',
@@ -1389,9 +1380,9 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                 
             for key in results.keys():
                 if batch_fitting:
-                    results_key = f'{key}_{batch_iterator}'
+                    results_key = f'{self.data.file_name}/{key}_{batch_iterator}'
                 else: 
-                    results_key = key
+                    results_key = f'{self.data.file_name}/{key}'
                 if save_storage == '.h5':
                     with h5py.File(f'{save_path}/results.h5', 'a') as tofile:
                         if file_type == '.MSA':
@@ -1547,6 +1538,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                 self.s.fit_in_progress = True 
             
             for key in results.keys():
+                print("here is the key as follows: ", key)
                 with h5py.File(f'{self.save_folder_path}/results.h5', 'a') as tofile:
                     if key in list(tofile.keys()):
                         tofile[key][()] = results[key]
@@ -1558,19 +1550,19 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                     if 'background' in list(tofile.keys()):
                         tofile['background'][()] = background
                     else:
-                        tofile.create_dataset('background', data = background)    
+                        tofile.create_dataset(f'{self.data.file_name}/background', data = background)    
             if self.sfs.check_save_fitted_spectrum.isChecked():
                 with h5py.File(f'{self.save_folder_path}/results.h5', 'a') as tofile:
                     if 'fitted spectra' in list(tofile.keys()):
                         tofile['fitted spectra'][()] = fitted_spectra
                     else:
-                        tofile.create_dataset('fitted spectra', data = fitted_spectra)    
+                        tofile.create_dataset(f'{self.data.file_name}/fitted spectra', data = fitted_spectra)    
             self.popup_properties.save_props()
 
         elif self.data.loadtype in ['folder', 'msa_file', 'hdf5_file', 'bcf_file', 'csv_file']:
             show_fit_prop_in_popup()
             ### check if the data file was splitted
-            datah5_files = ns.natsorted(glob(self.data.folderpath+'/data/data_*.h5'))
+            datah5_files = ns.natsorted(glob(self.data.folder_path+'/data/data_*.h5'))
             if len(datah5_files) != 0:
                 ### if splitted files are detected, ask if batch fitting should
                 ### be performed or data.h5
@@ -1737,9 +1729,9 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                 ### results.h5 file
                 if self.sfs.check_save_background.isChecked():
                     if self.data_batch_fitting:
-                        background_key = f'background_{data_batch}'
+                        background_key = f'{self.data.file_name}/background_{data_batch}'
                     else:
-                        background_key = 'background'
+                        background_key = f'{self.data.file_name}/background'
                     with h5py.File(f'{self.save_folder_path}/results.h5', 'a') as tofile:
                         if background_key in list(tofile.keys()):
                             tofile[background_key][()] = background
@@ -1767,6 +1759,8 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                     elif self.data_batch_fitting:
                         rows = data_batch+1
                     for results_key in unique_keys:
+                        print("the results key here is noted as ", results_key)
+                        results_key = f'{self.data.file_name}/{results_key}'
                         if results_key+'_0' in tofile:
                             results = tofile[results_key+'_0'][()]
                             del tofile[results_key+'_0']

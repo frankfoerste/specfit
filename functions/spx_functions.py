@@ -35,6 +35,7 @@ def spx2spec_para(file_path,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
+    file_name = file_path.split("/")[-1]
     ### define default values
     a0 = -0.96
     a1 = 0.01
@@ -97,23 +98,27 @@ def spx2spec_para(file_path,
         folder_path = '/'.join(file_path.split('/')[:-1])
         try: os.mkdir('%s/data/'%folder_path)
         except: pass
-        with h5py.File('%s/data/data.h5'%folder_path, 'w') as tofile:
-            tofile.create_dataset('spectra',
+        if os.path.exists(f'{folder_path}/data/data.h5'):
+            with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+                if file_name in tofile.keys():
+                    del tofile[file_name]
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+            tofile.create_dataset(f'{file_name}/spectra',
                                   data = spectrum,
                                   compression = 'gzip', compression_opts = 9)
-            tofile.create_dataset('sum spec', data = spectrum,
+            tofile.create_dataset(f'{file_name}/sum spec', data = spectrum,
                                   compression="gzip")
-            tofile.create_dataset('counts', data = [np.sum(spectrum)],
+            tofile.create_dataset(f'{file_name}/counts', data = [np.sum(spectrum)],
                                   compression="gzip")
-            tofile.create_dataset('parameters', data = parameters,
+            tofile.create_dataset(f'{file_name}/parameters', data = parameters,
                                   compression="gzip")
-            tofile.create_dataset('max pixel spec', data = spectrum,
+            tofile.create_dataset(f'{file_name}/max pixel spec', data = spectrum,
                                   compression="gzip")
-            tofile.create_dataset('position dimension', data = np.array([1,1,1]),
+            tofile.create_dataset(f'{file_name}/position dimension', data = np.array([1,1,1]),
                                   compression="gzip")
-            tofile.create_dataset('tensor positions', data = np.array([[0,0,0]]),
+            tofile.create_dataset(f'{file_name}/tensor positions', data = np.array([[0,0,0]]),
                                   compression="gzip")
-            tofile.create_dataset('positions', data = np.array([[0,0,0]]),
+            tofile.create_dataset(f'{file_name}/positions', data = np.array([[0,0,0]]),
                                   compression="gzip")
     return spectrum, parameters
       
@@ -139,6 +144,11 @@ def many_spx2spec_para(folder_path, signal = None ,worth_fit_threshold = 200,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
+    file_name = folder_path.split("/")[-1]
+    if os.path.exists(f'{folder_path}/data/data.h5'):
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
     worth_fit = []
     counts = []
     parameters = []
@@ -258,8 +268,8 @@ def many_spx2spec_para(folder_path, signal = None ,worth_fit_threshold = 200,
                 signal_progress.emit(file_nr)
 
         if save_spectra and save_any:
-            with h5py.File('%s/data/data.h5'%folder_path, 'w') as tofile:
-                tofile.create_dataset('spectra',
+            with h5py.File('%s/data/data.h5'%folder_path, 'r+') as tofile:
+                tofile.create_dataset(f'{file_name}/spectra',
                                       data = np.array(list(spectra.values())),
                                       compression = 'gzip', compression_opts = 9)
             if save_spec_as_dict:
@@ -330,14 +340,14 @@ def many_spx2spec_para(folder_path, signal = None ,worth_fit_threshold = 200,
     ### transform all data objects to array
     parameters = np.array(parameters)
     print('spx_loading: parameters_shape:\t', np.array(parameters).shape)
-    with h5py.File('%s/data/data.h5'%folder_path, 'a') as tofile:
-        tofile.create_dataset('sum spec', data = sum_spec,
+    with h5py.File('%s/data/data.h5'%folder_path, 'r+') as tofile:
+        tofile.create_dataset(f'{file_name}/sum spec', data = sum_spec,
                               compression="gzip")
-        tofile.create_dataset('counts', data = counts,
+        tofile.create_dataset(f'{file_name}/counts', data = counts,
                               compression="gzip")
-        tofile.create_dataset('parameters', data = parameters,
+        tofile.create_dataset(f'{file_name}/parameters', data = parameters,
                               compression="gzip")
-        tofile.create_dataset('max pixel spec', data = max_pixel_spec,
+        tofile.create_dataset(f'{file_name}/max pixel spec', data = max_pixel_spec,
                               compression="gzip")
     print('spx loadingtime - %f'%(t.time()-start))
     if return_values:

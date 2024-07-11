@@ -6,7 +6,7 @@ Created on Mon Oct  8 13:53:06 2018
 @author: gesa
 """
 ###############################################################################
-import os, sys
+import os
 import numpy as np
 import h5py
 from PyQt5 import QtWidgets, QtCore
@@ -26,15 +26,10 @@ import angles_functions as angles
 import specfit_GUI_functions as sfunc      # Module used for the specfit_GUI
 ###############################################################################
 file_dir = os.path.dirname(os.path.abspath(__file__))
-if "win" in sys.platform:
-    parent_dir = "\\".join(file_dir.split("\\")[:-1])
-    elements_path = parent_dir+'\\Data\\elements.dat'
-else:
-    parent_dir = "/".join(file_dir.split("/")[:-1])
-    elements_path = parent_dir+'/Data/elements.dat'   
-    
+parent_dir = "/".join(file_dir.split("/")[:-1])
+
 z_elements = {}
-with open(elements_path, 'r') as element_file:
+with open(parent_dir+'/Data/elements.dat', 'r') as element_file:
     for line in element_file:
         line = line.replace('\n', '').replace(' ', '').split('\t')
         z_elements[line[1]] = int(line[0])
@@ -71,10 +66,10 @@ class bcf_thread(QtCore.QThread):
     def __init__(self, folderpath, parent=None):
         QtCore.QThread.__init__(self, parent)
         self.signals = thread_signals()
-        self.folderpath = folderpath
+        self.folder_path = folderpath
 
     def run(self):
-        bcf.many_bcf2spec_para(self.folderpath,
+        bcf.many_bcf2spec_para(self.folder_path,
                                self.signals.progress)
         self.signals.finished.emit('Done')
 
@@ -134,7 +129,7 @@ class data_handler():
         # if this file is in the same folder as spectra file/dir it is automatically loaded
         self.default_param_file_name = 'param_save.txt'
         self.file_path = ''  # full path to spectra file
-        self.folderpath = ''  # full path to dir that stores spec dict
+        self.folder_path = ''  # full path to dir that stores spec dict
         # 'angle_file' or 'file' or 'msa_file' or 'folder' or 'hdf5_file' or 'bcf_file
         self.loadtype = ''
         self.file_type = ''  # .spx or .txt or .msa or .bcf
@@ -210,7 +205,7 @@ class data_handler():
             self.file_path = 'not_found'
         return self.file_path, loadtype
 
-    def _get_folderpath(self):
+    def _get_folder_path(self):
         '''
         read out the folderpath utilizing a QFileDialog
         '''
@@ -222,6 +217,12 @@ class data_handler():
             self.label_loading_progress.showMessage('Dir not found')
             folderpath = 'not_found'
         return folderpath
+    
+    def _get_file_name(self, file_path):
+        """
+        return the file name
+        """
+        return file_path.split("/")[-1]
 
     def update_channels(self):
         ''' 
@@ -260,14 +261,18 @@ class data_handler():
             parameters in the data handler class.
         """
         with h5py.File(h5_path, 'r') as f:
-            self.tensor_positions = f['tensor positions'][()]
-            self.positions = f['positions'][()]
-            self.position_dimension = f['position dimension'][()]
-            self.sum_spec = f['sum spec'][()]
-            self.parameters = f['parameters'][()]
-            self.max_pixel_spec = f['max pixel spec'][()]
+            if "tensor positions" in f.keys():
+                file_key=''
+            else:
+                file_key=f"{self.file_name}/"
+            self.tensor_positions = f[f'{file_key}tensor positions'][()]
+            self.positions = f[f'{file_key}positions'][()]
+            self.position_dimension = f[f'{file_key}position dimension'][()]
+            self.sum_spec = f[f'{file_key}sum spec'][()]
+            self.parameters = f[f'{file_key}parameters'][()]
+            self.max_pixel_spec = f[f'{file_key}max pixel spec'][()]
             self.len_spectrum = len(self.sum_spec)
-            self.spectra = f['spectra'][()]
+            self.spectra = f[f'{file_key}spectra'][()]
 
     def get_ROI_indicees(self):
         '''return Roi indices as tuple '''
@@ -277,23 +282,28 @@ class data_handler():
 
     def open_data_file(self, angle_file=False):
         self.file_path, self.loadtype = self._get_file_path(angle_file)
-        self.folderpath = self.get_folder_of_path()
-        self.save_data_folder_path = f'{self.folderpath}/data'
+        self.file_name = self._get_file_name(self.file_path)
+        self.folder_path = self.get_folder_of_path()
+        self.save_data_folder_path = f'{self.folder_path}/data'
         self.file_type = self.get_file_type()
+        reload = QtWidgets.QMessageBox.Yes
         if self.file_type == '.MSA':
-            self.save_data_folder_path = os.path.join(self.folderpath, 'data')
+            self.save_data_folder_path = os.path.join(self.folder_path, 'data')
             self.loadtype = 'msa_file'
             # Sucht in folderpath nach alles .MSA files
             self.file_list = list(
-                np.sort(glob('%s/*%s' % (self.folderpath, self.file_type))))
-            self.life_time = msa.msa2life_time('%s' % self.file_path)
+                np.sort(glob(f'{self.folder_path}/*{self.file_path}')))
+            self.life_time = msa.msa2life_time(f'{self.file_path}')
             self.len_spectrum = msa.msa2channels(self.file_path)
 
-            if os.path.isdir(self.save_data_folder_path):
-                reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
-                                                        'Do you want to reload the measurement?',
-                                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                        QtWidgets.QMessageBox.No)
+            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
+                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+                    if self.file_name in f.keys(): reload = True
+                if reload is True:  
+                    reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
+                                                            'Do you want to reload the measurement?',
+                                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                            QtWidgets.QMessageBox.No)
                 if reload == QtWidgets.QMessageBox.Yes:
                     self.run_msa_worker()  # stores parameters
                     assert self.load_stored_spec_and_param(
@@ -312,11 +322,14 @@ class data_handler():
 
         elif self.file_type == '.bcf':
             self.loadtype = 'bcf_file'
-            if os.path.isdir(self.save_data_folder_path):
-                reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
-                                                        'Do you want to reload the measurement?',
-                                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                        QtWidgets.QMessageBox.No)
+            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
+                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+                    if self.file_name in f.keys(): reload = True
+                if reload is True:  
+                    reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
+                                                            'Do you want to reload the measurement?',
+                                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                            QtWidgets.QMessageBox.No)
                 if reload == QtWidgets.QMessageBox.Yes:
                     self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.bcf2spec_para(
                         self.file_path)
@@ -339,11 +352,14 @@ class data_handler():
                 
         elif self.file_type == '.csv':
             self.loadtype = 'csv_file'
-            if os.path.isdir(self.save_data_folder_path):
-                reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
-                                                        'Do you want to reload the measurement?',
-                                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                        QtWidgets.QMessageBox.No)
+            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
+                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+                    if self.file_name in f.keys(): reload = True
+                if reload is True:  
+                    reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
+                                                            'Do you want to reload the measurement?',
+                                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                            QtWidgets.QMessageBox.No)
                 if reload == QtWidgets.QMessageBox.Yes:
                     self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
                     self.tensor_positions = csv.csv_tensor_positions(self.file_path)
@@ -372,11 +388,14 @@ class data_handler():
 
         elif self.file_type == '.hdf5' or self.file_type == '.h5':
             self.loadtype = 'hdf5_file'
-            if os.path.isdir(self.save_data_folder_path):
-                reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
-                                                        'Do you want to reload the measurement?',
-                                                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                        QtWidgets.QMessageBox.No)
+            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
+                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+                    if self.file_name in f.keys(): reload = True
+                if reload:  
+                    reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
+                                                            'Do you want to reload the measurement?',
+                                                            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                            QtWidgets.QMessageBox.No)
                 if reload == QtWidgets.QMessageBox.Yes:
                     self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
                         self.file_path)
@@ -469,7 +488,7 @@ class data_handler():
                 # self.parameters = np.array(self.parameters)
         self.parameters = np.array(self.parameters)
         # assert self.load_stored_spec_and_param()
-        param_path = os.path.join(self.folderpath, self.default_param_file_name)
+        param_path = os.path.join(self.folder_path, self.default_param_file_name)
         self.max_pixel_spec = np.max(self.spectra, axis=0)
         self.check_param_file(param_path)
         self.update_channels()
@@ -492,14 +511,15 @@ class data_handler():
         and loads the spectra, and parameters. 
         '''
         self.loadtype = 'folder'
-        self.folderpath = self._get_folderpath()
-        if self.folderpath != 'not_found':
-            self.save_data_folder_path = os.path.join(self.folderpath, 'data')
+        self.folder_path = self._get_folder_path()
+        self.file_name = self._get_file_name(self.folder_path)
+        if self.folder_path != 'not_found':
+            self.save_data_folder_path = os.path.join(self.folder_path, 'data')
             # if any spx in folder -> filetype spx
             self.file_type = self.determine_folder_file_type()
             # create a list of all file_type-files contained in the selected folder
             self.file_list = list(
-                np.sort(glob('%s/*%s' % (self.folderpath, self.file_type))))
+                np.sort(glob('%s/*%s' % (self.folder_path, self.file_type))))
             if os.path.isdir(self.save_data_folder_path):
                 reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
                                                         'Do you want to reload the measurement?',
@@ -515,7 +535,7 @@ class data_handler():
                         self.ROI_end = 25
                     elif self.file_type == '.bcf':
                         self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.many_bcf2spec_para(
-                            self.folderpath)
+                            self.folder_path)
                         self.ROI_start = 0.5
                     elif self.file_type == '.mca':
                         self.XANES = False
@@ -532,12 +552,12 @@ class data_handler():
                             self.file_list)
                     with h5py.File('%s/data.h5' % self.save_data_folder_path, 'a') as tofile:
                         if self.tensor_positions.dtype == 'O':
-                            tofile.create_dataset('tensor positions', data=np.concatenate(self.tensor_positions, axis = 0))
-                            tofile.create_dataset('positions', data=np.concatenate(self.positions, axis = 0))
+                            tofile.create_dataset(f'{self.file_name}/tensor positions', data=np.concatenate(self.tensor_positions, axis = 0))
+                            tofile.create_dataset(f'{self.file_name}/positions', data=np.concatenate(self.positions, axis = 0))
                         else:
-                            tofile.create_dataset('tensor positions', data=self.tensor_positions)
-                            tofile.create_dataset('positions', data=self.positions)
-                        tofile.create_dataset('position dimension', data=self.position_dimension)
+                            tofile.create_dataset(f'{self.file_name}/tensor positions', data=self.tensor_positions)
+                            tofile.create_dataset(f'{self.file_name}/positions', data=self.positions)
+                        tofile.create_dataset(f'{self.file_name}/position dimension', data=self.position_dimension)
 
                 elif reload == QtWidgets.QMessageBox.No:
                     if self.load_stored_spec_and_param(folder=True):
@@ -548,7 +568,7 @@ class data_handler():
                     self.ROI_start = 0.5
                 elif self.file_type == '.bcf':
                     self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.many_bcf2spec_para(
-                        self.folderpath)
+                        self.folder_path)
                     self.ROI_start = 0.5
                 elif self.file_type == '.spe':
                     self.run_spe_worker()
@@ -569,12 +589,12 @@ class data_handler():
                         self.file_list)
                 with h5py.File('%s/data.h5'%self.save_data_folder_path, 'a') as tofile:
                     if self.tensor_positions.dtype == 'O':
-                        tofile.create_dataset('tensor positions', data=np.concatenate(self.tensor_positions, axis = 0))
-                        tofile.create_dataset('positions', data=np.concatenate(self.positions, axis = 0))
+                        tofile.create_dataset(f'{self.file_name}/tensor positions', data=np.concatenate(self.tensor_positions, axis = 0))
+                        tofile.create_dataset(f'{self.file_name}/positions', data=np.concatenate(self.positions, axis = 0))
                     else:
-                        tofile.create_dataset('tensor positions', data=self.tensor_positions)
-                        tofile.create_dataset('positions', data=self.positions)
-                    tofile.create_dataset('position dimension', data=self.position_dimension)
+                        tofile.create_dataset(f'{self.file_name}/tensor positions', data=self.tensor_positions)
+                        tofile.create_dataset(f'{self.file_name}/positions', data=self.positions)
+                    tofile.create_dataset(f'{self.file_name}/position dimension', data=self.position_dimension)
                 
         assert self.load_stored_spec_and_param(folder=True)
         if self.file_type == '.bcf':
@@ -582,7 +602,7 @@ class data_handler():
             self.real_time = self.parameters[7]
             self.create_save_folder()
             self.check_param_file(os.path.join(
-                self.folderpath, self.default_param_file_name))
+                self.folder_path, self.default_param_file_name))
             self.update_channels()
             self.parent.entry_a0.setText('%f' % self.parameters[0])
             self.parent.entry_a1.setText('%f' % self.parameters[1])
@@ -594,7 +614,7 @@ class data_handler():
             self.real_time = self.parameters[0][7]
             self.create_save_folder()
             self.check_param_file(os.path.join(
-                self.folderpath, self.default_param_file_name))
+                self.folder_path, self.default_param_file_name))
             self.update_channels()
             self.parent.entry_a0.setText('%f' % self.parameters[0][0])
             self.parent.entry_a1.setText('%f' % self.parameters[0][1])
@@ -608,18 +628,22 @@ class data_handler():
         try to load previously stored data, return a boolean if this was 
         succesful or not
         '''
-        if os.path.exists('%s/data.h5' % self.save_data_folder_path):
+        if os.path.exists(f'{self.save_data_folder_path}/data.h5'):
             self.label_loading_progress.showMessage('loading stored data')
             stored_data = True
-            with h5py.File('%s/data.h5' % self.save_data_folder_path, 'r') as infile:
-                self.tensor_positions = infile['tensor positions'][()]
-                self.positions = infile['positions'][()]
-                self.position_dimension = infile['position dimension'][()]
-                self.sum_spec = infile['sum spec'][()]
-                self.parameters = infile['parameters'][()]
-                self.max_pixel_spec = infile['max pixel spec'][()]
+            with h5py.File(f'{self.save_data_folder_path}/data.h5', 'r') as infile:
+                if "tensor positions" in infile.keys():
+                    file_key=''
+                else:
+                    file_key=f"{self.file_name}/"
+                self.tensor_positions = infile[f'{file_key}tensor positions'][()]
+                self.positions = infile[f'{file_key}positions'][()]
+                self.position_dimension = infile[f'{file_key}position dimension'][()]
+                self.sum_spec = infile[f'{file_key}sum spec'][()]
+                self.parameters = infile[f'{file_key}parameters'][()]
+                self.max_pixel_spec = infile[f'{file_key}max pixel spec'][()]
                 self.len_spectrum = len(self.sum_spec)
-                self.spectra = infile['spectra'][()]
+                self.spectra = infile[f'{file_key}spectra'][()]
             if self.file_type == '.mca': ###!TODO
                 self.len_scans = np.prod(self.position_dimension, axis = 1)
                 self.sum_len_scans = [np.arange(0, self.len_scans[0])]
@@ -649,7 +673,7 @@ class data_handler():
                 self.sum_spec = np.load('%s/sum_spec.npy' %
                                         (self.save_data_folder_path))
                 self.len_spectrum = len(self.sum_spec)
-            elif os.path.isdir('%s/single_spectra' % self.folderpath):
+            elif os.path.isdir('%s/single_spectra' % self.folder_path):
                 stored_data = True
                 # spectra and tensor positions are not loaded here..
                 self.parameters = np.load(
@@ -676,35 +700,35 @@ class data_handler():
         self.label_loading_progress.showMessage('loading done')
 
     def run_spx_worker(self):
-        spx_worker = spx_thread(self.folderpath)
+        spx_worker = spx_thread(self.folder_path)
         spx_worker.signals.progress.connect(self.run_spx_progress)
         spx_worker.start()
         spx_worker.wait()
         self.label_loading_progress.showMessage('loading done')
 
     def run_bcf_worker(self):
-        bcf_worker = bcf_thread(self.folderpath)
+        bcf_worker = bcf_thread(self.folder_path)
         bcf_worker.signals.progress.connect(self.run_bcf_progress)
         bcf_worker.start()
         bcf_worker.wait()
         self.label_loading_progress.showMessage('loading done')
 
     def run_spe_worker(self):
-        spe_worker = spe_thread(self.folderpath)
+        spe_worker = spe_thread(self.folder_path)
         spe_worker.signals.progress.connect(self.run_spe_progress)
         spe_worker.start()
         spe_worker.wait()
         self.label_loading_progress.showMessage('loading done')
 
     def run_mca_worker(self, XANES=False):
-        mca_worker = mca_thread(self.folderpath, XANES=XANES)
+        mca_worker = mca_thread(self.folder_path, XANES=XANES)
         mca_worker.signals.progress.connect(self.run_mca_progress)
         mca_worker.start()
         mca_worker.wait()
         self.label_loading_progress.showMessage('loading done')
 
     def run_txt_worker(self):
-        txt_worker = txt_thread(self.folderpath)
+        txt_worker = txt_thread(self.folder_path)
         txt_worker.signals.progress.connect(self.run_txt_progress)
         txt_worker.start()
         txt_worker.wait()
@@ -838,7 +862,7 @@ class data_handler():
         return outstring
 
     def save_npy_probs(self):
-        '''save data in folder_path/data.   '''
+        '''save data in folder_path/data.'''
         if not os.path.exists(self.save_data_folder_path):
             os.mkdir(self.save_data_folder_path)
         with h5py.File('%s/data.h5' % self.save_data_folder_path, 'a') as tofile:
@@ -849,11 +873,11 @@ class data_handler():
                 tofile['max pixel spec'][()] = self.max_pixel_spec
                 tofile['spectra'][()] = self.spectra
             else:
-                tofile.create_dataset('counts', data=self.counts)
-                tofile.create_dataset('parameters', data=self.parameters)
-                tofile.create_dataset('sum spec', data=self.sum_spec)
-                tofile.create_dataset('max pixel spec', data=self.max_pixel_spec)
-                tofile.create_dataset('spectra', data=self.spectra)
+                tofile.create_dataset(f'{self.file_name}/counts', data=self.counts)
+                tofile.create_dataset(f'{self.file_name}/parameters', data=self.parameters)
+                tofile.create_dataset(f'{self.file_name}/sum spec', data=self.sum_spec)
+                tofile.create_dataset(f'{self.file_name}/max pixel spec', data=self.max_pixel_spec)
+                tofile.create_dataset(f'{self.file_name}/spectra', data=self.spectra)
 
     def remove_element(self, label):
         self.selected_elements = np.array(self.selected_elements)
@@ -876,17 +900,17 @@ class data_handler():
 
     def determine_folder_file_type(self):
         file_type = ''
-        if len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.spx'))))) != 0:
+        if len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.spx'))))) != 0:
             file_type = '.spx'
-        elif len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.spe'))))) != 0:
+        elif len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.spe'))))) != 0:
             file_type = '.spe'
-        elif len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.mca'))))) != 0:
+        elif len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.mca'))))) != 0:
             file_type = '.mca'
-        elif len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.txt'))))) != 0:
+        elif len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.txt'))))) != 0:
             file_type = '.txt'
-        elif len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.bcf'))))) != 0:
+        elif len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.bcf'))))) != 0:
             file_type = '.bcf'
-        elif len(list(np.sort(glob('%s/*%s' % (self.folderpath, '.csv'))))) != 0:
+        elif len(list(np.sort(glob('%s/*%s' % (self.folder_path, '.csv'))))) != 0:
             file_type = '.csv'
         return file_type
 
@@ -899,7 +923,7 @@ class data_handler():
     def find_and_save_log_file(self):
         try:
             log_file = glob('%s/*.log' %
-                            self.folderpath)[0]  # get the .log-file
+                            self.folder_path)[0]  # get the .log-file
         except:
             self.log_file_type = None
             return  # if none .log is provided, the results array is 1D and tried to be sorted by name
@@ -914,9 +938,9 @@ class data_handler():
     def create_save_folder(self):
         if self.loadtype in ['file', 'msa_file', 'angle_file', 'hdf5_file', 'bcf_file',
                              'csv_file']:
-            self.save_folder_path = '%s/results' % (self.folderpath)
+            self.save_folder_path = '%s/results' % (self.folder_path)
         else:
-            self.save_folder_path = '%s/results' % (self.folderpath)
+            self.save_folder_path = '%s/results' % (self.folder_path)
         try:
             os.mkdir(self.save_folder_path)
         except:
@@ -1060,7 +1084,7 @@ class data_handler():
                 position_dim = [1, 1, len(file_list)]
             return np.asarray(tensor_position), position_dim, np.nan_to_num(positions)
         else:
-            log_file = glob('%s/*.log' % self.folderpath)[0]
+            log_file = glob('%s/*.log' % self.folder_path)[0]
             self.step_width = self.log_content[0]
             start_position = self.log_content[1]
 

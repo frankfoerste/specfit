@@ -29,6 +29,7 @@ def csv2spec_para(file_path, print_warning = False):
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
+    file_name = file_path.split("/")[-1]
     ### define default values
     a0 = 0.0
     a1 = 0.01
@@ -56,17 +57,20 @@ def csv2spec_para(file_path, print_warning = False):
     folder_path = '/'.join(file_path.split('/')[:-1])
     try: os.mkdir('%s/data/'%folder_path)
     except: pass
-    with h5py.File('%s/data/data.h5'%folder_path, 'w') as tofile:
-        tofile.create_dataset('spectra',
+    if os.path.exists(f'{folder_path}/data/data.h5'):
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
+            del tofile[file_name]
+    with h5py.File(f'{folder_path}/data/data.h5', 'w') as tofile:
+        tofile.create_dataset(f'{file_name}/spectra',
                               data = spectra,
                               compression = 'gzip', compression_opts = 9)
-        tofile.create_dataset('sum spec', data = np.sum(spectra, axis = 0))
-        tofile.create_dataset('counts', data = [np.sum(spectra)])
-        tofile.create_dataset('parameters', data = parameters)
-        tofile.create_dataset('max pixel spec', data = spectra)
-        tofile.create_dataset('position dimension', data = np.array([1,1,1]))
-        tofile.create_dataset('tensor positions', data = np.array([[0,0,0]]))
-        tofile.create_dataset('positions', data = np.array([[0,0,0]]))
+        tofile.create_dataset(f'{file_name}/sum spec', data = np.sum(spectra, axis = 0))
+        tofile.create_dataset(f'{file_name}/counts', data = [np.sum(spectra)])
+        tofile.create_dataset(f'{file_name}/parameters', data = parameters)
+        tofile.create_dataset(f'{file_name}/max pixel spec', data = spectra)
+        tofile.create_dataset(f'{file_name}/position dimension', data = np.array([1,1,1]))
+        tofile.create_dataset(f'{file_name}/tensor positions', data = np.array([[0,0,0]]))
+        tofile.create_dataset(f'{file_name}/positions', data = np.array([[0,0,0]]))
 
     return spectra, parameters
       

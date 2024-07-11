@@ -23,6 +23,11 @@ def msa2spec_sum_para(file_path, signal_progress = None, signal_sum_spec = None)
     list containing the detector parameters [a0, a1]
     int number of spectra
     '''
+    file_name = file_path.split("/")[-1]
+    if os.path.exists(f'{file_path}/data/data.h5'):
+        with h5py.File(f'{file_path}/data/data.h5', 'r+') as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
     worth_fit = []
     counts = []
     folder_path = os.path.dirname(file_path)
@@ -114,22 +119,22 @@ def msa2spec_sum_para(file_path, signal_progress = None, signal_sum_spec = None)
     sum_spec = np.sum(list(spectra.values()), axis = 0)
     parameters = [a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time]
     
-    with h5py.File('%s/data/data.h5'%folder_path, 'w') as tofile:
-        tofile.create_dataset('spectra', data = np.array(list(spectra.values())),
+    with h5py.File('%s/data/data.h5'%folder_path, 'r+') as tofile:
+        tofile.create_dataset(f'{file_name}/spectra', data = np.array(list(spectra.values())),
                               compression="gzip")
-        tofile.create_dataset('max pixel spec', data = max_pixel_spec,
+        tofile.create_dataset(f'{file_name}/max pixel spec', data = max_pixel_spec,
                               compression="gzip")
-        tofile.create_dataset('sum spec', data = sum_spec,
+        tofile.create_dataset(f'{file_name}/sum spec', data = sum_spec,
                               compression="gzip")
-        tofile.create_dataset('counts', data = counts,
+        tofile.create_dataset(f'{file_name}/counts', data = counts,
                               compression="gzip")
-        tofile.create_dataset('position dimension', data = position_dimension,
+        tofile.create_dataset(f'{file_name}/position dimension', data = position_dimension,
                               compression="gzip")
-        tofile.create_dataset('positions', data = positions,
+        tofile.create_dataset(f'{file_name}/positions', data = positions,
                               compression="gzip")
-        tofile.create_dataset('tensor positions', data = tensor_positions,
+        tofile.create_dataset(f'{file_name}/tensor positions', data = tensor_positions,
                               compression="gzip")
-        tofile.create_dataset('parameters', data = parameters,
+        tofile.create_dataset(f'{file_name}/parameters', data = parameters,
                               compression="gzip")
     
     return spectra, sum_spec, parameters
