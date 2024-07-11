@@ -491,14 +491,15 @@ class SpecFit(object):
         if self.calc_PU:
             for iIdx in range(len(self.PU_Elements)):
                  len_linelist = len(linelist[iIdx]['lines'])
-        #         print('linelist', linelist[iIdx])
+                 #print('linelist', linelist[iIdx])
                  for j1 in range(len_linelist): #pileups with themselves, 1. order
                      E1 = 2*linelist[iIdx]['lines'][j1]['E']
                      channel_j1 = int(np.round((-self.Det[0]+linelist[iIdx]['lines'][j1]['E'])/self.Det[1]))
                      if E1 < 41.84:
                          g1 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**2\
                              *gating_time*self.sum_meas_load
-                         if g1 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
+                         #if g1 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
+                         if (g1*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E6) > self.PU_threshold:
                              linelist[iIdx]['lines'].append({
                                  'E':E1,
                                  'g':g1,
@@ -512,7 +513,8 @@ class SpecFit(object):
                                  g2 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor\
                                      *linelist[iIdx]['lines'][j2]['g']*self.PU_factor\
                                          *gating_time*self.sum_meas_load) ##1.5
-                                 if g2 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
+                                 #if g2 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
+                                 if (g2*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E6) > self.PU_threshold:
                                      linelist[iIdx]['lines'].append({
                                          'E':E2,
                                          'g':g2,
@@ -524,7 +526,8 @@ class SpecFit(object):
                      if E3 < 41.84:
                          g3 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**3\
                              *gating_time*self.sum_meas_load
-                         if g3 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                         #if g3 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                         if (g3*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
                              linelist[iIdx]['lines'].append({
                                  'E':E3,
                                  'g':g3,
@@ -538,7 +541,8 @@ class SpecFit(object):
                                  g4 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**2 \
                                      *linelist[iIdx]['lines'][j2]['g']*self.PU_factor\
                                          *gating_time*self.sum_meas_load
-                                 if g4 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                                 #if g4 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                                 if (g4*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
                                      linelist[iIdx]['lines'].append({
                                          'E':E4,
                                          'g':g4,
@@ -550,7 +554,8 @@ class SpecFit(object):
                                  g5 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor \
                                      *(linelist[iIdx]['lines'][j2]['g']*self.PU_factor)**2\
                                          *gating_time*self.sum_meas_load)
-                                 if g5 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                                 #if g5 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                                 if (g5*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
                                      linelist[iIdx]['lines'].append({
                                          'E':E5,
                                          'g':g5,
