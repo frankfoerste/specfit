@@ -35,7 +35,7 @@ def spx2spec_para(file_path,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
-    file_name = file_path.split("/")[-1]
+    file_name = os.path.split(file_path)[1]
     ### define default values
     a0 = -0.96
     a1 = 0.01
@@ -95,13 +95,16 @@ def spx2spec_para(file_path,
     spectrum = np.divide(spectrum, life_time)
     ### save data if decided
     if save_results:
-        folder_path = '/'.join(file_path.split('/')[:-1])
+        folder_path = os.path.split(file_path)[0]
         try: os.mkdir('%s/data/'%folder_path)
         except: pass
         if os.path.exists(f'{folder_path}/data/data.h5'):
             with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
                 if file_name in tofile.keys():
                     del tofile[file_name]
+        else:
+            empty_file = h5py.File(f'{folder_path}/data/data.h5', 'w')
+            empty_file.close()
         with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             tofile.create_dataset(f'{file_name}/spectra',
                                   data = spectrum,
@@ -144,7 +147,7 @@ def many_spx2spec_para(folder_path, signal = None ,worth_fit_threshold = 200,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
-    file_name = folder_path.split("/")[-1]
+    file_name = os.path.split(folder_path)[1]
     if os.path.exists(f'{folder_path}/data/data.h5'):
         with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             if file_name in tofile.keys():

@@ -29,7 +29,7 @@ def csv2spec_para(file_path, print_warning = False):
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
-    file_name = file_path.split("/")[-1]
+    file_name = os.path.split(file_path)[1]
     ### define default values
     a0 = 0.0
     a1 = 0.01
@@ -54,13 +54,16 @@ def csv2spec_para(file_path, print_warning = False):
                 channel = int(line[0])-1
                 spectra[:,channel] = np.array([int(intensity) for intensity in line[1:]])
     
-    folder_path = '/'.join(file_path.split('/')[:-1])
+    folder_path = os.path.split(file_path)[0]
     try: os.mkdir('%s/data/'%folder_path)
     except: pass
     if os.path.exists(f'{folder_path}/data/data.h5'):
         with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             del tofile[file_name]
-    with h5py.File(f'{folder_path}/data/data.h5', 'w') as tofile:
+    else:
+        empty_file = h5py.File(f'{folder_path}/data/data.h5', 'w')
+        empty_file.close()
+    with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
         tofile.create_dataset(f'{file_name}/spectra',
                               data = spectra,
                               compression = 'gzip', compression_opts = 9)

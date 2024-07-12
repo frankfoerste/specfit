@@ -28,13 +28,7 @@ import angles_functions as angles
 import specfit_GUI_functions as sfunc      # Module used for the specfit_GUI
 ###############################################################################
 file_dir = os.path.dirname(os.path.abspath(__file__))
-if "win" in sys.platform:
-    parent_dir = "\\".join(file_dir.split("\\")[:-1])
-    elements_path = parent_dir+'\\Data\\elements.dat'
-else:
-    parent_dir = "/".join(file_dir.split("/")[:-1])
-    elements_path = parent_dir+'/Data/elements.dat'
-#parent_dir = "/".join(file_dir.split("/")[:-1])
+parent_dir = os.path.split(file_dir)[0]
 
 z_elements = {}
 with open(parent_dir+'/Data/elements.dat', 'r') as element_file:
@@ -143,6 +137,7 @@ class data_handler():
         self.file_type = ''  # .spx or .txt or .msa or .bcf
         self.save_folder_path = ''
         self.save_data_folder_path = ''
+        self.save_data_file_path = ''
         self.SpecFit_MainWindow = None
         self.life_time = 0  # given in .msa or spx file
         self.spectra = {}  # dict {1:spectra1, 2:spectra2, ...}
@@ -292,7 +287,7 @@ class data_handler():
         self.file_path, self.loadtype = self._get_file_path(angle_file)
         self.file_name = self._get_file_name(self.file_path)
         self.folder_path = self.get_folder_of_path()
-        self.save_data_folder_path = f'{self.folder_path}/data'
+        self.save_data_folder_path = os.path.join(self.folder_path, 'data')
         self.file_type = self.get_file_type()
         reload = QtWidgets.QMessageBox.Yes
         if self.file_type == '.MSA':
@@ -304,8 +299,8 @@ class data_handler():
             self.life_time = msa.msa2life_time(f'{self.file_path}')
             self.len_spectrum = msa.msa2channels(self.file_path)
 
-            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
-                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+            if os.path.isfile(os.path.join(self.save_data_folder_path, 'data.h5')):
+                with h5py.File(os.path.join(self.save_data_folder_path, 'data.h5'), "r") as f:
                     if self.file_name in f.keys(): reload = True
                 if reload is True:  
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',
@@ -396,8 +391,8 @@ class data_handler():
 
         elif self.file_type == '.hdf5' or self.file_type == '.h5':
             self.loadtype = 'hdf5_file'
-            if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
-                with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
+            if os.path.isfile(os.path.join(self.save_data_folder_path, 'data.h5')):
+                with h5py.File(os.path.join(self.save_data_folder_path, 'data.h5'), "r") as f:
                     if self.file_name in f.keys(): reload = True
                 if reload:  
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, '?',

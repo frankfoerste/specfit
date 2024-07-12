@@ -30,8 +30,8 @@ def hdf2spec_para(file_path):
     '''
     
     file_type = file_path.split('.')[-1]
-    file_name = file_path.split("/")[-1]
-    save_path = '/'.join(file_path.split('/')[:-1])
+    file_name = os.path.split(file_path)[1]
+    save_path = os.path.split(file_path)[0]
     if os.path.exists(f'{file_path}/data/data.h5'):
         with h5py.File(f'{file_path}/data/data.h5', 'r+') as tofile:
             if file_name in tofile.keys():
@@ -135,8 +135,8 @@ def hdf_tensor_positions(file_path):
     It determines whether it is a line scan or a 3D-Scan.
     '''
     file_type = file_path.split('.')[-1]
-    file_name = file_path.split("/")[-1]
-    save_path = '/'.join(file_path.split('/')[:-1])
+    file_name = os.path.split(file_path)[1]
+    save_path = os.path.split(file_path)[0]
     hdf5_file = h5py.File(file_path, 'r')
     if file_type == 'hdf5':
         line_breaks = hdf5_file['SDD/scan index log/line breaks'][()]

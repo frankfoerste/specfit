@@ -37,8 +37,8 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
     ### get the folder path sting
-    folder_path = file_path.replace(file_path.split('/')[-1],'')
-    file_name = file_path.split("/")[-1]
+    folder_path = os.path.split(file_path)[0]
+    file_name = os.path.split(file_path)[1]
     ### create a data folder to store the data
     os.makedirs('%s/data/'%folder_path, exist_ok=True)
     ### open the bruker bcf file
@@ -101,6 +101,9 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
         with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
+    else:
+        empty_file = h5py.File(f'{folder_path}/data/data.h5', 'w')
+        empty_file.close()
     spectra.to_hdf5(f'{folder_path}/data/data.h5', f'{file_name}/spectra', compression='gzip', shuffle=True)  
     if verbose:
         print('### now save everything to a data h5 file')

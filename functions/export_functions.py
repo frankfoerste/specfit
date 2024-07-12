@@ -5,6 +5,8 @@ Created on Thu Sep  7 08:36:24 2023
 
 @author: frank
 """
+import os
+
 ### import packages needed
 import h5py
 from PIL import Image
@@ -17,8 +19,8 @@ def h5_to_tiff():
     """
     ### define path where h5 file is stored
     data_path = QtWidgets.QFileDialog().getOpenFileName(filter = '*.h5')[0]
-    folder_path = "/".join(data_path.split("/")[:-1])
-    file_name = data_path.split("/")[-1].replace(".h5","")
+    folder_path = os.path.split(data_path)[0]
+    file_name = os.path.split(data_path)[1]
     ### define at how many rows the data should be splitted
     with h5py.File(data_path, "r") as f:
         for key in f:

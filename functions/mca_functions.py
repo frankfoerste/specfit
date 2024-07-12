@@ -166,9 +166,9 @@ def many_mca2spec_para(folder_path, XANES = False, signal = None ,
     except: pass
     
     ### read out ionization current from .spec file
-    spec_file_path = glob('/'.join(folder_path.split('/')[:-1])+'/*.spec')[0]
+    spec_file_path = glob(os.path.split(folder_path)[0]+'/*.spec')[0]
     nr_scans, len_scans = read_nr_len_scans_from_spec(spec_file_path)
-    scan_0, _ = [int(tmp.replace('.mca','')) for tmp in sorted_folder[0].split('/')[-1].split('_')[-2:]]
+    scan_0, _ = [int(tmp.replace('.mca','')) for tmp in os.path.split(sorted_folder[0])[1].split('_')[-2:]]
     ionization_current = read_ionization_spec(spec_file_path, nr_scans, 
                                               len_scans = len_scans,
                                               scan_0 = scan_0)
@@ -183,7 +183,7 @@ def many_mca2spec_para(folder_path, XANES = False, signal = None ,
         print('machine memory big enough. creating spectra dict')
         for file_nr, mca_file in enumerate(sorted_folder):
             ### determine number of scan which the file belongs to
-            scan, point = [int(tmp.replace('.mca','')) for tmp in mca_file.split('/')[-1].split('_')[-2:]]
+            scan, point = [int(tmp.replace('.mca','')) for tmp in os.path.split(mca_file)[1].split('_')[-2:]]
             if len_scans['#S %d'%scan] == 0:
                 continue
             file_nr = point
@@ -420,7 +420,7 @@ def mca_tensor_position(file_path, XANES = False):
     It determines whether it is a line scan or a 3D-Scan.
     If XANES = True, the position is read out from the monoE parameter
     '''
-    file_name = file_path.split('/')[-1].split('_')
+    file_name = os.path.split(file_path)[1].split('_')
     point = int(file_name[-1].replace('.mca', ''))
     if file_path[-4:] == '.mca':
         with open(file_path, 'r', encoding = 'ISO-8859-1') as infile:
@@ -505,10 +505,10 @@ def mca_tensor_positions(folder_path, file_type = '.mca', XANES = False):
         files = sorted(glob(folder_path+'*'+file_type))
     elif type(folder_path) == list:
         files = folder_path
-    nr_scans = np.unique([int(file.split('/')[-1].split('_')[-2]) for file in files])
+    nr_scans = np.unique([int(os.path.split(file)[1].split('_')[-2]) for file in files])
     len_scans = np.zeros(len(nr_scans), dtype = int)
     for file in files:
-        len_scans[int(file.split('/')[-1].split('_')[-2])-nr_scans[0]] += 1
+        len_scans[int(os.path.split(file)[1].split('_')[-2])-nr_scans[0]] += 1
     positions = []
     for file in files:
         positions.append(mca_tensor_position(file, XANES = XANES))
