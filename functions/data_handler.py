@@ -7,6 +7,8 @@ Created on Mon Oct  8 13:53:06 2018
 """
 ###############################################################################
 import os
+import sys
+
 import numpy as np
 import h5py
 from PyQt5 import QtWidgets, QtCore
@@ -26,7 +28,13 @@ import angles_functions as angles
 import specfit_GUI_functions as sfunc      # Module used for the specfit_GUI
 ###############################################################################
 file_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = "/".join(file_dir.split("/")[:-1])
+if "win" in sys.platform:
+    parent_dir = "\\".join(file_dir.split("\\")[:-1])
+    elements_path = parent_dir+'\\Data\\elements.dat'
+else:
+    parent_dir = "/".join(file_dir.split("/")[:-1])
+    elements_path = parent_dir+'/Data/elements.dat'
+#parent_dir = "/".join(file_dir.split("/")[:-1])
 
 z_elements = {}
 with open(parent_dir+'/Data/elements.dat', 'r') as element_file:
