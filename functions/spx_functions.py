@@ -148,10 +148,17 @@ def many_spx2spec_para(folder_path, signal = None ,worth_fit_threshold = 200,
     list containing the detector parameters [a0, a1, FANO, FWHM]
     '''
     file_name = os.path.split(folder_path)[1]
+    try:
+        os.mkdir('%s/data/' % folder_path)
+    except:
+        pass
     if os.path.exists(f'{folder_path}/data/data.h5'):
         with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
+    else:
+        empty_file = h5py.File(f'{folder_path}/data/data.h5', 'w')
+        empty_file.close()
     worth_fit = []
     counts = []
     parameters = []

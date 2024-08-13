@@ -24,18 +24,20 @@ def msa2spec_sum_para(file_path, signal_progress = None, signal_sum_spec = None)
     int number of spectra
     '''
     file_name = os.path.split(file_path)[1]
-    if os.path.exists(f'{file_path}/data/data.h5'):
-        with h5py.File(f'{file_path}/data/data.h5', 'r+') as tofile:
+    folder_path = os.path.split(file_path)[0]
+    try:
+        os.mkdir('%s/data/' % folder_path)
+    except:
+        pass
+    if os.path.exists(f'{folder_path}/data/data.h5'):
+        with h5py.File(f'{folder_path}/data/data.h5', 'r+') as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
     else:
-        empty_file = h5py.File(f'{file_path}/data/data.h5', 'w')
+        empty_file = h5py.File(f'{folder_path}/data/data.h5', 'w')
         empty_file.close()
     worth_fit = []
     counts = []
-    folder_path = os.path.dirname(file_path)
-    try: os.mkdir('%s/data/'%folder_path)
-    except: pass
     if signal_sum_spec != None:
         signal_sum_spec.emit('None')
     with open(file_path,'rb') as infile:
