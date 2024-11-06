@@ -654,7 +654,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
             self.reset_2_default()
         ### to reduce memory usage during the fitting process batch fitting is
         ### automatically enable when the number of spectra is above 10000
-        if np.prod(self.data.position_dimension) > 10000:
+        if np.prod(self.data.position_dimension) > 100000:
             self.sfs.check_batch_fitting.setChecked(True)
         else:
             self.sfs.check_batch_fitting.setChecked(False)
@@ -819,6 +819,11 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         self.data.threshold = np.asarray(self.entry_nl_fit_threshold.text(),dtype = float)
         self.data.mincount = np.asarray(self.threshold_handler.entry_mincounts.text(),dtype = float)
         self.PSE_widget.get_selected_lines()
+        if self.s.calc_PU == True:
+            if len(self.PSE_widget.selected_lines) == len(self.PSE_widget.PU_lines):
+                for i in range(0, len(self.PSE_widget.selected_lines)):
+                    for line in self.PSE_widget.PU_lines[i]:
+                        self.PSE_widget.selected_lines[i].append(line)
         self.PSE_widget.user_defined_lines = self.PSE_widget.tab_udl.get_user_defined_lines_data()
         self.PSE_widget.build_specfit_addlines()
         self.data.selected_elements = self.PSE_widget.selected_elements
@@ -1140,15 +1145,16 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         ### the plot canvas
         self.clear_ax_canvas_spectrum(['measurement', 'background', 'fitted spectrum'])
         ### update the data_handler with GUI values
+        self.sfs.set_PU_Escape_parameters()
         self.store_GUI_values()
         ### load all needed parameters into specfit_deconvolution
-        self.load_parameter_in_specfit_deconvolution()   
+        self.load_parameter_in_specfit_deconvolution()
         ### now load the spectrum in specfit_deconvolution and crop to ROI
         self.load_spec_in_specfit_deconvolution(spectra_nr = self.spectra_nr)
         ### set order of Minimum detection
         self.s.calc_minima_order = int(self.entry_calc_minima_order.text())
         ### set PU and Escape parameters
-        self.sfs.set_PU_Escape_parameters()
+        #self.sfs.set_PU_Escape_parameters()
         ### if background is approximated to zero
         if self.data.bg_zero == True:
             self.s.Strip = np.zeros(len(self.s.meas_load))                      
@@ -1166,13 +1172,13 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         self.PSE_widget.tab_udl.load_spec((np.subtract(self.s.meas_load,self.s.Strip)), float(self.data.parameters_user[0]),float(self.data.parameters_user[1]),'test')
         label_list,self.s.user_defined_lines = self.PSE_widget.tab_udl.get_user_defined_lines()
         ### read out all lines and check_fit the spectrum            
-        addlines = self.PSE_widget.specfit_addlines     
-        if addlines or self.s.user_defined_lines: #(if not empty)                                              
-            self.s.addLines(addlines) 
+        addlines = self.PSE_widget.specfit_addlines
+        if addlines or self.s.user_defined_lines: #(if not empty)
+            self.s.addLines(addlines)
             if self.check_nl_fit.checkState() == 0: 
                 ### calculate the fitted peaks using linear fit (entered parameter)
                 self.s.linfit()
-            elif self.check_nl_fit.checkState() == 2:   
+            elif self.check_nl_fit.checkState() == 2:
                 self.s.fit()
                 self.data.parameters_user[0:4]= self.s.Det[0:4]
                 self.display_values_in_GUI()
@@ -1182,7 +1188,7 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
         else:
             self.s.Lines.clear()
             result_spec = []
-        
+
         ### display fit results on measurement properties 
         self.popup_properties.clear_popup()
         self.popup_properties.fill_text(self.popup_properties.backup_text)
@@ -1631,6 +1637,12 @@ class specFit_GUI_main(QtWidgets.QMainWindow):
                                              save_storage = save_storage,
                                              dimension = np.copy(self.data.position_dimension))
                             ### create an empty list
+                            # if self.s.calc_PU:
+                            #     if len(self.PSE_widget.selected_lines) == len(self.PSE_widget.PU_lines):
+                            #         for i in  range(len(self.PSE_widget.selected_lines)):
+                            #             for line in self.PSE_widget.PU_lines[i]:
+                            #                 self.PSE_widget.selected_lines[i].append(line)
+
                             results = create_empty_results(load_type = self.data.loadtype,
                                                            selected_elements = self.PSE_widget.selected_elements,
                                                            selected_lines = self.PSE_widget.selected_lines,

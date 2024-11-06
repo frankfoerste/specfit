@@ -66,6 +66,7 @@ class periodic_table(QtWidgets.QWidget):
         
         self.selected_elements = []
         self.selected_lines = []
+        self.PU_lines = []
         self.user_defined_lines = []
         self.setStyleSheet('QLabel {font-size: 11px;} '\
                            +'QLineEdit {font-size: 11px} '\
@@ -190,6 +191,7 @@ class periodic_table(QtWidgets.QWidget):
         #             8:'M3', 9:'M4', 10:'M5'}
         self.selected_elements = []
         self.selected_lines = []
+        self.PU_lines = []
         for lines in self.check_lines_list:                             ###[label],8xchecks]
             self.selected_elements.append(lines[0].text()) ##TODO           
             line_list = [] # store for example ['Ka','Kb']
@@ -197,6 +199,13 @@ class periodic_table(QtWidgets.QWidget):
                 if lines[j].checkState() == 2:
                     line_list.append(linedict[j])
             self.selected_lines.append(line_list)
+
+        for lines in self.selected_lines:
+            PULineList = []
+            for line in lines:
+                for i in range(lines.index(line),len(lines)):
+                    PULineList.append(line+"+"+lines[i])
+            self.PU_lines.append(PULineList)
             
             
     def read_element_choice(self,element_str,paramfile = False):

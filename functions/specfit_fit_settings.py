@@ -153,7 +153,7 @@ class specfit_fit_settings(QtWidgets.QWidget):
         self.entry_smooth_cycles = QtWidgets.QLineEdit('0', self)
         self.entry_smooth_width = QtWidgets.QLineEdit('1', self)
         self.entry_calc_minima_order = QtWidgets.QLineEdit('15', self)
-        self.entry_PU_factor = QtWidgets.QLineEdit('0.1', self)
+        self.entry_PU_factor = QtWidgets.QLineEdit('1', self)
         self.entry_PU_threshold = QtWidgets.QLineEdit('1e-8', self)
         self.entry_Escape_factor = QtWidgets.QLineEdit('0.8', self)
         self.entry_Escape_threshold = QtWidgets.QLineEdit('1e-3', self)

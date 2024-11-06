@@ -56,7 +56,7 @@ class SpecFit(object):
         self.minima = [] # list containing all minima. If only minima on sum_spec, self.minima becomes np.ndarray
         self.Det = [-0.96, 0.01, 0.112, 0.0488]  # a0,     a1,    Fano,  FWHMel
         self.calc_PU = 0.1
-        self.PU_factor = 0.1
+        self.PU_factor = 1
         self.PU_threshold = 1E-8
         self.calc_Escape = 0.8
         self.Escape_factor = 0.8
@@ -381,8 +381,8 @@ class SpecFit(object):
             sum_name = '%s-%s'%(_Z,name)
             g_sum[sum_name] = 0
             lines_list = []
-            factor = 1
             for _l in lines:
+                factor = 1
                 if sum_name[-1] == 'L':
                     if _l in self.L1_Lines:
                         factor = xrl.JumpFactor(_Z, xrl.L1_SHELL) * xrl.FluorYield(_Z, xrl.L1_SHELL)    
@@ -390,7 +390,7 @@ class SpecFit(object):
                         factor = xrl.JumpFactor(_Z, xrl.L2_SHELL) * xrl.FluorYield(_Z, xrl.L2_SHELL)
                     elif _l in self.L3_Lines:
                         factor = xrl.JumpFactor(_Z, xrl.L3_SHELL) * xrl.FluorYield(_Z, xrl.L3_SHELL)      
-                try:  
+                try:
                     g_sum[sum_name] += (xrl.RadRate( _Z, _l)*factor)
                     if not(xrl.LineEnergy(_Z,_l) == 0.0 or xrl.RadRate( _Z, _l)==0.0):
                         lines_list.append({ 'E':xrl.LineEnergy(_Z,_l), 'g':xrl.RadRate( _Z, _l)*factor, 'type' : 'Fluorescence'})
@@ -401,11 +401,7 @@ class SpecFit(object):
                 'edge':name,
                 'g_sum': g_sum[sum_name], 
                 'lines': lines_list                  
-                })      
-            for _l in lines_list:
-                _l['g'] /= g_sum[sum_name]
-            for _l in LL:
-                _l['g_sum'] = 1
+                })
         return LL
 
 
@@ -425,8 +421,10 @@ class SpecFit(object):
                 with HiddenPrints(): #bloc print, cause xraylib prints a lot of waste
                     entry.append(self.get_xraylib_lineset(line))
                 entry.append(line)
-                self.Z.append(entry)
-            
+                #Pile-up Linien nicht berücksichtigen, da sie später separat hinzugefügt werden
+                if entry[1] != None:
+                    self.Z.append(entry)
+
         self.Lines = self.get_lines(self.Z)
         for i in range(len(self.Lines)):
             self.PU_Elements.append(self.Lines[i]['Z']) #[29,29,21,..]
@@ -491,94 +489,126 @@ class SpecFit(object):
         if self.calc_PU:
             for iIdx in range(len(self.PU_Elements)):
                  len_linelist = len(linelist[iIdx]['lines'])
-                 #print('linelist', linelist[iIdx])
+                 linelist.append({'I': 1, 'Z': linelist[iIdx]['Z'], 'edge': linelist[iIdx]['edge']+'+'+linelist[iIdx]['edge'], 'g_sum': 1, 'lines': []})
+                 g = 0
                  for j1 in range(len_linelist): #pileups with themselves, 1. order
                      E1 = 2*linelist[iIdx]['lines'][j1]['E']
                      channel_j1 = int(np.round((-self.Det[0]+linelist[iIdx]['lines'][j1]['E'])/self.Det[1]))
                      if E1 < 41.84:
-                         g1 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**2\
+                         g1 = (linelist[iIdx]['lines'][j1]['g'])**2\
                              *gating_time*self.sum_meas_load
-                         #if g1 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
                          if (g1*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E6) > self.PU_threshold:
-                             linelist[iIdx]['lines'].append({
+                             linelist[-1]['lines'].append({
                                  'E':E1,
                                  'g':g1,
                                  'type' : 'PU'})
-                         
+                             g += g1
                      for j2 in range(j1, len_linelist): #pileup with different sub-lines of the same line, 1. order
                          if j1 != j2 and j1<j2:
                              E2 = linelist[iIdx]['lines'][j1]['E'] \
                                          +linelist[iIdx]['lines'][j2]['E']
                              if E2 < 41.84:
-                                 g2 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor\
-                                     *linelist[iIdx]['lines'][j2]['g']*self.PU_factor\
+                                 g2 = (linelist[iIdx]['lines'][j1]['g']\
+                                     *linelist[iIdx]['lines'][j2]['g']\
                                          *gating_time*self.sum_meas_load) ##1.5
-                                 #if g2 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E6:
                                  if (g2*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E6) > self.PU_threshold:
-                                     linelist[iIdx]['lines'].append({
+                                     linelist[-1]['lines'].append({
                                          'E':E2,
                                          'g':g2,
                                          'type' : 'PU'})
-                             
+                                     g += g2
+
                      ##pileups with themselves, 2. order
-                     E3 = 3*linelist[iIdx]['lines'][j1]['E']
-        
-                     if E3 < 41.84:
-                         g3 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**3\
-                             *gating_time*self.sum_meas_load
-                         #if g3 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
-                         if (g3*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
-                             linelist[iIdx]['lines'].append({
-                                 'E':E3,
-                                 'g':g3,
-                                 'type' : 'PU'})
-                         
-                     for j2 in range(j1, len_linelist): #pileup with different sub-lines of the same line, 2. order
-                         if j2 != j1 and j1<j2:
-                             E4 = 2*linelist[iIdx]['lines'][j1]['E'] \
-                                     +linelist[iIdx]['lines'][j2]['E']
-                             if E4 < 41.84:
-                                 g4 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor)**2 \
-                                     *linelist[iIdx]['lines'][j2]['g']*self.PU_factor\
-                                         *gating_time*self.sum_meas_load
-                                 #if g4 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
-                                 if (g4*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
-                                     linelist[iIdx]['lines'].append({
-                                         'E':E4,
-                                         'g':g4,
-                                         'type' : 'PU'})
-                             E5 = 1*linelist[iIdx]['lines'][j1]['E'] \
-                                 +2*linelist[iIdx]['lines'][j2]['E']
-        
-                             if E5 < 41.84:
-                                 g5 = (linelist[iIdx]['lines'][j1]['g']*self.PU_factor \
-                                     *(linelist[iIdx]['lines'][j2]['g']*self.PU_factor)**2\
-                                         *gating_time*self.sum_meas_load)
-                                 #if g5 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
-                                 if (g5*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
-                                     linelist[iIdx]['lines'].append({
-                                         'E':E5,
-                                         'g':g5,
-                                         'type' : 'PU'})
-# To Do: PU calculation of Lines from differen iIdx, needed if Ka and Kb separately or PU between different Elements are of interest
-# =============================================================================
-#             for kIdx in range(iIdx + 1, len(self.PU_Elements)):  #pileup with all other lines and element-lines
-#                 for j in range(len(linelist[iIdx]['lines'])):
-#                     for l in range(len(linelist[kIdx]['lines'])):
-#                         if linelist[iIdx]['Z'] == linelist[kIdx]['Z']:
-#                             E6 = linelist[iIdx]['lines'][j]['E'] \
-#                                         +linelist[kIdx]['lines'][l]['E']
-#                             if E6 < 41.84:
-#                                 tmp_spec = self.get_spec()
-#                                 g6 = (linelist[kIdx]['I']*linelist[kIdx]['lines'][l]['g']*self.PU_factor\
-#                                         *linelist[iIdx]['I']*linelist[iIdx]['lines'][j]['g']*self.PU_factor\
-#                                             *gating_time*self.sum_meas_load)
-#                                             # *sum(tmp_spec)/self.life_time*gating_time)/1
-#                                 if g6 > self.PU_threshold:
-#                                     linelist[kIdx]['lines'].append({
-#                                         'E':E6,
-#                                         'g':g6,
-#                                         'type' : 'PU'})
+                     # E3 = 3*linelist[iIdx]['lines'][j1]['E']
+                     #
+                     # if E3 < 41.84:
+                     #     g3 = (linelist[iIdx]['lines'][j1]['g'])**3\
+                     #         *gating_time*self.sum_meas_load
+                     #     #if g3 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                     #     if (g3*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
+                     #         linelist[-1]['lines'].append({
+                     #             'E':E3,
+                     #             'g':g3,
+                     #             'type' : 'PU'})
+                     #         g += g3
+                     #
+                     # for j2 in range(j1, len_linelist): #pileup with different sub-lines of the same line, 2. order
+                     #     if j2 != j1 and j1<j2:
+                     #         E4 = 2*linelist[iIdx]['lines'][j1]['E'] \
+                     #                 +linelist[iIdx]['lines'][j2]['E']
+                     #         if E4 < 41.84:
+                     #             g4 = (linelist[iIdx]['lines'][j1]['g'])**2 \
+                     #                 *linelist[iIdx]['lines'][j2]['g']\
+                     #                     *gating_time*self.sum_meas_load
+                     #             #if g4 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                     #             if (g4*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
+                     #                 linelist[-1]['lines'].append({
+                     #                     'E':E4,
+                     #                     'g':g4,
+                     #                     'type' : 'PU'})
+                     #                 g += g4
+                     #         E5 = 1*linelist[iIdx]['lines'][j1]['E'] \
+                     #             +2*linelist[iIdx]['lines'][j2]['E']
+                     #
+                     #         if E5 < 41.84:
+                     #             g5 = (linelist[iIdx]['lines'][j1]['g'] \
+                     #                 *(linelist[iIdx]['lines'][j2]['g'])**2\
+                     #                     *gating_time*self.sum_meas_load)
+                     #             #if g5 > self.PU_threshold and (np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)>1E7:
+                     #             if (g5*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
+                     #                 linelist[-1]['lines'].append({
+                     #                     'E':E5,
+                     #                     'g':g5,
+                     #                     'type' : 'PU'})
+                     #                 g += g5
+                 linelist[-1]['g_sum'] = g*self.PU_factor
+    # To Do: PU calculation of Lines from differen iIdx, needed if Ka and Kb separately or PU between different Elements are of interest
+    # =============================================================================
+            for kIdx in range(len(self.PU_Elements)):  #pileup with all other lines and element-lines
+                 g = 0
+                 iIdx=kIdx+1
+                 if iIdx < len(self.PU_Elements):
+                     if (linelist[iIdx]['edge'] != linelist[kIdx]['edge']) and linelist[kIdx]['Z'] == linelist[iIdx]['Z']:
+                         linelist.append({'I': 1, 'Z': linelist[kIdx]['Z'], 'edge': '', 'g_sum': 1, 'lines': []})
+                         for j in range(len(linelist[iIdx]['lines'])):
+                             for l in range(len(linelist[kIdx]['lines'])):
+                                 linelist[-1]['edge'] = linelist[kIdx]['edge']+'+'+linelist[iIdx]['edge']
+                                 E6 = linelist[iIdx]['lines'][j]['E'] \
+                                             + linelist[kIdx]['lines'][l]['E']
+                                 channel_j1 = int(np.round((-self.Det[0] + linelist[iIdx]['lines'][j]['E']) / self.Det[1]))
+                                 if E6 < 41.84:
+                                     tmp_spec = self.get_spec()
+                                     if ((linelist[iIdx]['lines'][j]['type'] != 'PU') and (linelist[kIdx]['lines'][l]['type'] == 'PU')):
+                                         g6 = (linelist[kIdx]['lines'][l]['g']**2\
+                                               * linelist[iIdx]['lines'][j]['g']\
+                                               * gating_time * self.sum_meas_load)
+                                     elif ((linelist[iIdx]['lines'][j]['type'] == 'PU') and (linelist[kIdx]['lines'][l]['type'] != 'PU')):
+                                         g6 = (linelist[kIdx]['lines'][l]['g'] \
+                                               * linelist[iIdx]['lines'][j]['g']**2\
+                                               * gating_time * self.sum_meas_load)
+                                     elif ((linelist[iIdx]['lines'][j]['type'] == 'PU') and (linelist[kIdx]['lines'][l]['type'] == 'PU')):
+                                         g6 = (linelist[kIdx]['lines'][l]['g']**2 \
+                                               * linelist[iIdx]['lines'][j]['g']**2 \
+                                               * gating_time * self.sum_meas_load)
+                                     else:
+                                         g6 = (linelist[kIdx]['lines'][l]['g']\
+                                             * linelist[iIdx]['lines'][j]['g']\
+                                                 *gating_time*self.sum_meas_load)\
+                                                  #*sum(tmp_spec)/self.life_time*gating_time)/1
+                                     if (g6*(np.sum(self.meas_load[channel_j1-10:channel_j1+10])*self.life_time)/1E7) > self.PU_threshold:
+                                         g += g6
+                                         linelist[-1]['lines'].append({
+                                             'E':E6,
+                                             'g':g6,
+                                             'type' : 'PU'})
+
+                         linelist[-1]['g_sum'] = g*self.PU_factor
+            for line in linelist:
+                gSum = line['g_sum']
+                for x in line['lines']:
+                    x['g'] /= gSum
+                line['g_sum'] = 1
+
 # =============================================================================
 
         # Escape lines
@@ -612,19 +642,11 @@ class SpecFit(object):
         ### plenty of spectra in specfit-GUI, M is only calculated once when 
         ### self.fit_in_progress = True
         for _s in range(len(self.Lines)):
-            ### iterate over all selected lines (numbers from 0 to len(self.Lines))
-            g_sum_pileup_escape = 0
-            if self.Lines[_s]['edge'] == 'K':
-                for _l in self.Lines[_s]['lines']:
-                    g_sum_pileup_escape += _l['g']
-                ### iterate over all transitions and create a gaussian 
-                ### distribution for every transition
-                for _l in self.Lines[_s]['lines']:
-                    self.M[_s] += self.det_resp(_l['E'], energy, T = _l['type'])*_l['g']/g_sum_pileup_escape*self.Det[1]
-            else:
-                g_sum = self.Lines[_s]['g_sum']
-                for _l in self.Lines[_s]['lines']: ###without PU
-                    self.M[_s] += self.det_resp(_l['E'], energy, T = _l['type'])*_l['g']/g_sum*self.Det[1]
+            ### iterate over all transitions and create a gaussian
+            ### distribution for every transition
+            g_sum = self.Lines[_s]['g_sum']
+            for _l in self.Lines[_s]['lines']:
+                self.M[_s] += self.det_resp(_l['E'], energy, T = _l['type'])*_l['g']*self.Det[1]
         for i, udl in enumerate(self.user_defined_lines): ### user defined lines
             self.M[_s+i+1] += udl[self.Bins[0]: self.Bins[-1]+1] 
         self.M = self.M.swapaxes(0,1)
@@ -710,21 +732,13 @@ class SpecFit(object):
         '''return spectrum+background as a list '''
         spec = self.Strip + self.NLDet
         for _s in self.Lines:
-            g_sum_pileup_escape_2 = 0
-            if _s['edge'] == 'K':
-                for _l in _s['lines']:
-                        g_sum_pileup_escape_2 += _l['g']
-                ### iterate over all transitions and create a gaussian 
-                ### distribution for every transition
-                for _l in _s['lines']:
-                    spec += self.det_resp(_l['E'], self.energy, _l['type'])*_s['I']*_l['g']/g_sum_pileup_escape_2*self.Det[1]
-                ### iterate over all transitions and create a gaussian 
-                ### distribution for every transition
-
-            else: ### without PU
-                g_sum = _s['g_sum']
-                for _l in _s['lines']:
-                    spec += self.det_resp(_l['E'], self.energy, _l['type'])*_s['I']*_l['g']/g_sum*self.Det[1]
+            ### iterate over all transitions and create a gaussian
+            ### distribution for every transition
+            for _l in _s['lines']:
+                if _l['type'] == 'PU':
+                    spec += self.det_resp(_l['E'], self.energy, _l['type']) * _s['I'] * _l['g'] * self.PU_factor * self.Det[1]
+                else:
+                    spec += self.det_resp(_l['E'], self.energy, _l['type'])*_s['I']*_l['g']*self.Det[1]
 
         for udl,r_udl in zip(self.user_defined_lines,self.result_udl):
             spec += udl    
