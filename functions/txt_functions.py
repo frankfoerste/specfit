@@ -111,20 +111,22 @@ def many_txt2spec_para(folder_path, signal):
     folder_size = 0
     machine_memory = psutil.virtual_memory().total * 1E-9
     start_time = t.time()
-    try: os.mkdir('%s/data/'%folder_path)
-    except: pass
-    sorted_folder = ns.natsorted(glob('%s/*.txt'%folder_path))
-    with open('%s/data/sorted_SpecFit.dat'%folder_path, 'w+', encoding="ISO-8859-1") as f:
+    try:
+        os.mkdir(f'{folder_path}/data/')
+    except:
+        pass
+    sorted_folder = ns.natsorted(glob(f'{folder_path}/*.txt'))
+    with open(f'{folder_path}/data/sorted_SpecFit.dat', 'w+', encoding="ISO-8859-1") as f:
         for i in range(len(sorted_folder)):
-            f.write('(%d) %s \n'%(i,sorted_folder[i]))
-            
+            f.write(f'({i}) {sorted_folder[i]} \n')
+
     for f in os.listdir(folder_path):
-        if os.path.isfile('%s/%s'%(folder_path, f)) == True:
-            folder_size += os.path.getsize('%s/%s'%(folder_path, f)) * 1E-9
+        if os.path.isfile(f'{folder_path}/{f}') is True:
+            folder_size += os.path.getsize(f'{folder_path}/{f}') * 1E-9
 
     if (folder_size / machine_memory) < 0.12:                              ### for machines with big memory
         print('machine memory big enough. creating spectra dict')
-        for txt_file in ns.natsorted(glob('%s/*.txt'%folder_path)):
+        for txt_file in ns.natsorted(glob(f'{folder_path}/*.txt')):
             spectrum_tmp = []
             start = 100
             with open(txt_file,'r', encoding="ISO-8859-1") as infile:
@@ -166,19 +168,19 @@ def many_txt2spec_para(folder_path, signal):
             parameters.append(parameters_tmp)
             file_nr += 1
             signal_progress.emit(file_nr)
-        pickle.dump(spectra, open('%s/data/spectra.pickle'%(folder_path),'wb'), protocol = pickle.HIGHEST_PROTOCOL)
+        pickle.dump(spectra, open(f'{folder_path}/data/spectra.pickle', 'wb'), protocol=pickle.HIGHEST_PROTOCOL)
         sum_spec = sfunc.sum_spec(spectra)
-        max_pixel_spec = np.max(np.array(list(spectra.values())), axis = 0)
-        np.save('%s/data/max_pixel_spec'%(folder_path),max_pixel_spec)
-        np.save('%s/data/sum_spec'%(folder_path),sum_spec)
-        
-        
+        max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
+        np.save(f'{folder_path}/data/max_pixel_spec', max_pixel_spec)
+        np.save(f'{folder_path}/data/sum_spec', sum_spec)
         del spectra
     else:                                                                       #for machines with low memory
         print('machine memory to small. creating single spectra')
-        try: os.mkdir('%s/single_spectra/'%folder_path)
-        except: pass
-        for spx_file in ns.natsorted(glob('%s/*.txt'%folder_path)):
+        try:
+            os.mkdir(f'{folder_path}/single_spectra/')
+        except:
+            pass
+        for spx_file in ns.natsorted(glob(f'{folder_path}/*.txt')):
             spectrum = []
             start = 100
             with open(spx_file,'r', encoding="ISO-8859-1") as infile:
@@ -214,19 +216,16 @@ def many_txt2spec_para(folder_path, signal):
    #             worth_fit.append(False)
             spectrum = np.divide(spectrum, life_time)
             counts.append(sum(spectrum))
-            np.save('%s/single_spectra/spectrum_%d'%(folder_path,file_nr),spectrum)  
+            np.save(f'{folder_path}/single_spectra/spectrum_{file_nr}', spectrum)
             parameters.append(parameters_tmp)
             file_nr += 1 
             signal_progress.emit(file_nr)
         sum_spec = sum_from_single_files(folder_path)
-        np.save('%s/data/sum_spec'%folder_path,sum_spec)
-      #  np.save('%s/data/counts'%(folder_path),counts)
-                    
- #   np.save('%s/data/fit_bool'%(folder_path),worth_fit)
-    np.save('%s/data/counts'%(folder_path),counts)
-    np.save('%s/data/parameters'%(folder_path),parameters)
-    print('txt loadingtime - %f'%(t.time()-start_time))
-    
+        np.save(f'{folder_path}/data/sum_spec', sum_spec)
+    np.save(f'{folder_path}/data/counts', counts)
+    np.save(f'{folder_path}/data/parameters', parameters)
+    print(f'txt loadingtime - {t.time() - start_time}')
+
 
 def txt2energy(file_path):
     '''
@@ -260,7 +259,8 @@ def txt2channels(file_path):
             elif 'Channels' in line:
                 channels = int(line.split()[1])
                 break
-    if channels == None: channels = 4096
+    if channels is None:
+        channels = 4096
     return channels
 
 def txt2life_time(file_path):
@@ -289,10 +289,10 @@ def spx_tensor_position(file_path):
     return position
 
 def sum_from_single_files(folder_path):
-    assert os.path.exist('%s/single_spectra/*.npy'%folder_path)
+    assert os.path.exist(f'{folder_path}/single_spectra/*.npy')
     first_spec = True
-    for single_spec_file in iglob('%s/single_spectra/*.npy'%folder_path):
-        if first_spec == True:
+    for single_spec_file in iglob(f'{folder_path}/single_spectra/*.npy'):
+        if first_spec is True:
             sum_spec = np.load(single_spec_file)
             first_spec = False
         else:
