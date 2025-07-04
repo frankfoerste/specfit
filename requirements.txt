@@ -3,6 +3,7 @@ h5py>=3.12
 hyperspy>=2.3
 matplotlib>=3.9
 natsort>=8
+numba
 numpy>=2.1
 Pillow>=11
 psutil>=7

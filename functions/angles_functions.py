@@ -1,11 +1,11 @@
 import sys
-import collections #to use ordered dicts
+import collections
 import os
 import h5py
 import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
-plt.ioff() #again force to not show images
+plt.ioff()
 
 def _cast_to_int(x):
     try:
@@ -23,21 +23,20 @@ def _cast_to_float(x):
         new_float = float(x)
     return new_float
 
-
 def txt2spec_para(file_path):
-    """ 
+    """
     This function reads out the spectrum of a .txt-file and reads out the
     detector parameters given in the .txt-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .txt-file.
-    
+
     Returns
     -------
     dict containing the spectrum
-    list containing hard coded detector parameters 
+    list containing hard coded detector parameters
     """
     file_name = file_path.split("/")[-1]
     tfile = open(file_path, "r")
@@ -83,29 +82,29 @@ def txt2spec_para(file_path):
                                 compression="gzip", compression_opts=9)
         tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/counts", data=[np.sum(np.array(list(spectra.values())), axis=-1)], 
+        tofile.create_dataset(f"{file_name}/counts", data=[np.sum(np.array(list(spectra.values())), axis=-1)],
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters, 
+        tofile.create_dataset(f"{file_name}/parameters", data=parameters,
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/max pixel spec", data=np.max(np.array(list(spectra.values())), axis=0), 
+        tofile.create_dataset(f"{file_name}/max pixel spec", data=np.max(np.array(list(spectra.values())), axis=0),
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=pos_dim, 
+        tofile.create_dataset(f"{file_name}/position dimension", data=pos_dim,
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions, 
+        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
                                 compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=positions, 
+        tofile.create_dataset(f"{file_name}/positions", data=positions,
                                 compression="gzip")
     return spectra, parameters, tensor_positions, pos_dim, sum_spec
-    
+
 def txt2channels(file_path):
-    """ 
+    """
     This function reads out the number of channels of a .txt-file .
-    """  
+    """
     tfile = open(file_path,"r")
-    channels = len(tfile.readline().split()) -1  # remove angle information    
+    channels = len(tfile.readline().split()) -1  # remove angle information
     tfile.close()
-    return channels    
-    
+    return channels
+
 def txt2positions(file_path):
     tfile = open(file_path, "r")
     ticks = []
@@ -113,13 +112,13 @@ def txt2positions(file_path):
         string_tick = line.split(" ")[0]
         ticks.append(_cast_to_float(string_tick))
     return np.array(np.meshgrid(1,1,ticks)).T.reshape(-1,3)
-    
+
 def txt2num_spec(file_path):
     tfile = open(file_path, "r")
     lines = tfile.readlines()
     return len(lines)
-    
-def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path): 
+
+def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
     """
     plot and save an image with spectra,background and spectra-fit
     """
@@ -129,7 +128,7 @@ def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
     savepath = save_folder_path +"/ang_images/fit_plot_{0:0.4f}.png".format(angle)
     fit_with_bg = np.add(fit,bg)
     fig,ax =plt.subplots()
-    try:    
+    try:
         plt.yscale("log")
         ax.plot(energy,spectra, "b.")
         ax.plot(energy,bg,"g-")
@@ -143,45 +142,45 @@ def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
     plt.ylabel = "intenity/arb. un."
     plt.savefig(savepath)
     plt.close(fig)
-    
-def save_numpy_arrays(energy,spectra,bg,fit,angle,save_folder_path):    
+
+def save_numpy_arrays(energy,spectra,bg,fit,angle,save_folder_path):
     angle = _cast_to_float(angle)
     fit_with_bg = np.add(fit,bg)
     if not os.path.exists(save_folder_path +"/ang_npz"):
         os.mkdir(save_folder_path +"/ang_npz")
     outfile = save_folder_path +"/ang_npz/en_sp_bg_fit_{0:0.4f}.png".format(angle)
     np.savez(outfile,energy,spectra,bg,fit_with_bg)
-    
+
 def plot_angle_line_intensities(results,angles,savepath,n=0):
-    """ 
+    """
     plot for every result-line the angles on x-axis and the intenity on x axis
     cut n angles on both sides -cause they look ugly
     Needs:
         results - list of all results dim: numberlines x numberspecptra
         angles -list of all angles
         savepath - path of allsaved.txts is used to save the images
-        n - cut off the n first and last angles     
+        n - cut off the n first and last angles
     """
     # do not cut more than you have
     if n >= len(angles)/2:
         print(f"ERROR, you are cutting 2*{n} angles in the plot! Thats more than you have... n is set zu 0.")
         n = None
     else:
-        # cut the first and the last    
-        angles_cut = angles[n:-n]  
-    # cast all to floast   
+        # cut the first and the last
+        angles_cut = angles[n:-n]
+    # cast all to floast
     angles_cut = np.vectorize(_cast_to_float)(angles_cut)
     angles = np.vectorize(_cast_to_float)(angles)
     for r,sp in zip(results,savepath):
         r = np.array(r)
-        # plot and save it!     
+        # plot and save it!
         try:
             fig,ax =plt.subplots()
             ax.plot(angles,r,linestyle = "None",marker = ".")
             plt.xlabel = "emission angle /°"
             plt.ylabel = "intenity/(photons x sr^(-1))"
             plt.savefig(sp+".png")
-            plt.close()        
+            plt.close()
         except:  # most likely an dimension error
             print("ERROR")
             print(angles,r)

@@ -8,15 +8,15 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 def spe2spec_para(file_path, print_warning=False):
-    """ 
+    """
     This function reads out the spectrum of a .spe-file and reads out the
     detector parameters given in the .spe-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spe-file.
-    
+
     Returns
     -------
     list containing the spectrum
@@ -36,10 +36,10 @@ def spe2spec_para(file_path, print_warning=False):
         for line in infile:
             if not isinstance(channels, bool):
                spectrum.append(int(line))
-            elif data_start == True:
+            elif data_start is True:
                 data_start = False
                 channels = int(line.split()[1])
-            elif life_time == True:
+            elif life_time is True:
                 life_time = int(line)/1000
                 real_time = int(line)/1000
             else:
@@ -49,24 +49,24 @@ def spe2spec_para(file_path, print_warning=False):
                     life_time = True
     parameters = [a0, a1, Fano, FWHM, life_time, a0 + a1 * (channels), gating_time, real_time]
     return np.asarray(spectrum), parameters
-      
-def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200, 
-                       save_sum_spec=True, save_spectra=True, 
-                       save_counts=True, save_parameters=True, 
-                       save_any=True, print_warning=False, 
-                       save_spec_as_dict=True, 
+
+def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
+                       save_sum_spec=True, save_spectra=True,
+                       save_counts=True, save_parameters=True,
+                       save_any=True, print_warning=False,
+                       save_spec_as_dict=True,
                        return_values=False):
-    """ 
+    """
     This function reads out the spectrum of a .spe-file and reads out the
     detector parameters given in the .spe-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spe-file.
     index : int
         the number of the spectrum in the measurement set
-    
+
     Returns
     -------
     list containing the spectrum
@@ -163,7 +163,7 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
                 signal_progress.emit(file_nr)
         if save_spectra and save_any:
             if save_spec_as_dict:
-                pickle.dump(spectra, open(f"{folder_path}/data/spectra.pickle", "wb"), 
+                pickle.dump(spectra, open(f"{folder_path}/data/spectra.pickle", "wb"),
                             protocol=pickle.HIGHEST_PROTOCOL)
                 max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
                 sum_spec = calc_sum_spec(spectra)
@@ -205,7 +205,7 @@ def sum_from_single_files(folder_path, save_sum_spec=True):
     return sum_spec
 
 def spe2life_time(file_path):
-    """ 
+    """
     This function reads out the life-time in seconds of a .spe-file.
     """
     life_time = False
@@ -219,7 +219,7 @@ def spe2life_time(file_path):
     return life_time
 
 def spe2real_time(file_path):
-    """ 
+    """
     This function reads out the real-time in seconds of a .spe-file.
     """
     life_time = False
@@ -235,12 +235,12 @@ def spe2real_time(file_path):
 def norm2sec(spectrum, time):
     """
     This function normalizes the given spectrum to seconds based on life or real time.
-    
+
     Parameters
     ----------
     spectrum : list
     time : float
-    
+
     Returns
     -------
     list of the normed spectrum
@@ -264,11 +264,11 @@ def spe2channels(file_path):
 def spe_log_content(file_path):
     """
     This function reads out all the parameters of the scan saved in the .log_file.
-    
+
     Parameters
     ----------
     folder_path: str - path of the folder
-    
+
     Returns
     -------
     [[scan_width], [start], [end], [positions]] = spe_log_content(file_path)
@@ -287,10 +287,10 @@ def spe_log_content(file_path):
                 k += 1
         content[3] =[int(content[3][i]) for i in range(3)]
     return content
-    
+
 def spe_tensor_position(file_path):
     """
-    This function reads out the specific position of the spectrum in the 
+    This function reads out the specific position of the spectrum in the
     measurement-tensor.
     returns position = [x, y, z]
     position = spe_tensor_position(file_path)
@@ -307,15 +307,15 @@ def spe_tensor_position(file_path):
 
 def spe_tensor_positions(folder_path, file_type=".spe"):
     """
-    This function reads out the tensor position of all spe/txt-files in the 
+    This function reads out the tensor position of all spe/txt-files in the
     given folder_path
-    
+
     Parameters
     ----------
     folder_path: str - path of the folder containing the spe or txt files
-    
+
     Returns
-    ------- 
+    -------
     positions = np.array([x0, y0, z0], [x0, y1, z0], ..., [xn, ym, zk])
     """
     files = glob(folder_path+"*"+file_type)
@@ -323,7 +323,7 @@ def spe_tensor_positions(folder_path, file_type=".spe"):
     for file in files:
         positions.append(spe_tensor_position(file))
     return np.array(positions)
-    
+
 def convert_string(string):
     string = string.replace(", ", ".")
     power = float(string[-2:])
@@ -331,7 +331,7 @@ def convert_string(string):
     convert = 10**power*leading/1000
     return convert
 
-def calc_sum_spec(spectrum): 
+def calc_sum_spec(spectrum):
     """
     This function calculates the sum spectrum of all given spectra.
     """

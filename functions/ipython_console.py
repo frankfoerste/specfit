@@ -19,7 +19,7 @@ class IPythonConsole(QWidget):
         self.ipython_widget.kernel_client.stop_channels()
         self.ipython_widget.kernel_manager.shutdown_kernel()
         self.ipython_widget.close()
-        
+
     def show(self,):
         self.ipython_widget.kernel_manager.kernel.shell.run_cell('import numpy as np')
         self.ipython_widget.kernel_manager.kernel.shell.run_cell('import matplotlib.pyplot as plt')

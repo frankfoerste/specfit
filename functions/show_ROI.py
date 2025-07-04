@@ -4,6 +4,7 @@ import h5py
 import time as t
 import numpy as np
 import dask.array as da
+from pathlib import Path
 from PyQt6 import QtGui, QtWidgets, QtCore
 import matplotlib.backends.backend_qt5agg as pltqt
 import matplotlib.figure as figure
@@ -14,14 +15,11 @@ import matplotlib.patches as patches
 import xraylib as xrl
 
 file_dir = os.path.dirname(os.path.abspath(__file__))
-if "win" in sys.platform:
-    parent_dir = "\\".join(file_dir.split("\\")[:-1])
-    elements_path = parent_dir+"\\Data\\elements.dat"
-    lines_path = parent_dir+"\\Data\\lines.dat"
-else:
-    parent_dir = "/".join(file_dir.split("/")[:-1])
-    elements_path = parent_dir+"/Data/elements.dat"
-    lines_path = parent_dir+"/Data/lines.dat"
+file_dir = Path(__file__).parent
+parent_dir = file_dir.parent
+elements_path = parent_dir / "Data" / "elements.dat"
+lines_path = parent_dir / "Data" / "lines.dat"
+
 # here the list of elements is read out of the file elements.dat
 elements = []
 with open(elements_path, "r") as element_file:
@@ -41,7 +39,7 @@ class ShowROI(QtWidgets.QWidget):
     """
     This class calculates the intensities for given ROIs and given elements.
     To initialize the class 2 inputs are required.
-    
+
     Parameters
     ----------
     spectra : list
@@ -63,8 +61,8 @@ class ShowROI(QtWidgets.QWidget):
         self.popup_width = 850
         self.setWindowTitle("show ROI")
         self.working_directory = os.getcwd()
-        self.setGeometry((self.screen_width-self.popup_width)//2, 
-                         (self.screen_height-self.popup_heigth)//2, 
+        self.setGeometry((self.screen_width-self.popup_width)//2,
+                         (self.screen_height-self.popup_heigth)//2,
                          self.popup_width, self.popup_heigth)
         self.time = t.time()
         self.elements = elements[5:84]
@@ -77,10 +75,10 @@ class ShowROI(QtWidgets.QWidget):
         self.rotation = "xy"  # initialize selected rotation
         self.file_type = None  # initialize the file type of the shown data set
         self.spec_nr = -1  # negativemeans sum_spec
-        for i in range(len(self.elements)):
-            self.elements[i] = "%d - %s"%(self.elements[i][0], self.elements[i][1])
+        for i, _ in enumerate(self.elements):
+            self.elements[i] = f"{self.elements[i][0]} - {self.elements[i][1]}"
         self.lines = lines[1:6]
-        for i in range(len(self.lines)):
+        for i, _ in enumerate(self.lines):
             self.lines[i] = self.lines[i][0]
         self.layout_show_ROI = QtWidgets.QGridLayout()
         self.setStyleSheet("QWidget { color: black; background-color:white;}"\
@@ -115,7 +113,7 @@ class ShowROI(QtWidgets.QWidget):
         self.radio_xz = QtWidgets.QRadioButton("xz", self)
         self.radio_yz = QtWidgets.QRadioButton("yz", self)
         self.radio_xenergy = QtWidgets.QRadioButton("x_energy", self)
-        self.radio_xenergy.setVisible(False)       #only visible if angle file is loaded 
+        self.radio_xenergy.setVisible(False)       #only visible if angle file is loaded
         self.slider_percentile = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.slider_percentile.setMinimum(0)
         self.slider_percentile.setMaximum(100)
@@ -130,10 +128,10 @@ class ShowROI(QtWidgets.QWidget):
         self.button_save_selection = QtWidgets.QPushButton("save selection", self)
         self.button_save_selection.hide()
         # self.combo_rect_size
-        self.entry_position = QtWidgets.QLineEdit("", self)    
+        self.entry_position = QtWidgets.QLineEdit("", self)
         self.entry_position.setFixedWidth(40)
-        self.entry_delta_E = QtWidgets.QLineEdit(str(self.delta_E), self)    
-        self.entry_delta_E.setMinimumWidth(100)    
+        self.entry_delta_E = QtWidgets.QLineEdit(str(self.delta_E), self)
+        self.entry_delta_E.setMinimumWidth(100)
         self.log_box = QtWidgets.QCheckBox("log", self)
         self.log_box.setChecked(True)
         self.log_box.setVisible(False)
@@ -176,17 +174,17 @@ class ShowROI(QtWidgets.QWidget):
         self.layout_show_ROI.addWidget(self.entry_delta_E, 0, 1, 1, 2)
         self.entry_position.setText("%.7f"%self.spec_nr)
         self.setLayout(self.layout_show_ROI)
-        try: 
+        try:
             self.combo_elements.addItems(self.elements)
-        except: 
+        except:
             pass
-        try: 
+        try:
             self.combo_lines.addItems(self.lines)
-        except: 
+        except:
             pass
         self.combo_rect_size.addItems(self.rect_sizes)
         self.plot_style_str = "linear"
-        
+
     def __init__plot(self):
         """
         define the layout of the plot frame
@@ -199,9 +197,9 @@ class ShowROI(QtWidgets.QWidget):
         self.canvas_spectrum.setParent(self)
         self.layout_show_ROI.addWidget(self.canvas_roi, 1, 4, 1, 5)
         self.layout_show_ROI.addWidget(self.canvas_spectrum, 1, 0, 1, 4)
-        self.toolbar_ROI = pltqt.NavigationToolbar2QT(self.canvas_roi, self) 
+        self.toolbar_ROI = pltqt.NavigationToolbar2QT(self.canvas_roi, self)
         self.toolbar_ROI.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
-        self.toolbar_sum_spec = pltqt.NavigationToolbar2QT(self.canvas_spectrum, self) 
+        self.toolbar_sum_spec = pltqt.NavigationToolbar2QT(self.canvas_spectrum, self)
         self.toolbar_sum_spec.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         self.layout_show_ROI.addWidget(self.toolbar_ROI, 5, 4, 1, 5)
         self.layout_show_ROI.addWidget(self.toolbar_sum_spec, 5, 0, 1, 3)
@@ -219,21 +217,21 @@ class ShowROI(QtWidgets.QWidget):
         self.roi_plotted = False
 
     def display_show_ROI(self, ):
-        try: 
+        try:
             self.parent.data.file_type
-        except: 
+        except:
             self.parent.statusBar().showMessage("no measurement loaded")
             return
         self.show()
         self.activateWindow()
-        
-    def load_spectra(self, folder_path, save_folder_path, save_data_path, 
+
+    def load_spectra(self, folder_path, save_folder_path, save_data_path,
                      load_type, one_dim=False):
         """
         load spectra into the show ROI widget
         """
         # make sure the loaded data is not a single spectrum, else return
-        if self.parent.data.loadtype == "file": 
+        if self.parent.data.loadtype == "file":
             self.parent.statusBar().showMessage("no ROI for single spectrum")
             return
         # receive and self the folder path
@@ -263,7 +261,7 @@ class ShowROI(QtWidgets.QWidget):
             self.log_box.setVisible(False)
             self.one_dim = True
             # load the positions of the loaded spectra
-        else:    
+        else:
             self.radio_xenergy.setVisible(False)
             self.log_box.setVisible(False)
             self.one_dim = False
@@ -283,8 +281,8 @@ class ShowROI(QtWidgets.QWidget):
         self.z = np.unique(self.positions[:, 2])
         # find the xyz-position of the origin
         origin_idx = int(np.where((self.tensor_positions == np.array([0, 0, 0])).all(1))[0])
-        end_idx = int(np.where((self.tensor_positions == np.array([self.tensor_positions[:, 0].max(), 
-                                                                   self.tensor_positions[:, 1].max(), 
+        end_idx = int(np.where((self.tensor_positions == np.array([self.tensor_positions[:, 0].max(),
+                                                                   self.tensor_positions[:, 1].max(),
                                                                    self.tensor_positions[:, 2].max()])).all(1))[0])
         # sort the unique points corresponding to the measurement
         if self.x[0] != self.positions[:, 0][origin_idx]:
@@ -296,28 +294,28 @@ class ShowROI(QtWidgets.QWidget):
         # determine step size for every axis
         try:
             self.step_x = np.nan_to_num(
-                np.round((self.positions[:, 0][end_idx] - self.positions[:, 0][origin_idx]) / (len(self.x) - 1), 3), 
+                np.round((self.positions[:, 0][end_idx] - self.positions[:, 0][origin_idx]) / (len(self.x) - 1), 3),
                 nan=1.)
         except:
             self.step_x = 1.
         try:
             self.step_y = np.nan_to_num(
-                np.round((self.positions[:, 1][end_idx] - self.positions[:, 1][origin_idx]) / (len(self.y) - 1), 3), 
+                np.round((self.positions[:, 1][end_idx] - self.positions[:, 1][origin_idx]) / (len(self.y) - 1), 3),
                 nan=1.)
         except:
             self.step_y = 1.
         try:
             self.step_z = np.nan_to_num(
-                np.round((self.positions[:, 2][end_idx] - self.positions[:, 2][origin_idx]) / (len(self.z) - 1), 3), 
+                np.round((self.positions[:, 2][end_idx] - self.positions[:, 2][origin_idx]) / (len(self.z) - 1), 3),
                 nan=1.)
         except:
             self.step_z = 1.
         # handle data type specific exeptions
         if not isinstance(self.parameters[0], np.float64) and load_type not in ["angle_file", "file"]:
             self.parameters = self.parameters[0]
-        try: 
+        try:
             self.counts = self.counts.reshape(self.positions)
-        except: 
+        except:
             if self.file_type == ".MSA":
                 self.counts = self.counts.reshape((self.len_z, self.len_y, self.len_x))
                 self.counts = np.flip(self.counts, 0)
@@ -331,7 +329,7 @@ class ShowROI(QtWidgets.QWidget):
         # back up the counts
         self.counts_backup = np.copy(self.counts)
         # display the sum_spec
-        self.sum_spec = self.parent.data.sum_spec  
+        self.sum_spec = self.parent.data.sum_spec
         self.delta_E = self.parameters[3]
         self.entry_delta_E.setText("%f"%self.delta_E)
         self.slider_layer.setMaximum(self.counts.shape[-1]-1)
@@ -346,7 +344,7 @@ class ShowROI(QtWidgets.QWidget):
         reset the ROI so that again the whole energie range is displayed
         """
         self.roi_plotted = False
-        self.counts = np.copy(self.counts_backup) 
+        self.counts = np.copy(self.counts_backup)
         self.results = np.zeros(self.counts.shape)
         self.button_save_ROI.hide()
         self.button_save_selection.hide()
@@ -361,17 +359,17 @@ class ShowROI(QtWidgets.QWidget):
         self.elements = self.combo_elements.currentText().split(" - ")
         self.element_str = self.elements[1]
         self.element_Z = xrl.SymbolToAtomicNumber(self.element_str)
-        self.elements[0] = int(self.elements[0])       
+        self.elements[0] = int(self.elements[0])
         self.line = self.combo_lines.currentText()
-        if self.line == "Ka": 
+        if self.line == "Ka":
             self.elements[1] = [xrl.LineEnergy(self.element_Z, xrl.KA1_LINE)]
-        elif self.line == "Kb": 
+        elif self.line == "Kb":
             self.elements[1] = [xrl.LineEnergy(self.element_Z, xrl.KB1_LINE)]
-        elif self.line =="L3": 
+        elif self.line =="L3":
             self.elements[1] = [xrl.LineEnergy(self.element_Z, xrl.L3M5_LINE)]
-        elif self.line =="L2": 
+        elif self.line =="L2":
             self.elements[1] = [xrl.LineEnergy(self.element_Z, xrl.L2M4_LINE)]
-        elif self.line =="L1": 
+        elif self.line =="L1":
             self.elements[1] = [xrl.LineEnergy(self.element_Z, xrl.L1M3_LINE)]
 
     def evaluate_roi(self):
@@ -388,21 +386,21 @@ class ShowROI(QtWidgets.QWidget):
         self.button_reset_ROI.show()
         self.roi_plotted = True
         self.plot_results()
-        
+
     def calc_roi_intensity(self):
         """
         calculate the intensities of the given ROI
         """
         index_high = (np.abs(self.energy - self.elements[1][0] - self.delta_E)).argmin()
         index_low = (np.abs(self.energy - self.elements[1][0] + self.delta_E)).argmin()
-        self.results = np.sum(self.spectra[..., index_low:index_high], axis=-1) 
+        self.results = np.sum(self.spectra[..., index_low:index_high], axis=-1)
 
     def evaluate_energy(self):
         """
         read out the energie from the loaded data
         """
         self.energy = np.copy(self.parent.data.energies)
-        
+
     def plot_sum_spec(self):
         if not self.first_time_loaded:
             self.ax_canvas_spectrum.clear()
@@ -411,7 +409,7 @@ class ShowROI(QtWidgets.QWidget):
             high_index = int((float(self.roi_high.text())-self.parameters[0])/self.parameters[1])
             self.ax_canvas_spectrum.plot(self.energy, self.sum_spec)
             self.ax_canvas_spectrum.set_xlim(float(self.roi_low.text()), float(self.roi_high.text()))
-            self.ax_canvas_spectrum.set_ylim(np.min(self.sum_spec[low_index: high_index])*0.9, 
+            self.ax_canvas_spectrum.set_ylim(np.min(self.sum_spec[low_index: high_index])*0.9,
                                              np.max(self.sum_spec[low_index: high_index])*1.1)
             self.ax_canvas_spectrum.set_xlabel("Energy / keV")
             self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
@@ -422,74 +420,74 @@ class ShowROI(QtWidgets.QWidget):
         self.get_line_energy()
         self.plot_sum_spec()
         self.delta_E = float(self.entry_delta_E.text())
-        if not self.first_time_loaded: 
-            self.ax_canvas_spectrum.axvspan(self.elements[1][0]-self.delta_E, 
-                                            self.elements[1][0]+self.delta_E, 
+        if not self.first_time_loaded:
+            self.ax_canvas_spectrum.axvspan(self.elements[1][0]-self.delta_E,
+                                            self.elements[1][0]+self.delta_E,
                                             color="r", alpha=0.3)
             self.canvas_spectrum.draw()
-        
+
     def plot_results(self):
-        self.entry_position.setText("") 
+        self.entry_position.setText("")
         layer = self.slider_layer.value()
         aspect = "auto"
         if self.one_dim:
             y_dim, x_dim = self.counts[layer].shape
         line = self.line.replace("Ka", u"K\u03B1").replace("Kb", u"K\u03b2")
         if not self.plot_ROI:
-            if self.roi_plotted == True:
+            if self.roi_plotted is True:
                 maximum = np.percentile(self.results, self.slider_percentile.value())
                 if self.rotation == "xy":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[:, :, layer], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.x[-1] + self.step_x / 2, 
-                                                                      self.x[0] - self.step_x / 2, 
-                                                                      self.y[-1] + self.step_y / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[:, :, layer], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.x[-1] + self.step_x / 2,
+                                                                      self.x[0] - self.step_x / 2,
+                                                                      self.y[-1] + self.step_y / 2,
                                                                       self.y[0] - self.step_y / 2])
                 if self.rotation == "xz":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[:, layer, :], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.x[-1] + self.step_x / 2, 
-                                                                      self.x[0] - self.step_x / 2, 
-                                                                      self.z[-1] + self.step_z / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[:, layer, :], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.x[-1] + self.step_x / 2,
+                                                                      self.x[0] - self.step_x / 2,
+                                                                      self.z[-1] + self.step_z / 2,
                                                                       self.z[0] - self.step_z / 2])
                 if self.rotation == "yz":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[layer, :, :], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.y[-1] + self.step_y / 2, 
-                                                                      self.y[0] - self.step_y / 2, 
-                                                                      self.z[-1] + self.step_z / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.results[layer, :, :], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.y[-1] + self.step_y / 2,
+                                                                      self.y[0] - self.step_y / 2,
+                                                                      self.z[-1] + self.step_z / 2,
                                                                       self.z[0] - self.step_z / 2])
             else:
                 maximum = np.percentile(self.counts, self.slider_percentile.value())
                 if self.rotation == "xy":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[:, :, layer], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.x[-1] + self.step_x / 2, 
-                                                                      self.x[0] - self.step_x / 2, 
-                                                                      self.y[-1] + self.step_y / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[:, :, layer], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.x[-1] + self.step_x / 2,
+                                                                      self.x[0] - self.step_x / 2,
+                                                                      self.y[-1] + self.step_y / 2,
                                                                       self.y[0] - self.step_y / 2])
                 elif self.rotation == "xz":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[:, layer, :], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.x[-1] + self.step_x / 2, 
-                                                                      self.x[0] - self.step_x / 2, 
-                                                                      self.z[-1] + self.step_z / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[:, layer, :], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.x[-1] + self.step_x / 2,
+                                                                      self.x[0] - self.step_x / 2,
+                                                                      self.z[-1] + self.step_z / 2,
                                                                       self.z[0] - self.step_z / 2])
                 elif self.rotation == "yz":
-                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[layer, :, :], k=-1), 
-                                                              vmin=0, 
-                                                              vmax=maximum, aspect=aspect, 
-                                                              extent=[self.y[-1] + self.step_y / 2, 
-                                                                      self.y[0] - self.step_y / 2, 
-                                                                      self.z[-1] + self.step_z / 2, 
+                    self.plot_ROI = self.ax_canvas_roi.imshow(np.rot90(self.counts[layer, :, :], k=-1),
+                                                              vmin=0,
+                                                              vmax=maximum, aspect=aspect,
+                                                              extent=[self.y[-1] + self.step_y / 2,
+                                                                      self.y[0] - self.step_y / 2,
+                                                                      self.z[-1] + self.step_z / 2,
                                                                       self.z[0] - self.step_z / 2])
         else:
-            if self.roi_plotted == True:
+            if self.roi_plotted is True:
                 maximum = np.percentile(self.results, self.slider_percentile.value())
                 if self.rotation == "xy":
                     self.plot_ROI.set_data(np.rot90(self.results[:, :, layer], k=-1))
@@ -505,10 +503,10 @@ class ShowROI(QtWidgets.QWidget):
                     self.plot_ROI.set_data(np.rot90(self.counts[:, layer, :], k=-1))
                 if self.rotation == "yz":
                     self.plot_ROI.set_data(np.rot90(self.counts[layer, :, :], k=-1))
-        self.plot_ROI.set_clim(0, maximum)   
+        self.plot_ROI.set_clim(0, maximum)
         try: self.colorbar.remove()
         except: pass
-        self.colorbar = self.figure_ROI.colorbar(self.plot_ROI, 
+        self.colorbar = self.figure_ROI.colorbar(self.plot_ROI,
                                                  ax=self.ax_canvas_roi)
         if self.rotation == "xy":
             layer = self.z[layer]
@@ -516,29 +514,29 @@ class ShowROI(QtWidgets.QWidget):
             layer = self.y[layer]
         else: layer = self.x[layer]
         if self.file_type == ".spx":
-            if self.roi_plotted == True:
-                self.ax_canvas_roi.set_title("ROI Counts %s %s | %s position : %.3f mm"%(self.element_str, 
-                                                                                     line, 
-                                                                                     "xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""), 
+            if self.roi_plotted is True:
+                self.ax_canvas_roi.set_title("ROI Counts %s %s | %s position : %.3f mm"%(self.element_str,
+                                                                                     line,
+                                                                                     "xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""),
                                                                                      layer))
-            else: 
-                self.ax_canvas_roi.set_title("Counts | %s position : %.3f mm"%("xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""), 
+            else:
+                self.ax_canvas_roi.set_title("Counts | %s position : %.3f mm"%("xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""),
                                                                             layer))
             self.ax_canvas_roi.set_ylabel(u"%s / mm"%self.rotation[1])
             self.ax_canvas_roi.set_xlabel(u"%s / mm"%self.rotation[0])
         else:
-            if self.roi_plotted == True:
-                self.ax_canvas_roi.set_title("ROI Counts %s %s | %s position : %i"%(self.element_str, 
-                                                                                     line, 
-                                                                                     "xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""), 
+            if self.roi_plotted is True:
+                self.ax_canvas_roi.set_title("ROI Counts %s %s | %s position : %i"%(self.element_str,
+                                                                                     line,
+                                                                                     "xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""),
                                                                                      layer))
-            else: 
-                self.ax_canvas_roi.set_title("Counts | %s position : %i"%("xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""), 
+            else:
+                self.ax_canvas_roi.set_title("Counts | %s position : %i"%("xyz".replace(self.rotation[0], "").replace(self.rotation[1], ""),
                                                                             layer))
             self.ax_canvas_roi.set_ylabel(u"%s"%self.rotation[1])
             self.ax_canvas_roi.set_xlabel(u"%s"%self.rotation[0])
         self.canvas_roi.draw()
-        
+
     def rotate_results(self, rotation):
         self.slider_layer.setVisible(True)
         self.log_box.setVisible(False)
@@ -561,14 +559,14 @@ class ShowROI(QtWidgets.QWidget):
                 self.slider_layer.setMaximum(self.counts.shape[0]-1)
         self.plot_ROI = False
         self.plot_results()
-        
+
     def spectra_array(self):
         """
         build an array out of a given ordered! dict
         """
         spectra_array = np.copy(self.spectra)
         return spectra_array
-    
+
     def show_colormap(self):
         """
         shows -only for angle-files- the spectra for every angle as a colormap
@@ -601,26 +599,26 @@ class ShowROI(QtWidgets.QWidget):
             if self.log_box.checkState().value==2:
                 positive_spectra = np.copy(self.spectra_array())
                 positive_spectra[positive_spectra<0.001]= 1
-                self.plot_histo = self.ax_canvas_roi.imshow(positive_spectra, 
-                                                            norm=LogNorm(vmin=1, ), 
-                                                            origin="lower", 
-                                                            extent=extent, 
+                self.plot_histo = self.ax_canvas_roi.imshow(positive_spectra,
+                                                            norm=LogNorm(vmin=1, ),
+                                                            origin="lower",
+                                                            extent=extent,
                                                             aspect=aspect)
             else:
-                self.plot_histo = self.ax_canvas_roi.imshow(self.spectra_array(), vmin=0, origin="lower", extent=extent, 
+                self.plot_histo = self.ax_canvas_roi.imshow(self.spectra_array(), vmin=0, origin="lower", extent=extent,
                                                             aspect=aspect)
             self.ax_canvas_roi.xaxis.set_major_formatter(formatter_x)
-            self.ax_canvas_roi.yaxis.set_major_formatter(formatter_y)   
+            self.ax_canvas_roi.yaxis.set_major_formatter(formatter_y)
             try:
                 self.colorbar.remove()
             except:
                 pass
-            self.colorbar = self.figure_ROI.colorbar(self.plot_histo, 
+            self.colorbar = self.figure_ROI.colorbar(self.plot_histo,
                                                      ax=self.ax_canvas_roi)
         else:
             self.figure_ROI.delaxes(self.ax_canvas_roi)
         self.canvas_roi.draw()
-        
+
     def retrieve_xy_from_click(self, event):
         """
         This function retrieves the x and y data of the ROI canvas
@@ -659,11 +657,11 @@ class ShowROI(QtWidgets.QWidget):
                 y = int(event.ydata)
                 z = int(event.xdata)
             elif self.file_type == ".spx":
-                x = self.x[self.slider_layer.value()]                
+                x = self.x[self.slider_layer.value()]
                 y = self.y[np.abs(self.y-event.xdata).argmin()]
                 z = self.z[np.abs(self.z-event.ydata).argmin()]
         return x, y, z
-        
+
     def plot_single_spectra_on_click(self, event):
         time = t.time()
         size_hor, size_ver = [int(i) for i in self.combo_rect_size.currentText().split("x")]
@@ -675,8 +673,8 @@ class ShowROI(QtWidgets.QWidget):
                     artist.remove()
             x, y, z = self.retrieve_xy_from_click(event)
             if self.radio_xy.isChecked():
-                if size_hor != 1: 
-                    x_rect, y_rect = np.mgrid[np.round(x-(size_hor-1)/2*self.step_x, 3):np.round(x+(size_hor-1)/2*self.step_x+self.step_x, 3):self.step_x, 
+                if size_hor != 1:
+                    x_rect, y_rect = np.mgrid[np.round(x-(size_hor-1)/2*self.step_x, 3):np.round(x+(size_hor-1)/2*self.step_x+self.step_x, 3):self.step_x,
                                               np.round(y-(size_ver-1)/2*self.step_y, 3):np.round(y+(size_ver-1)/2*self.step_y+self.step_y, 3):self.step_y]
                     z_rect = np.full((size_hor, size_ver), z)
                     if x_rect.shape != z_rect.shape:
@@ -687,59 +685,59 @@ class ShowROI(QtWidgets.QWidget):
                 if self.file_type == ".spx":
                     size_hor *= self.step_y
                     size_ver *= self.step_x
-                self.rect = patches.Rectangle((x-size_ver/2, y-size_hor/2), 
-                                              size_ver, size_hor, 
-                                              linewidth=1, edgecolor="r", 
+                self.rect = patches.Rectangle((x-size_ver/2, y-size_hor/2),
+                                              size_ver, size_hor,
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             elif self.radio_xz.isChecked():
-                if size_hor != 1: 
+                if size_hor != 1:
                     y_rect = np.full((size_hor, size_ver), y)
-                    x_rect, z_rect = np.mgrid[np.round(int(x-(size_hor)/2)+1, 3):np.round(int(x+(size_hor)/2)+1, 3):self.step_x, 
+                    x_rect, z_rect = np.mgrid[np.round(int(x-(size_hor)/2)+1, 3):np.round(int(x+(size_hor)/2)+1, 3):self.step_x,
                                               np.round(int(z-size_ver/2)+1, 3):np.round(int(z+size_ver/2)+1, 3):self.step_z]
                     if x_rect.shape != y_rect.shape:
                         x_rect = np.resize(x_rect, y_rect.shape)
                         z_rect = np.resize(z_rect, y_rect.shape)
                 else:
                     y_rect = y
-                    x_rect, z_rect = x, z 
+                    x_rect, z_rect = x, z
                 if self.file_type == ".spx":
                     size_hor *= self.step_x
                     size_ver *= self.step_z
-                self.rect = patches.Rectangle((x-size_ver/2, z-size_hor/2), 
-                                              size_ver, size_hor, 
-                                              linewidth=1, edgecolor="r", 
+                self.rect = patches.Rectangle((x-size_ver/2, z-size_hor/2),
+                                              size_ver, size_hor,
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             elif self.radio_yz.isChecked():
-                if size_hor != 1: 
+                if size_hor != 1:
                     x_rect = np.full((size_hor, size_ver), x)
-                    y_rect, z_rect = np.mgrid[np.round(int(y-(size_hor)/2)+1, 3):np.round(int(y+(size_hor)/2)+1, 3):self.step_y, 
+                    y_rect, z_rect = np.mgrid[np.round(int(y-(size_hor)/2)+1, 3):np.round(int(y+(size_hor)/2)+1, 3):self.step_y,
                                               np.round(int(z-size_ver/2)+1, 3):np.round(int(z+size_ver/2)+1, 3):self.step_z]
                     if y_rect.shape != x_rect.shape:
                         y_rect = np.resize(y_rect, x_rect.shape)
                         z_rect = np.resize(z_rect, x_rect.shape)
                 else:
                     z_rect = z
-                    x_rect, y_rect = x, y 
+                    x_rect, y_rect = x, y
                 if self.file_type == ".spx":
                     size_hor *= self.step_y
                     size_ver *= self.step_z
-                self.rect = patches.Rectangle((y-size_ver/2, z-size_hor/2), 
-                                              size_ver, size_hor, 
-                                              linewidth=1, edgecolor="r", 
+                self.rect = patches.Rectangle((y-size_ver/2, z-size_hor/2),
+                                              size_ver, size_hor,
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             len_X, len_Y, len_Z = self.counts.shape
             if self.file_type == ".spx":
                 self.spec_nr = int((z-self.z[0])/self.step_z + (y-self.y[0])/self.step_y * len_Z + (x-self.x[0])/self.step_x * len_Y* len_Z)
                 self.spec_rect = (z_rect-self.z[0])/self.step_z + (y_rect-self.y[0])/self.step_y * len_Z + (x_rect-self.x[0])/self.step_x * len_Y * len_Z
                 self.spec_rect = np.round(self.spec_rect, 0).astype(np.int32)
-            else:  
+            else:
                 self.spec_nr = int(y + x * len_Y + z * len_Y * self.len_x)
                 self.spec_rect = y_rect + x_rect * len_Y + z_rect * len_Y * self.len_x
             if not isinstance(self.spec_rect, np.ndarray):
                 self.spec_rect = int(self.spec_rect)
             else:
                 self.spec_rect = self.spec_rect.astype(np.int32)
-            if self.load_type == "angle_file": 
+            if self.load_type == "angle_file":
                 pass
             else:
                 if self.plot_style_str == "linear":
@@ -773,7 +771,7 @@ class ShowROI(QtWidgets.QWidget):
         else:
             self.x0, self.y0, self.z0 = self.retrieve_xy_from_click(event)
         self.time = time
-    
+
     def draw_rectangle(self, event):
         time = t.time()
         if not event.dblclick and ((time-self.time)>0.5):
@@ -787,41 +785,41 @@ class ShowROI(QtWidgets.QWidget):
             y = np.sort([y, self.y0])
             z = np.sort([z, self.z0])
             if self.radio_xy.isChecked():
-                if np.diff(x) != 0: 
-                    x_rect, y_rect = np.mgrid[x.min():x.max():self.step_x, 
+                if np.diff(x) != 0:
+                    x_rect, y_rect = np.mgrid[x.min():x.max():self.step_x,
                                               y.min():y.max():self.step_y]
                     size_hor, size_ver = x_rect.shape
                     z_rect = np.full((size_hor, size_ver), z[0])
                 else:
                     x_rect = x
-                    y_rect, z_rect = y, z 
-                self.rect = patches.Rectangle((x[0]-self.step_x/2, y[0]-self.step_y/2), 
-                                              np.diff(x), np.diff(y), 
-                                              linewidth=1, edgecolor="r", 
+                    y_rect, z_rect = y, z
+                self.rect = patches.Rectangle((x[0]-self.step_x/2, y[0]-self.step_y/2),
+                                              np.diff(x), np.diff(y),
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             elif self.radio_xz.isChecked():
-                if np.diff(x) != 0: 
+                if np.diff(x) != 0:
                     x_rect, z_rect = np.mgrid[x[0]:x[-1]:self.step_x, z[0]:z[-1]:self.step_z]
                     size_hor, size_ver = x_rect.shape
                     y_rect = np.full((size_hor, size_ver), y[0])
                 else:
                     y_rect = y
-                    x_rect, z_rect = x, z 
-                self.rect = patches.Rectangle((x[0]-self.step_x/2, z[0]-self.step_z/2), 
-                                              np.diff(x), np.diff(z), 
-                                              linewidth=1, edgecolor="r", 
+                    x_rect, z_rect = x, z
+                self.rect = patches.Rectangle((x[0]-self.step_x/2, z[0]-self.step_z/2),
+                                              np.diff(x), np.diff(z),
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             elif self.radio_yz.isChecked():
-                if np.diff(y) != 0: 
+                if np.diff(y) != 0:
                     y_rect, z_rect = np.mgrid[y[0]:y[-1]:self.step_y, z[0]:z[-1]:self.step_z]
                     size_hor, size_ver = y_rect.shape
                     x_rect = np.full((size_hor, size_ver), x[0])
                 else:
                     z_rect = z
-                    x_rect, y_rect = x, y 
-                self.rect = patches.Rectangle((y[0]-self.step_y/2, z[0]-self.step_z/2), 
-                                              np.diff(y), np.diff(z), 
-                                              linewidth=1, edgecolor="r", 
+                    x_rect, y_rect = x, y
+                self.rect = patches.Rectangle((y[0]-self.step_y/2, z[0]-self.step_z/2),
+                                              np.diff(y), np.diff(z),
+                                              linewidth=1, edgecolor="r",
                                               facecolor="None")
             try:
                 self.len_x, len_Y, len_Z = self.counts.shape
@@ -831,15 +829,15 @@ class ShowROI(QtWidgets.QWidget):
                                    int(round((x[0]-self.x[0])/self.step_x)) * len_Y * len_Z
                     self.spec_rect = (z_rect-self.z[0])/self.step_z + (y_rect-self.y[0])/self.step_y * len_Z + (x_rect-self.x[0])/self.step_x * len_Y * len_Z
                     self.spec_rect = np.round(self.spec_rect, 0).astype(np.uint)
-                else:    
+                else:
                     self.spec_nr = int(z[0] + y[0] * len_Z + x[0] * len_Y * len_Z)
                     self.spec_rect = z_rect + y_rect * len_Z + x_rect * len_Y * len_Z
             except:
-                print("please press \"show ROI\" first") 
+                print("please press \"show ROI\" first")
             self.spec_rect = self.spec_rect.astype(np.int32)
             if size_hor == 1:
                 self.spec_nr = int(np.where((self.positions==np.array([x[0], y[0], z[0]])).all(1))[0])
-            if self.load_type == "angle_file": 
+            if self.load_type == "angle_file":
                 pass
             else:
                 self.parent.ax_canvas_spectrum.clear()
@@ -855,7 +853,7 @@ class ShowROI(QtWidgets.QWidget):
                 self.canvas_roi.draw()
             self.parent.canvas_spectrum.draw()
             self.button_save_selection.show()
-        
+
     def calc_rect_sum_spec(self, keys):
         """
         This function calculates the sum spectrum from a given set of spec_nr
@@ -893,17 +891,17 @@ class ShowROI(QtWidgets.QWidget):
         keys : list of str
             list of strings which contain the spectrum number
         """
-        self.save_selection_path = QtWidgets.QFileDialog().getSaveFileName(self, 
-                                                                           "select save path", 
+        self.save_selection_path = QtWidgets.QFileDialog().getSaveFileName(self,
+                                                                           "select save path",
                                                                            self.parent.data.file_path.replace(
-                                                                               self.parent.data.file_type, 
+                                                                               self.parent.data.file_type,
                                                                                "_selection.npy"))[0]
         spectra = []
         if isinstance(self.spec_rect, int):
             self.spec_rect = np.asarray([self.spec_rect])
             self.spec_rect = np.expand_dims(self.spec_rect, 1)
         shape = self.spec_rect.shape
-        for x in range(len(self.spec_rect)):
+        for x, _ in enumerate(self.spec_rect):
             for spec_nr in self.spec_rect[x]:
                 spectra.append(self.spectra[spec_nr])
         np.save(self.save_selection_path, np.asarray(spectra).reshape(shape + self.spectra[spec_nr].shape))
@@ -912,10 +910,10 @@ class ShowROI(QtWidgets.QWidget):
         """
         This function saves the calculated ROI image into a selected file.
         """
-        self.save_roi_path = QtWidgets.QFileDialog().getSaveFileName(self, 
-                                                                     "select save path", 
+        self.save_roi_path = QtWidgets.QFileDialog().getSaveFileName(self,
+                                                                     "select save path",
                                                                      self.parent.data.file_path.replace(
-                                                                         self.parent.data.file_type, 
+                                                                         self.parent.data.file_type,
                                                                          "_%s_%s_ROI.npy" % (
                                                                              self.element_str, self.line)))[0]
         np.save(self.save_roi_path, self.results)

@@ -1,4 +1,3 @@
-import os
 import h5py
 import psutil
 import numpy as np
@@ -11,24 +10,27 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 plt.ion()
 
-def spx2spec_para(file_path, 
-                  save_results=True, 
+def spx2spec_para(file_path,
+                  save_results=True,
                   print_warning=False):
-    """ 
+    """
     This function reads out the spectrum of a .spx-file and reads out the
     detector parameters given in the .spx-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spx-file.
-    
+
     Returns
     -------
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
-    file_name = file_path.split("/")[-1]
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
+    file_name = file_path.name
     # define default values
     a0 = -0.96
     a1 = 0.01
@@ -68,9 +70,9 @@ def spx2spec_para(file_path,
                     gating_time = 3e-6
     if channels is False:
         channels = len(spectrum)
-    try: 
+    try:
         spectrum = [int(intensity) for intensity in spectrum]
-    except: 
+    except:
         print("spectrum modified, containing float numbers!")
         spectrum = [float(intensity) for intensity in spectrum]
     # determine life_time via ROI-methode. Sum over spectrum_tmp[75:116] and
@@ -87,9 +89,7 @@ def spx2spec_para(file_path,
     spectrum = np.divide(spectrum, life_time)
     # save data if decided
     if save_results:
-        folder_path = "/".join(file_path.split("/")[:-1])
-        Path(f"{folder_path}/data/").mkdir(parents=True, exist_ok=True)
-        if os.path.exists(f"{folder_path}/data/data.h5"):
+        if (folder_path/"data/data.h5").exists():
             with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
                 if file_name in tofile.keys():
                     del tofile[file_name]
@@ -102,46 +102,47 @@ def spx2spec_para(file_path,
                                   compression="gzip", compression_opts=9)
             tofile.create_dataset(f"{file_name}/sum spec", data=spectrum,
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/counts", data=[np.sum(spectrum)], 
+            tofile.create_dataset(f"{file_name}/counts", data=[np.sum(spectrum)],
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/parameters", data=parameters, 
+            tofile.create_dataset(f"{file_name}/parameters", data=parameters,
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/max pixel spec", data=spectrum, 
+            tofile.create_dataset(f"{file_name}/max pixel spec", data=spectrum,
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/position dimension", data=np.array([1, 1, 1]), 
+            tofile.create_dataset(f"{file_name}/position dimension", data=np.array([1, 1, 1]),
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/tensor positions", data=np.array([[0, 0, 0]]), 
+            tofile.create_dataset(f"{file_name}/tensor positions", data=np.array([[0, 0, 0]]),
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/positions", data=np.array([[0, 0, 0]]), 
+            tofile.create_dataset(f"{file_name}/positions", data=np.array([[0, 0, 0]]),
                                   compression="gzip")
     return spectrum, parameters
-      
-def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200, 
-                       save_sum_spec=True, save_spectra=True, 
-                       save_counts=True, save_parameters=True, 
-                       save_any=True, print_warning=False, 
-                       save_spec_as_dict=True, 
+
+def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
+                       save_sum_spec=True, save_spectra=True,
+                       save_counts=True, save_parameters=True,
+                       save_any=True, print_warning=False,
+                       save_spec_as_dict=True,
                        return_values=False):
-    """ 
+    """
     This function reads out the spectrum of a .spx-file and reads out the
     detector parameters given in the .spx-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spx-file.
     index : int
         the number of the spectrum in the measurement set
-    
+
     Returns
     -------
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
-    Path(f"{folder_path}/data/").mkdir(parents=True, exist_ok=True)
-    file_name = folder_path.split("/")[-1]
-    if os.path.exists(f"{folder_path}/data/data.h5"):
-        with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
+    folder_path = Path(folder_path)
+    file_name = folder_path.name
+    Path(folder_path /"data").mkdir(parents=True, exist_ok=True)
+    if (folder_path/"data/data.h5").exists():
+        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
         write_operator = "r+"
@@ -165,17 +166,17 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         y = np.unique(positions[:, 1])
         z = np.unique(positions[:, 2])
         # calculate the stepsizes in every direction
-        try: 
+        try:
             x_steps = x[1] - x[0]
-        except: 
+        except:
             x_steps = 1
-        try: 
+        try:
             y_steps = y[1] - y[0]
-        except: 
+        except:
             y_steps = 1
-        try: 
+        try:
             z_steps = z[1] - z[0]
-        except: 
+        except:
             z_steps = 1
         # calculate the tensor positions by dividing positions by steps
         tensor_positions = np.copy(positions)
@@ -185,12 +186,8 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         tensor_positions[:, 2] -= z[0]
         tensor_positions /= [x_steps, y_steps, z_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
-    sorted_folder = ns.natsorted(glob(f"{folder_path}/*.spx"))
-    try: 
-        os.mkdir(f"{folder_path}/data/")
-    except: 
-        pass
-    folder_size = sum(os.path.getsize(f) for f in sorted_folder if os.path.isfile(f))
+    sorted_folder = ns.natsorted(folder_path.glob("*.spx"))
+    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file())
     life_time = False
     if (folder_size / machine_memory) < 0.7:                              # for machines with big memory
         print("machine memory big enough. creating spectra dict")
@@ -209,7 +206,7 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
                     elif "<PulsePairResTimeCount>" in line:
                         gating_time  = int(line.replace("<PulsePairResTimeCount>", "").replace("</PulsePairResTimeCount>", "").replace("\r\n", "").replace("    ", "")) * 1e-6
                         if gating_time == 0.0:
-                            gating_time = 3e-6 
+                            gating_time = 3e-6
                     elif "<ChannelCount>" in line:
                         channels = int(line.replace("<ChannelCount>", "").replace("</ChannelCount>", "").replace("\r\n", "").replace("    ", ""))
                     elif "<CalibAbs>" in line:
@@ -217,15 +214,15 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
                     elif "<CalibLin>" in line:
                         a1 = float(line.replace("/", "").replace("<CalibLin>", "").replace("\r\n", "").replace(", ", "."))
                     elif "<SigmaAbs>" in line:
-                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "").replace(", ", ".")))  
+                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "").replace(", ", ".")))
                     elif "<SigmaLin>" in line:
                         Fano = float(line.replace("/", "").replace("<SigmaLin>", "").replace("\r\n", "").replace(", ", "."))/(3.85e-3) # 3.85eV is die mittlere Energie zur Erzeugung eines Elektron Loch Paares
                     elif "<Channels>" in line:
                         spectrum = line.replace("<Channels>", "").replace("</Channels>", "").replace("\r\n", "").replace("    ", "").split(",")
                         break
-            try: 
+            try:
                 spectrum = [int(intensity) for intensity in spectrum]
-            except: 
+            except:
                 spectrum = [float(intensity) for intensity in spectrum]
             # calculate the life time from the zero peak
             # detector is set in 10keV, 20keV or 40keV and maipulate the
@@ -293,7 +290,7 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
                     elif "<PulsePairResTimeCount>" in line:
                         gating_time  = int(line.replace("<PulsePairResTimeCount>", "").replace("</PulsePairResTimeCount>", "").replace("\r\n", "").replace("    ", "")) * 1e-6
                         if gating_time == 0.0:
-                            gating_time = 3e-6 
+                            gating_time = 3e-6
                     elif "<ZeroPeakPosition>" in line:
                          zero_peak_position = int(line.replace("<ZeroPeakPosition>", "").replace("</ZeroPeakPosition>", "").replace("\r\n", "").replace("    ", ""))
                     elif "<ZeroPeakFrequency>" in line:
@@ -305,7 +302,7 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
                     elif "<CalibLin>" in line:
                         a1 = float(line.replace("/", "").replace("<CalibLin>", "").replace("\r\n", ""))
                     elif "<SigmaAbs>" in line:
-                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "")))   
+                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "")))
                     elif "<SigmaLin>" in line:
                         Fano = float(line.replace("/", "").replace("<SigmaLin>", "").replace("\r\n", ""))/(3.85e-3) # 3.85eV is die mittlere Energie zur Erzeugung eines Elektron Loch Paares
                     elif "<Channels>" in line:
@@ -336,19 +333,31 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         sum_spec = sum_from_single_files(folder_path)
     # transform all data objects to array
     parameters = np.array(parameters)
-    print("spx_loading: parameters_shape:\t", np.array(parameters).shape)
+    positions = spx_tensor_positions(folder_path=(folder_path/""))
+    x = len(np.unique(positions[:, 0]))
+    y = len(np.unique(positions[:, 1]))
+    z = len(np.unique(positions[:, 2]))
+    pos_dim = np.array([x, y, z])
+    tensor_positions = np.zeros(positions.shape, dtype=int)
+    tensor_positions[:, 2] = np.arange(z, dtype=int)
     with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
         tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
                               compression="gzip")
-        tofile.create_dataset(f"{file_name}/counts", data=counts, 
+        tofile.create_dataset(f"{file_name}/counts", data=counts,
                               compression="gzip")
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters, 
+        tofile.create_dataset(f"{file_name}/parameters", data=parameters,
                               compression="gzip")
-        tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec, 
+        tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
+                              compression="gzip")
+        tofile.create_dataset(f"{file_name}/positions", data=positions,
+                              compression="gzip")
+        tofile.create_dataset(f"{file_name}/position dimension", data=pos_dim,
+                              compression="gzip")
+        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
                               compression="gzip")
     print(f"spx loadingtime - {t.time()-start:.2f}")
     if return_values:
-        if save_spec_as_dict == False:
+        if save_spec_as_dict is False:
             return spectra, parameters, positions, tensor_positions
         else:
             return spectra, parameters
@@ -365,9 +374,9 @@ def sum_from_single_files(folder_path, save_sum_spec=True):
     if save_sum_spec:
         np.save(f"{folder_path}/data/sum_spec", sum_spec)
     return sum_spec
-    
+
 def spx2life_time(file_path):
-    """ 
+    """
     This function reads out the life-time in seconds of a .spx-file.
     """
     with open(file_path, "r", encoding="ISO-8859-1") as infile:
@@ -381,9 +390,9 @@ def spx2life_time(file_path):
                 life_time /= 1000.0
                 break
     return life_time
-    
+
 def spx2real_time(file_path):
-    """ 
+    """
     This function reads out the real-time in seconds of a .spx-file.
     """
     with open(file_path, "r", encoding="ISO-8859-1") as infile:
@@ -393,16 +402,16 @@ def spx2real_time(file_path):
                 real_time /= 1000.0
                 break
     return real_time
-    
+
 def norm2sec(spectrum, time):
     """
     This function normalizes the given spectrum to seconds based on life or real time.
-    
+
     Parameters
     ----------
     spectrum : list
     time : float
-    
+
     Returns
     -------
     list of the normed spectrum
@@ -424,11 +433,11 @@ def spx2channels(file_path):
 def spx_log_content(file_path):
     """
     This function reads out all the parameters of the scan saved in the .log_file.
-    
+
     Parameters
     ----------
     folder_path: str - path of the folder
-    
+
     Returns
     -------
     [[scan_width], [start], [end], [positions]] = spx_log_content(file_path)
@@ -447,16 +456,17 @@ def spx_log_content(file_path):
                 k += 1
         content[3] =[int(content[3][i]) for i in range(3)]
     return content
-   
+
 def spx_tensor_position(file_path):
     """
-    This function reads out the specific position of the spectrum in the 
+    This function reads out the specific position of the spectrum in the
     measurement-tensor.
     returns position = [x, y, z]
     position = spx_tensor_position(file_path)
     It determines whether it is a line scan or a 3D-Scan.
     """
-    if file_path[-4:] == ".spx":
+    file_path = Path(file_path)
+    if file_path.suffix == ".spx":
         with open(file_path, "r", encoding="ISO-8859-1") as infile:
             for line in infile:
                     if "<Data" in line:
@@ -474,32 +484,33 @@ def spx_tensor_position(file_path):
         elif file_path[-4:] == ".spx":
             position = file_path.split("(")[2].replace(").spx", "")
         position = position.split(",")
-        return [float(position[i]) for i in range(3)]          
+        return [float(position[i]) for i in range(3)]
     elif len(file_path.split("(")) == 1:
         return [0, 0, float(file_path.split("_")[-1].replace("z", "").replace(".spx", ""))]
 
 def spx_tensor_positions(folder_path, file_type=".spx"):
     """
-    This function reads out the tensor position of all spx/txt-files in the 
+    This function reads out the tensor position of all spx/txt-files in the
     given folder_path
-    
+
     Parameters
     ----------
     folder_path: str - path of the folder containing the spx or txt files
-    
+
     Returns
-    ------- 
+    -------
     positions = np.array([x0, y0, z0], [x0, y1, z0], ..., [xn, ym, zk])
     """
-    files = glob(folder_path+"*"+file_type)
+    folder_path = Path(folder_path)
+    files = folder_path.glob(f"*{file_type}")
     positions = []
     for file in files:
         positions.append(spx_tensor_position(file))
     return np.array(positions)
-    
+
 def log_file_type(log_file):
     """
-    This function defines the type of the given .log-file by reading the 
+    This function defines the type of the given .log-file by reading the
     header and scanning it for a keyphrase
     """
     with open(log_file, "r", encoding="ISO-8859-1") as log_file:
@@ -512,7 +523,7 @@ def log_file_type(log_file):
 
 def Louvre_log_file_content(log_file):
     """
-    This function reads out the width, start and end position of the 
+    This function reads out the width, start and end position of the
     measurement as stated in the .log-file
     """
     with open(log_file, "r", encoding="ISO-8859-1") as log_file:
@@ -533,18 +544,18 @@ def Louvre_log_file_content(log_file):
     return width_start_end
 
 def Louvre_tensor_position(log_file):
-    tensor_position = {}     
+    tensor_position = {}
     temp = 0
     with open(log_file, "r+", encoding="ISO-8859-1") as log_file:
         for line in log_file:
-            if "X  Y  Z" in line: 
+            if "X  Y  Z" in line:
                 temp = 1
             elif temp == 1:
                 positions = line.split()
-                positions = [float(positions[i])/1000 for i in range(len(positions))]  
+                positions = [float(positions[i])/1000 for i, _ in enumerate(positions)]
                 temp = 2
             elif temp == 2:
-                tensor_position[int(line.replace("corresponding to spectrum No", ""))] = positions  
+                tensor_position[int(line.replace("corresponding to spectrum No", ""))] = positions
                 temp = False
     return tensor_position
 
@@ -555,7 +566,7 @@ def convert_string(string):
     convert = 10**power*leading/1000
     return convert
 
-def calc_sum_spec(spectrum): 
+def calc_sum_spec(spectrum):
     """
     This function calculates the sum spectrum of all given spectra.
     """

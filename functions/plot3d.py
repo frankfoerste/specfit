@@ -1,6 +1,6 @@
 import os
 import sys
-import time 
+import time
 import numpy as np
 from functools import partial
 from PyQt6 import QtWidgets, QtGui, QtCore
@@ -32,8 +32,8 @@ class Plot3D(QtWidgets.QWidget):
         self.window_heigth = 450
         self.window_width = 685
         self.setWindowTitle(self.version)
-        self.setGeometry((self.screen_width-self.window_width)//2, 
-                         (self.screen_height-self.window_heigth)//2, 
+        self.setGeometry((self.screen_width-self.window_width)//2,
+                         (self.screen_height-self.window_heigth)//2,
                          self.window_width, self.window_heigth)
         # initialization of required parameter
         self.compression = 1
@@ -44,13 +44,13 @@ class Plot3D(QtWidgets.QWidget):
         self.face_colors = {}
         self.plots = {}
         self.time_button = time.time()
-        self.predefined_colors = ["#ff0000", "#0000ff", "#00ff00", "#00ffff", 
-                                  "#ff00ff", "#ffff00", "#3300ff", "#0033ff", 
-                                  "#ff3300", "#ff0033", "#33ff00", "#00ff33", 
-                                  "#ff0099", "#9900ff", "#0099ff", "#ff9900", 
-                                  "#ff0099", "#99ff00", "#00ff99", "#ff3399", 
-                                  "#ff9933", "#33ff99", "#99ff33", "#3399ff", 
-                                  "#9933ff", "#3333ff", "#33ff33", "#3333ff", 
+        self.predefined_colors = ["#ff0000", "#0000ff", "#00ff00", "#00ffff",
+                                  "#ff00ff", "#ffff00", "#3300ff", "#0033ff",
+                                  "#ff3300", "#ff0033", "#33ff00", "#00ff33",
+                                  "#ff0099", "#9900ff", "#0099ff", "#ff9900",
+                                  "#ff0099", "#99ff00", "#00ff99", "#ff3399",
+                                  "#ff9933", "#33ff99", "#99ff33", "#3399ff",
+                                  "#9933ff", "#3333ff", "#33ff33", "#3333ff",
                                   "#9999ff", "#99ff99", "#99999ff"]
         self.setStyleSheet("QWidget { color: black; background-color:white;}"\
                            +"background-color:white;"\
@@ -74,10 +74,10 @@ class Plot3D(QtWidgets.QWidget):
         self.__init__GUI()
         self.__init__plot()
         self.__init__layout()
-        
+
     def __init__GUI(self):
         # define widget use to hold button, label, etc. widgets and be placed
-        # in Splitter 
+        # in Splitter
         self.load_widget = QtWidgets.QWidget()
         self.parameter_widget = QtWidgets.QWidget()
         self.plot_widget = QtWidgets.QWidget()
@@ -99,7 +99,7 @@ class Plot3D(QtWidgets.QWidget):
         self.button_clear_all = QtWidgets.QPushButton("clear all", self)
         self.button_clear_all.clicked.connect(self.clear_all)
         self.button_clear_all.setStyleSheet("QWidget {background-color:red}")
-        self.button_clear_all.hide() 
+        self.button_clear_all.hide()
         self.button_display_data = QtWidgets.QPushButton("display confocal data", self)
         self.button_display_data.clicked.connect(self.plot)
         self.button_display_data.setStyleSheet("QWidget {background-color:lightblue}")
@@ -119,7 +119,7 @@ class Plot3D(QtWidgets.QWidget):
         self.combo_plot_type.addItems(self.plot_types)
         self.combo_plot_type.setStyleSheet("QWidget {background-color:lightgreen}")
         self.layout_load_widget.addWidget(self.combo_plot_type, 0, 1, 1, 1)
-        
+
     def __init__plot(self):
         """
         define the layout of the plot frame
@@ -127,7 +127,7 @@ class Plot3D(QtWidgets.QWidget):
         self.figure_3d_confocal = figure.Figure(dpi = 80)
         self.canvas_3d_confocal = pltqt.FigureCanvasQTAgg(self.figure_3d_confocal)
         self.canvas_3d_confocal.setParent(self)
-        self.toolbar_3d_confocal = pltqt.NavigationToolbar2QT(self.canvas_3d_confocal, self)  
+        self.toolbar_3d_confocal = pltqt.NavigationToolbar2QT(self.canvas_3d_confocal, self)
         self.toolbar_3d_confocal.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         # establish connections with User action
         self.canvas_3d_confocal.mpl_connect("button_release_event", self.store_azim_elev)
@@ -145,7 +145,7 @@ class Plot3D(QtWidgets.QWidget):
         self.canvas_histogram = pltqt.FigureCanvasQTAgg(self.figure_histogram)
         self.canvas_histogram.setParent(self)
         self.canvas_histogram.setMaximumHeight(200)
-        self.toolbar_histogram = pltqt.NavigationToolbar2QT(self.canvas_histogram, self) 
+        self.toolbar_histogram = pltqt.NavigationToolbar2QT(self.canvas_histogram, self)
         self.toolbar_histogram.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         # establish connections with User action
         # create an axis
@@ -154,7 +154,7 @@ class Plot3D(QtWidgets.QWidget):
         self.layout_plot_widget.addWidget(self.toolbar_3d_confocal, 1, 0, 1, 1)
         self.layout_parameter_widget.addWidget(self.canvas_histogram, 0, 0, 1, 4)
         self.layout_parameter_widget.addWidget(self.toolbar_histogram, 1, 0, 1, 4)
-        
+
     def __init__layout(self, ):
         # left splitter
         self.left_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
@@ -164,7 +164,7 @@ class Plot3D(QtWidgets.QWidget):
         # right splitter
         self.right_splitter = QtWidgets.QSplitter(QtCore.Qt.Vertical)
         self.right_splitter.setMaximumWidth(200)
-        self.right_splitter.setFrameStyle(0) 
+        self.right_splitter.setFrameStyle(0)
         self.right_splitter.setStretchFactor(0, 0)
         self.right_splitter.addWidget(self.parameter_widget)
         # central splitter
@@ -177,7 +177,7 @@ class Plot3D(QtWidgets.QWidget):
     def show_plot3d(self):
         self.show()
         self.activateWindow()
-    
+
     def load_measurement(self):
         """
         This function loads the measurement data
@@ -186,7 +186,7 @@ class Plot3D(QtWidgets.QWidget):
         # try to open given file, except return (1, 1, 1) array
         for file in file_path[0]:
             try: measurement = np.load(file)
-            except: 
+            except:
                 print("no .npy-file!, check input")
                 measurement = np.zeros((1, 1, 1))
                 return
@@ -199,7 +199,7 @@ class Plot3D(QtWidgets.QWidget):
                 print(f"name not in standard format, please check\n name:\t {name}")
             # definean identification number of the loaded data
             nr = len(self.measurements)
-            # define a threshold for plotting purpose, 15 % of unique 
+            # define a threshold for plotting purpose, 15 % of unique
             # net peak intensity values
             threshold = np.percentile(np.unique(np.round(measurement, 1)), 20)
             # adding a border to the loaded data
@@ -215,18 +215,18 @@ class Plot3D(QtWidgets.QWidget):
             # a random color is defined
             if nr > (len(self.predefined_colors)-1):
                 self.face_colors.update({nr: list(rng.sample(3))})
-            else: 
+            else:
                 self.face_colors.update({nr: self.predefined_colors[nr]})
             # add the threshold values and the corresponding widgets to the treshold dict
-            self.thresholds.update({nr:[QtWidgets.QPushButton(name, self), 
-                                        QtWidgets.QPushButton("", self), 
-                                        QtWidgets.QLineEdit(str(np.round(threshold, 2)), self), 
-                                        name, 
-                                        threshold, 
+            self.thresholds.update({nr:[QtWidgets.QPushButton(name, self),
+                                        QtWidgets.QPushButton("", self),
+                                        QtWidgets.QLineEdit(str(np.round(threshold, 2)), self),
+                                        name,
+                                        threshold,
                                         QtWidgets.QCheckBox("", self)]})
             # connect element button with click to histogram plot
             self.thresholds[nr][0].clicked.connect(partial(self.plot_histogram, nr))
-            # connect element button with right click to delete the loaded 
+            # connect element button with right click to delete the loaded
             # measurement
             self.thresholds[nr][0].setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
             self.thresholds[nr][0].customContextMenuRequested.connect(partial(self.button_right_click, nr))
@@ -248,7 +248,7 @@ class Plot3D(QtWidgets.QWidget):
             self.thresholds[nr][5].show()
             # shift the plot button corresponding to the number of loaded measurements
             self.button_display_data.show()
-        
+
     def add_zero_border(self, array):
         """
         This function adds a zero border to the array for better plot results
@@ -260,13 +260,13 @@ class Plot3D(QtWidgets.QWidget):
         add = np.zeros((1, array.shape[1], array.shape[2]))
         array = np.vstack((np.vstack((add, array)), add))
         return array
-        
+
     def resize_array(self, array, compression_factor):
         """ This function shrinks the given array by a factor """
         zoom_value = tuple([(1/compression_factor) if i != 1 else 1 for i in array.shape ])
         array = zoom(array, zoom_value, order = 5)
         return array
-    
+
     def button_right_click(self, nr, event):
         """
         remove the selected measurement
@@ -315,7 +315,7 @@ class Plot3D(QtWidgets.QWidget):
         self.ax_canvas_3d_confocal.yaxis.set_pane_color((1, 1, 1, 1))
         self.ax_canvas_3d_confocal.zaxis.set_pane_color((1, 1, 1, 1))
         self.canvas_3d_confocal.draw()
-        
+
     def clear_plot(self, ):
         self.figure_3d_confocal.delaxes(self.ax_canvas_3d_confocal)
         self.ax_canvas_3d_confocal = self.figure_3d_confocal.add_subplot(111, projection="3d")
@@ -324,7 +324,7 @@ class Plot3D(QtWidgets.QWidget):
         self.ax_canvas_3d_confocal.yaxis.set_pane_color((1, 1, 1, 1))
         self.ax_canvas_3d_confocal.zaxis.set_pane_color((1, 1, 1, 1))
         self.canvas_3d_confocal.draw()
-        
+
     def color_definition(self, nr):
         array = self.measurements[nr]
         threshold = float(self.thresholds[nr][2].text())
@@ -338,12 +338,12 @@ class Plot3D(QtWidgets.QWidget):
         except:
             pass
         self.thresholds[nr][1].clicked.connect(partial(self.color_selection, nr))
-    
+
     def color_selection(self, measurement_nr):
         color = QtWidgets.QColorDialog.getColor()
         self.thresholds[measurement_nr][1].setStyleSheet("QPushButton {background-color : %s}"%color.name())
         self.refresh_plot(measurement_nr, color.name())
-    
+
     def plot(self):
         self.button_clear_all.show()
         # clear plot
@@ -363,8 +363,8 @@ class Plot3D(QtWidgets.QWidget):
         self.ax_canvas_histogram.set_xlabel("Net Fluorescence / cps", fontsize = 8)
         self.ax_canvas_histogram.set_ylabel("# of occurence", fontsize = 8)
         occ, bins = self.thresholds["%d_histogram"%nr]
-        self.ax_canvas_histogram.vlines(self.thresholds[nr][4], 0, np.max(occ), 
-                                       colors = "red", linestyles = "dashdot", 
+        self.ax_canvas_histogram.vlines(self.thresholds[nr][4], 0, np.max(occ),
+                                       colors = "red", linestyles = "dashdot",
                                        lw = 0.5)
         self.ax_canvas_histogram.bar(bins[:-1], occ, color = self.face_colors[nr], log = True)
         self.figure_histogram.tight_layout()
@@ -374,8 +374,8 @@ class Plot3D(QtWidgets.QWidget):
         if self.thresholds[measurement_nr][4] != float(self.thresholds[measurement_nr][2].text()):
             self.thresholds[measurement_nr][4] = float(self.thresholds[measurement_nr][2].text())
         self.face_colors[measurement_nr] = color
-        self.plot()   
-        
+        self.plot()
+
     def store_azim_elev(self, event):
         self.azim = self.ax_canvas_3d_confocal.azim
         self.elev = self.ax_canvas_3d_confocal.elev
@@ -393,11 +393,11 @@ class Plot3D(QtWidgets.QWidget):
         """
         This function creates the form of the cubes
         """
-        X = [[[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]], 
-             [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]], 
-             [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]], 
-             [[0, 0, 1], [0, 1, 0], [0, 1, 0], [0, 1, 1]], 
-             [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]], 
+        X = [[[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]],
+             [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]],
+             [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
+             [[0, 0, 1], [0, 1, 0], [0, 1, 0], [0, 1, 1]],
+             [[0, 1, 0], [0, 1, 1], [1, 1, 1], [1, 1, 0]],
              [[0, 1, 1], [0, 0, 1], [1, 0, 1], [1, 1, 1]]]
         X = np.array(X).astype(float)
         for i in range(3):
@@ -413,9 +413,9 @@ class Plot3D(QtWidgets.QWidget):
         g = []
         for p, s, c in zip(positions, sizes, colors):
             g.append(self.cuboid_data(p, size=s) )
-        return Poly3DCollection(np.concatenate(g),  
+        return Poly3DCollection(np.concatenate(g),
                                 facecolors=np.repeat(colors, 6, axis=0), **kwargs)
-    
+
     def plot_voxel(self):
         # read out the data compression from the spinbox
         self.compression = self.spinbox_compression.value()
@@ -441,16 +441,16 @@ class Plot3D(QtWidgets.QWidget):
             self.thresholds[nr][4] = threshold
             # create an indices array
             x, y, z = np.indices(measurement.shape)
-            # now norm measurement to rgb 1 and create bool array of measurement            
+            # now norm measurement to rgb 1 and create bool array of measurement
             measurement_normed, measurement_bool = self.norm_and_bool_array(measurement, threshold)
             positions = np.c_[x[measurement_bool==1], y[measurement_bool==1], z[measurement_bool==1]]
             # read out color of measurement
             color = self.face_colors[nr]
-            # if the first iteration, create the voxels and the voxel_bool array 
+            # if the first iteration, create the voxels and the voxel_bool array
             if i == 0:
                 self.voxel_bool = np.copy(measurement_bool)
                 self.voxels = np.zeros(measurement_bool.shape, dtype = object)
-            else: 
+            else:
                 self.voxel_bool += measurement_bool
             self.color_definition(nr)
             for position in positions:
@@ -461,16 +461,16 @@ class Plot3D(QtWidgets.QWidget):
                 if np.sum(self.voxels[x, y, z]) == 0:
                     self.voxels[x, y, z] = rgba
                 else:
-                    # if it is not the initial color, add both rgba values, 
-                    # norm them by themselves and divide them by 2 
+                    # if it is not the initial color, add both rgba values,
+                    # norm them by themselves and divide them by 2
                     rgba_old = self.voxels[x, y, z]
                     norm_factor = (1-rgba_old[3])*rgba[3]+rgba_old[3]
                     rgb_new = ((1-rgba_old[3])*rgba[3]*rgba[:3]+rgba_old[3]*rgba_old[:3]) / norm_factor
                     rgba_new = np.append(rgb_new, norm_factor)
                     self.voxels[x, y, z] = rgba_new
             i += 1
-        self.ax_canvas_3d_confocal.voxels(self.voxel_bool, 
-                                          facecolors = self.voxels, 
+        self.ax_canvas_3d_confocal.voxels(self.voxel_bool,
+                                          facecolors = self.voxels,
                                           shade = False, )
         progress_bar.hide()
         self.ax_canvas_3d_confocal.set_xlim(self.xlim)
@@ -482,12 +482,12 @@ class Plot3D(QtWidgets.QWidget):
         self.ax_canvas_3d_confocal.yaxis.set_pane_color((1, 1, 1, 1))
         self.ax_canvas_3d_confocal.zaxis.set_pane_color((1, 1, 1, 1))
         self.figure_3d_confocal.tight_layout()
-        self.canvas_3d_confocal.draw()         
+        self.canvas_3d_confocal.draw()
 
     def make_mesh(self, image, threshold=-300, step_size=1):
-        verts, faces, norm, val = measure.marching_cubes_lewiner(image, threshold, step_size=step_size, allow_degenerate=True) 
-        return verts, faces       
-        
+        verts, faces, norm, val = measure.marching_cubes_lewiner(image, threshold, step_size=step_size, allow_degenerate=True)
+        return verts, faces
+
     def plot_surface(self, measurement_nr, face_color = [0.52, 0.52, 0.52]):
         self.ax_canvas_3d_confocal.set_xlim(self.xlim)
         self.ax_canvas_3d_confocal.set_ylim(self.ylim)
@@ -497,7 +497,7 @@ class Plot3D(QtWidgets.QWidget):
         self.plots[measurement_nr][2].set_facecolor(self.face_colors[measurement_nr])
         self.plots[measurement_nr][3] = self.ax_canvas_3d_confocal.add_collection3d(self.plots[measurement_nr][2])
 
-    def init_plot_surface(self):   
+    def init_plot_surface(self):
         self.statusBar.setText("plotting in progress")
         QtWidgets.QApplication.processEvents()
         # read out of entry data
@@ -506,12 +506,12 @@ class Plot3D(QtWidgets.QWidget):
         progress_bar = QtWidgets.QProgressBar(self)
         self.layout_parameter_widget.addWidget(progress_bar, 21, 0, 1, 4)
         progress_bar.show()
-        for i in range(len(self.measurements)):
+        for i, _ in enumerate(self.measurements):
             progress_bar.setValue(i/len(self.measurements)*100)
             self.color_definition(i)
             self.thresholds[i][1].clicked.connect(partial(self.color_selection, i))
-            v, f = self.make_mesh(self.measurements[i], 
-                                  threshold = float(self.thresholds[i][2].text()), 
+            v, f = self.make_mesh(self.measurements[i],
+                                  threshold = float(self.thresholds[i][2].text()),
                                   step_size = self.compression)
             self.plots[i] = [v, f, None, None] # [verts, faces, plot_array, plot]
             self.plot_surface(i)

@@ -1,11 +1,11 @@
 import os
 import sys
-import pathlib
-import numpy as np
 import h5py
+import time
+from pathlib import Path
+import numpy as np
 from PyQt6 import QtWidgets, QtCore
 from glob import glob
-import time
 import spx_functions as spx  # Module to read out .spx-files
 import spe_functions as spe  # Module to read out .spx-files
 import mca_functions as mca  # Module to read out .spx-files
@@ -17,16 +17,12 @@ import csv_functions as csv  # Module to read out .csv-files
 import angles_functions as angles  # Module to interpret angle-measurements
 import specfit_GUI_functions as sfunc  # Module used for the specfit_GUI
 
-file_dir = os.path.dirname(os.path.abspath(__file__))
-if "win" in sys.platform:
-    parent_dir = "\\".join(file_dir.split("\\")[:-1])
-    elements_path = parent_dir+"\\Data\\elements.dat"
-else:
-    parent_dir = "/".join(file_dir.split("/")[:-1])
-    elements_path = parent_dir+"/Data/elements.dat"
+file_dir = Path(__file__).parent
+parent_dir = file_dir.parent
+elements_path = parent_dir / "Data" / "elements.dat"
 
 z_elements = {}
-with open(parent_dir+"/Data/elements.dat", "r") as element_file:
+with open(elements_path, "r") as element_file:
     for line in element_file:
         line = line.replace("\n", "").replace(" ", "").split("\t")
         z_elements[line[1]] = int(line[0])
@@ -113,7 +109,9 @@ class ThreadSignals(QtCore.QObject):
 
 
 class DataHandler():
-    """tool to handle the spectra Data, including parameters"""
+    """
+    Tool to handle the spectra Data, including parameters
+    """
 
     def __init__(self, parent=None):
         self.reset_2_default()
@@ -178,7 +176,7 @@ class DataHandler():
         self.use_lib = "xraylib"
 
     def _get_file_path(self, angle_file):
-        """ 
+        """
         read out file_path utilizing a QFileDialog and determine the loadtype
         as either angle_file or file
         """
@@ -190,7 +188,7 @@ class DataHandler():
             self.file_path = self.file_dialog.getOpenFileName(
                 filter="(*.spx *.MSA *.txt *.spe *.mca *.dat *.hdf5 *.h5 *.bcf *.csv)")[0]
             self.label_loading_progress.showMessage(self.file_path)
-            assert os.path.exists(self.file_path)
+            assert Path(self.file_path).exists()
         except:
             self.label_loading_progress.showMessage("file does not exist")
             self.file_path = "not_found"
@@ -203,12 +201,12 @@ class DataHandler():
         try:
             folderpath = QtWidgets.QFileDialog.getExistingDirectory()  # function for a folder-GUI
             self.label_loading_progress.showMessage(folderpath)
-            assert os.path.isdir(folderpath)
+            assert Path(folderpath).exists()
         except:
             self.label_loading_progress.showMessage("Dir not found")
             folderpath = "not_found"
         return folderpath
-    
+
     def _get_file_name(self, file_path):
         """
         return the file name
@@ -216,7 +214,7 @@ class DataHandler():
         return file_path.split("/")[-1]
 
     def update_channels(self, use_user_parameter=False):
-        """ 
+        """
         calculate the new energy axis and adjust it to the lengths of the
         loaded sum spectrum
         """
@@ -229,7 +227,7 @@ class DataHandler():
             self.energies = np.arange(
                 self.parameters[0][0], self.parameters[0][0] + self.parameters[0][1] * self.len_spectrum,
                 self.parameters[0][1])  # max energy
-            
+
         if len(self.energies) != len(self.sum_spec):
             self.energies.resize(len(self.sum_spec))
 
@@ -239,7 +237,7 @@ class DataHandler():
             self.parameters_user[5] = self.energies[-1]
         except:
             self.parameters_user[5] = 40.
-    
+
     def update_data_from_h5file(self, h5_path):
         """
         function to update parameters in the data class from a data.h5 provided
@@ -247,7 +245,7 @@ class DataHandler():
         Parameters
         ----------
         h5_path : str
-            absolute path to the h5 file which should be used to update the 
+            absolute path to the h5 file which should be used to update the
             parameters in the data handler class.
         """
         with h5py.File(h5_path, "r") as f:
@@ -292,7 +290,7 @@ class DataHandler():
             if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
                 with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
                     if self.file_name in f.keys(): reload = True
-                if reload is True:  
+                if reload is True:
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, "?",
                                                             "Do you want to reload the measurement?",
                                                             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
@@ -307,7 +305,7 @@ class DataHandler():
                 self.spectra, self.sum_spec, self.parameters = msa.msa2spec_sum_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.energies = np.arange(self.parameters[0][0],
                                           self.parameters[0][0] +
                                           self.parameters[0][1] * self.len_spectrum,
@@ -320,7 +318,7 @@ class DataHandler():
             if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
                 with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
                     if self.file_name in f.keys(): reload = True
-                if reload is True:  
+                if reload is True:
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, "?",
                                                             "Do you want to reload the measurement?",
                                                             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
@@ -329,7 +327,7 @@ class DataHandler():
                     self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.bcf2spec_para(
                         self.file_path)
                     if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0) 
+                        self.parameters = np.expand_dims(self.parameters, axis=0)
                     self.life_time = self.parameters[0][4]
                     self.real_time = self.parameters[0][7]
                     self.parameters_user = np.copy(self.parameters[0])
@@ -341,20 +339,20 @@ class DataHandler():
                 self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.bcf2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.parameters_user = np.copy(self.parameters[0])
                 self.energies = np.arange(
                     self.parameters[0][0], self.parameters[0][5], self.parameters[0][1])
             self.len_spectrum = len(self.sum_spec)
-                
+
         elif self.file_type == ".csv":
             self.loadtype = "csv_file"
             if os.path.isfile(f"{self.save_data_folder_path}/data.h5"):
                 with h5py.File(f"{self.save_data_folder_path}/data.h5", "r") as f:
                     if self.file_name in f.keys(): reload = True
-                if reload is True:  
+                if reload is True:
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, "?",
                                                             "Do you want to reload the measurement?",
                                                             QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
@@ -362,7 +360,7 @@ class DataHandler():
                 if reload == QtWidgets.QMessageBox.Yes:
                     self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
                     if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0) 
+                        self.parameters = np.expand_dims(self.parameters, axis=0)
                     self.tensor_positions = csv.csv_tensor_positions(self.file_path)
                     self.positions = self.tensor_positions
                     self.position_dimension = csv.csv_position_dimension(self.file_path)
@@ -377,7 +375,7 @@ class DataHandler():
             else:
                 self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.tensor_positions = csv.csv_tensor_positions(self.file_path)
                 self.positions = self.tensor_positions
                 self.position_dimension = csv.csv_position_dimension(self.file_path)
@@ -406,19 +404,19 @@ class DataHandler():
                     self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
                         self.file_path)
                     if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0) 
+                        self.parameters = np.expand_dims(self.parameters, axis=0)
                     self.life_time = self.parameters[0][4]
                     self.real_time = self.parameters[0][7]
                     self.position_dimension, self.tensor_positions = hdf.hdf_tensor_positions(
                         self.file_path)
-                    
+
                 elif reload == QtWidgets.QMessageBox.No:
                     self.load_stored_spec_and_param()
             else:
                 self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.position_dimension,
@@ -435,7 +433,7 @@ class DataHandler():
                 self.spectra["0"], self.parameters = spx.spx2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.len_spectrum = spx.spx2channels(self.file_path)
@@ -449,7 +447,7 @@ class DataHandler():
                 self.spectra["0"], self.parameters = spe.spe2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.len_spectrum = spe.spe2channels(self.file_path)
@@ -463,7 +461,7 @@ class DataHandler():
                 self.spectra["0"], self.parameters = mca.mca2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.len_spectrum = mca.mca2channels(self.file_path)
@@ -477,7 +475,7 @@ class DataHandler():
                 self.spectra["0"], self.parameters = txt.txt2spec_para(
                     self.file_path)
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.life_time = self.parameters[0][4]
                 self.real_time = self.parameters[0][7]
                 self.len_spectrum = txt.txt2channels(self.file_path)
@@ -486,7 +484,7 @@ class DataHandler():
                 self.sum_spec = self.spectra["0"]
                 self.roi_start = 0.5
                 self.roi_end = 15
-                
+
             elif angle_file:
                 if os.path.isdir(self.save_data_folder_path):
                     reload = QtWidgets.QMessageBox.question(self.SpecFit_MainWindow, "?",
@@ -505,7 +503,7 @@ class DataHandler():
                     self.len_spectrum = len(self.sum_spec)
         self.parameters = np.array(self.parameters)
         if self.parameters.ndim == 1:
-            self.parameters = np.expand_dims(self.parameters, axis=0) 
+            self.parameters = np.expand_dims(self.parameters, axis=0)
         param_path = os.path.join(self.folder_path, self.default_param_file_name)
         self.max_pixel_spec = np.max(self.spectra, axis=0)
         self.check_param_file(param_path)
@@ -518,8 +516,8 @@ class DataHandler():
 
     def open_data_folder(self):
         """
-        This function reads out the given folder, decides wether its .spx, or .txt 
-        and loads the spectra, and parameters. 
+        This function reads out the given folder, decides wether its .spx, or .txt
+        and loads the spectra, and parameters.
         """
         self.loadtype = "folder"
         self.folder_path = self._get_folder_path()
@@ -548,7 +546,7 @@ class DataHandler():
                         self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.many_bcf2spec_para(
                             self.folder_path)
                         if self.parameters.ndim == 1:
-                            self.parameters = np.expand_dims(self.parameters, axis=0) 
+                            self.parameters = np.expand_dims(self.parameters, axis=0)
                         self.roi_start = 0.5
                     elif self.file_type == ".mca":
                         self.XANES = False
@@ -565,14 +563,19 @@ class DataHandler():
                             self.file_list)
                     with h5py.File(f"{self.save_data_folder_path}/data.h5", "a") as tofile:
                         if isinstance(self.tensor_positions, object):
-                            tofile.create_dataset(f"{self.file_name}/tensor positions",
+                            if f"{self.file_name}/tensor positions" not in tofile:
+                                tofile.create_dataset(f"{self.file_name}/tensor positions",
                                                   data=np.concatenate(self.tensor_positions, axis=0))
-                            tofile.create_dataset(f"{self.file_name}/positions",
+                            if f"{self.file_name}/positions" not in tofile:
+                                tofile.create_dataset(f"{self.file_name}/positions",
                                                   data=np.concatenate(self.positions, axis=0))
                         else:
-                            tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
-                            tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
-                        tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
+                            if f"{self.file_name}/tensor positions" not in tofile:
+                                tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
+                            if f"{self.file_name}/positions" not in tofile:
+                                tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
+                        if f"{self.file_name}/position dimension" not in tofile:
+                            tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
 
                 elif reload == QtWidgets.QMessageBox.No:
                     if self.load_stored_spec_and_param(folder=True):
@@ -585,7 +588,7 @@ class DataHandler():
                     self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.many_bcf2spec_para(
                         self.folder_path)
                     if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0) 
+                        self.parameters = np.expand_dims(self.parameters, axis=0)
                     self.roi_start = 0.5
                 elif self.file_type == ".spe":
                     self.run_spe_worker()
@@ -606,15 +609,19 @@ class DataHandler():
                         self.file_list)
                 with h5py.File(f"{self.save_data_folder_path}/data.h5", "a") as tofile:
                     if isinstance(self.tensor_positions, object):
-                        tofile.create_dataset(f"{self.file_name}/tensor positions",
-                                              data=np.concatenate(self.tensor_positions, axis=0))
-                        tofile.create_dataset(f"{self.file_name}/positions",
-                                              data=np.concatenate(self.positions, axis=0))
+                        if f"{self.file_name}/tensor positions" not in tofile:
+                            tofile.create_dataset(f"{self.file_name}/tensor positions",
+                                                  data=np.concatenate(self.tensor_positions, axis=0))
+                        if f"{self.file_name}/positions" not in tofile:
+                            tofile.create_dataset(f"{self.file_name}/positions",
+                                                  data=np.concatenate(self.positions, axis=0))
                     else:
-                        tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
-                        tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
+                        if f"{self.file_name}/tensor positions" not in tofile:
+                            tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
+                        if f"{self.file_name}/positions" not in tofile:
+                            tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
                     tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
-                
+
         assert self.load_stored_spec_and_param(folder=True)
         if self.file_type == ".bcf":
             self.life_time = self.parameters[0][4]
@@ -639,11 +646,11 @@ class DataHandler():
             self.parent.entry_fano.setText(f"{self.parameters[0][2]}")
             self.parent.entry_FWHM.setText(f"{self.parameters[0][3]}")
         self.max_pixel_spec = np.max(self.spectra, axis=0)
-        
+
 
     def load_stored_spec_and_param(self, folder=False, stored_data=False):
         """
-        try to load previously stored data, return a boolean if this was 
+        try to load previously stored data, return a boolean if this was
         succesful or not
         """
         if os.path.exists(f"{self.save_data_folder_path}/data.h5"):
@@ -660,7 +667,7 @@ class DataHandler():
                 self.sum_spec = infile[f"{file_key}sum spec"][()]
                 self.parameters = infile[f"{file_key}parameters"][()]
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.max_pixel_spec = infile[f"{file_key}max pixel spec"][()]
                 self.len_spectrum = len(self.sum_spec)
                 self.spectra = infile[f"{file_key}spectra"][()]
@@ -702,7 +709,7 @@ class DataHandler():
                 self.parameters = np.load(
                     f"{self.save_data_folder_path}/parameters.npy")
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.sum_spec = np.load(f"{self.save_data_folder_path}/sum_spec.npy")
                 self.len_spectrum = len(self.sum_spec)
             elif os.path.isdir(f"{self.folder_path}/single_spectra"):
@@ -711,7 +718,7 @@ class DataHandler():
                 self.parameters = np.load(
                     f"{self.save_data_folder_path}/parameters.npy")
                 if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0) 
+                    self.parameters = np.expand_dims(self.parameters, axis=0)
                 self.sum_spec = np.load(f"{self.save_data_folder_path}/sum_spec.npy" %
                                         ())
                 self.len_spectrum = len(self.sum_spec)
@@ -906,7 +913,7 @@ class DataHandler():
         this function opens a dalog to determine a save location and saves settings and parameters
         """
         # check if ending of param file is .dat or .txt
-        if pathlib.Path(filename).suffix not in [".txt", ".dat"]:
+        if Path(filename).suffix not in [".txt", ".dat"]:
             filename += ".dat"
         # determine check state
         batch_fitting = self.parent.sfs.check_batch_fitting.checkState().value
@@ -1008,7 +1015,7 @@ class DataHandler():
         return working_folder
 
     def get_file_type(self):
-        return pathlib.Path(self.file_path).suffix
+        return Path(self.file_path).suffix
 
     def determine_folder_file_type(self):
         file_type = ""
@@ -1052,7 +1059,7 @@ class DataHandler():
             self.save_folder_path = f"{self.folder_path}/results"
         else:
             self.save_folder_path = f"{self.folder_path}/results"
-        pathlib.Path(self.save_folder_path).mkdir(parents=True, exist_ok=True)
+        Path(self.save_folder_path).mkdir(parents=True, exist_ok=True)
 
     def build_specfit_addlines(self):
         # builds dict{'element':(True/False, ['linename',...], Z), '':...,}
@@ -1229,7 +1236,7 @@ class DataHandler():
                 return np.around(tensor_position, 0).astype(np.int), position_dim, positions
             elif self.log_file_type == "spx or MSA":  # for .spx files recorded with M4
                 tensor_position = np.empty((len(file_list), 3))
-                for i in range(len(file_list)):
+                for i, _ in enumerate(file_list):
                     start_file_time = time.time()
                     tensor_position[i] = spx.spx_tensor_position(file_list[i])
                     end_file_time = time.time()

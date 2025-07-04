@@ -33,7 +33,7 @@ class LinesWidget(QtWidgets.QWidget):
         self.a0 = 0
         self.a1 = 1
         self.init_UI()
-        
+
     def init_UI(self):
         # define labels
         self.label_line_label = QtWidgets.QLabel("label: ", self)
@@ -53,14 +53,14 @@ class LinesWidget(QtWidgets.QWidget):
         self.button_new_line.setGeometry(0,30,100,20)
         self.button_check_lines.setGeometry(120,30,100,20)
         self.add_new_line()
-        
+
     def display_lines_widget(self):
         self.show()
-        
-    def get_channel_of_energy(self,energy): 
+
+    def get_channel_of_energy(self,energy):
         energy = np.array(energy).astype(float)
         return np.rint((np.divide(np.subtract(energy,self.a0),self.a1))).astype(int)
-        
+
     def get_energy_of_channel(self,channel):
         channel = np.array(channel).astype(float)
         return  np.add(np.multiply(self.a1,channel) , self.a0)
@@ -71,10 +71,10 @@ class LinesWidget(QtWidgets.QWidget):
         self.ident_nr +=1
         self.ident_list.append(self.ident_nr)
         self.label_line_start.append(QtWidgets.QLabel("start: ", self))
-        self.label_line_end.append(QtWidgets.QLabel("end: ", self))    
+        self.label_line_end.append(QtWidgets.QLabel("end: ", self))
         self.entry_label_list.append(QtWidgets.QLineEdit("",self))
         self.entry_start_list.append(QtWidgets.QLineEdit("",self))
-        self.entry_end_list.append(QtWidgets.QLineEdit("",self))    
+        self.entry_end_list.append(QtWidgets.QLineEdit("",self))
         self.button_remove_list.append(QtWidgets.QPushButton(QtGui.QIcon.fromTheme("window-close")," " ,self))
         self.label_line_start[-1].setGeometry(110,n*30,50,20)
         self.label_line_start[-1].show()
@@ -92,13 +92,13 @@ class LinesWidget(QtWidgets.QWidget):
         self.button_remove_list[-1].show()
         self.button_new_line.move(0,n*30+30)
         self.button_check_lines.move(120,n*30+30)
-        
+
     def new_filled_line(self,label,start,end):
         self.add_new_line()
         self.entry_label_list[-1].setText(label)
         self.entry_start_list[-1].setText(start)
         self.entry_end_list[-1].setText(end)
-        
+
     def remove_line(self,remove_id):
         self.number_lines -= 1
         i = self.ident_list.index(remove_id)
@@ -112,7 +112,7 @@ class LinesWidget(QtWidgets.QWidget):
                 line_list[line_under_i].move(line_list[line_under_i].x(), line_list[line_under_i].y()-30)
         self.button_new_line.move(0,self.number_lines*30+30)
         self.button_check_lines.move(120,self.number_lines*30+30)
-        
+
     def reset_2_default(self):
         """
         delate all lines
@@ -128,24 +128,24 @@ class LinesWidget(QtWidgets.QWidget):
         except AttributeError: # if not yet defined
             pass
         self.label_line_start = []
-        self.label_line_end= []  
+        self.label_line_end= []
         self.entry_label_list= []
         self.entry_start_list= []
-        self.entry_end_list= []    
+        self.entry_end_list= []
         self.button_remove_list= []
         self.button_new_line.move(0,n*30+30)
         self.button_check_lines.move(120,n*30+30)
-        
+
     def get_label(self, label_entry, start_entry, end_entry):
         """
-        Read the entries and return a user defined labels, define label as Start_end if not 
+        Read the entries and return a user defined labels, define label as Start_end if not
         defined return None if no lines are defined
         """
         label = label_entry.text()
         if (label == "" ):
                 label = f"{start_entry.text()}_{end_entry.text()}"
         return label
-    
+
     def get_label_list(self):
         """
         Return the labels of all filled entries
@@ -155,21 +155,21 @@ class LinesWidget(QtWidgets.QWidget):
             if  start.text() != ""  and end.text()!="":
                 label_list.append(self.get_label(label,start,end))
         return label_list
-    
+
     def get_start_list(self):
         start_list = []
         for label, start, end in zip(self.entry_label_list, self.entry_start_list,self.entry_end_list):
             if  start.text() != "" and end.text()!="":
                 start_list.append(start.text())
         return start_list
-    
+
     def get_end_list(self):
         end_list = []
         for label, start, end in zip(self.entry_label_list, self.entry_start_list,self.entry_end_list):
             if  start.text() != "" and end.text()!="":
                 end_list.append(end.text())
         return end_list
-    
+
     def load_spec(self,spec,a0,a1,label):
         self.spec = np.array(spec)
         self.a0 = float(a0)
@@ -183,7 +183,7 @@ class LinesWidget(QtWidgets.QWidget):
         """
         return a/(np.sqrt(2*np.pi)*sigma) * np.exp(-(e - e0)**2/(2*sigma**2))
 
-    def check_lines(self):    
+    def check_lines(self):
         """
         check if gaussian fits look alright, not necessary!
         """
@@ -203,17 +203,17 @@ class LinesWidget(QtWidgets.QWidget):
             plt.plot(x, self.gaussian(x,*popt),"ro:", label = "fit")
             plt.legend()
             plt.show()
-    
-    def gaussian_fit(self):         
-        """ 
+
+    def gaussian_fit(self):
+        """
         try a gaussian fit for every user defined line, return the labels of sucessfully fitted lines and its parameters
-        """       
+        """
         self.popt_list = []
         self.label_list = []
         self.x_list = []
         for label_entry, start_entry, end_entry in zip( self.entry_label_list, self.entry_start_list, self.entry_end_list):
             if  start_entry.text() != "" and end_entry.text()!="":
-                label= self.get_label(label_entry, start_entry, end_entry )           
+                label= self.get_label(label_entry, start_entry, end_entry )
                 start_ch = self.get_channel_of_energy(start_entry.text())
                 end_ch = self.get_channel_of_energy(end_entry.text())
                 x = self.get_energy_of_channel(np.array(range(start_ch, end_ch+1)))
@@ -226,11 +226,11 @@ class LinesWidget(QtWidgets.QWidget):
                     self.popt_list.append(popt)
                     self.label_list.append(label)
                     self.x_list.append(x)
-                except RuntimeError: 
+                except RuntimeError:
                     print("gaussian fit not possible, take default parameters for ", label)
                     self.popt_list.append([maximum,mean, sigma])
                     self.gaussian_impossible_handler(label)
-    
+
     def gaussian_impossible_handler(self, label):
         """
         build a dict: linelabel -> [list of angles where gaussian parameters could not be found]
@@ -239,11 +239,11 @@ class LinesWidget(QtWidgets.QWidget):
             if label not in self.opt_param_not_found_dict.keys():
                 self.opt_param_not_found_dict[label] = []
             self.opt_param_not_found_dict[label].append(str(self.spec_label))
-    
+
     def get_user_defined_lines_data(self):
          """
          returns an array in Form [[label1,start1,end1],[label2,start2,end2]]
-         """   
+         """
          return (np.array((self.get_label_list(),self.get_start_list(), self.get_end_list())).T).tolist()
 
     def build_output_rows(self):
@@ -261,7 +261,7 @@ class LinesWidget(QtWidgets.QWidget):
             print("could not build a line")
             traceback.print_exc()
         return user_lines_list
-        
+
     def get_user_defined_lines(self):
         """
         returns the lines in a format that specfit can understand
@@ -274,7 +274,7 @@ class LinesWidget(QtWidgets.QWidget):
             print("len line spectra list", len(line_spectra_list))
         assert (len(self.label_list) == len(line_spectra_list))
         return self.label_list, line_spectra_list
-        
+
     def plot_output(self,line_spectra_list):
          """
          for testing/debugging
@@ -282,8 +282,14 @@ class LinesWidget(QtWidgets.QWidget):
          for label,line_spectra,popt in zip(self.label_list, line_spectra_list, self.popt_list):
              a = popt[0]
              plt.figure(f"{label}-a={a}")
-             plt.plot(self.get_energy_of_channel(range(len(line_spectra))),np.multiply(line_spectra,a), "ro:", label = "fit")
-             plt.plot(self.get_energy_of_channel(range(len(line_spectra))),self.spec, "b+:", label = "data")
+             plt.plot(self.get_energy_of_channel(range(len(line_spectra))),
+                      np.multiply(line_spectra,a),
+                      "ro:",
+                      label = "fit")
+             plt.plot(self.get_energy_of_channel(range(len(line_spectra))),
+                      self.spec,
+                      "b+:",
+                      label = "data")
          plt.show()
 
     def print_gaussian_fit_error_results(self):

@@ -5,7 +5,7 @@ from PyQt6 import QtWidgets
 def split_h5():
     """
     This function splits the data.h5 created when loading the measurement into
-    single h5 files which which consist of 
+    single h5 files which which consist of
 
     Returns
     -------
@@ -28,7 +28,7 @@ def split_h5():
         # now iterate over the list and split the data accordingly
         for i, split in enumerate(list_of_splits):
             # calculate start and end index, since the data is stored as one long
-            # list (e.g. np.prod(dimensions)), the index has to be calculated 
+            # list (e.g. np.prod(dimensions)), the index has to be calculated
             # accordingly
             start_idx = np.sum(list_of_splits[:i] * np.prod(dimensions[1:]), dtype = int)
             end_idx = np.sum(list_of_splits[:i+1] * np.prod(dimensions[1:]), dtype = int)

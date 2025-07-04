@@ -14,4 +14,4 @@ The software is licensed under MIT.
 # Main Developer
 Frank Förste
 # References
-https://doi.org/10.1039/D2JA00119E 
+https://doi.org/10.1039/D2JA00119E

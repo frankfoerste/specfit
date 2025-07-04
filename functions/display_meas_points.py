@@ -15,7 +15,7 @@ class DisplayMeasPoints(QtWidgets.QWidget):
         screen_height = screen_properties.height()
         if sys.platform == "linux" or sys.platform == "linux2":
             self.homedir = os.environ["HOME"]
-        else: 
+        else:
             self.homedir = "C:/"
         self.version = "measurement range 1.00"
         try: QtGui.QIcon.setThemeName("ubuntu-mono-dark")
@@ -44,36 +44,36 @@ class DisplayMeasPoints(QtWidgets.QWidget):
         self.canvas_meas_points = pltqt.FigureCanvasQTAgg(self.figure_meas_points)
         self.canvas_meas_points.setParent(self)
         self.canvas_meas_points.move(5,30)
-        self.toolbar_meas_points = pltqt.NavigationToolbar2QT(self.canvas_meas_points, self) 
+        self.toolbar_meas_points = pltqt.NavigationToolbar2QT(self.canvas_meas_points, self)
         self.toolbar_meas_points.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         self.toolbar_meas_points.setGeometry(0,380, 590, 50)
-        
+
     def show_display_meas_points(self):
         self.show()
         self.activateWindow()
-    
+
     def reset_2_default(self):
-        try: 
+        try:
             self.figure_meas_points.delaxes(self.ax_canvas_meas_points)
-        except: 
+        except:
             pass
         self.positions = []
-        
+
     def load_data(self):
         self.reset_2_default()
         folderpath = QtWidgets.QFileDialog.getExistingDirectory()         ### function for a folder-GUI
         file_path_list = glob(folderpath+"/*spx")
         self.retrieve_positions_spx(file_path_list)
-        
+
     def retrieve_positions_spx(self, file_path_list):
         """
         This function reads out the position of all spx files in the given list
         """
-        for i in range(len(file_path_list)):
+        for i, _ in enumerate(file_path_list):
             self.positions.append(spx.spx_tensor_position(file_path_list[i]))
         self.positions = np.asarray(self.positions)
         self.display_meas_points()
-    
+
     def display_meas_points(self):
         # create an axis
         self.ax_canvas_meas_points = self.figure_meas_points.add_subplot(111, projection="3d")
@@ -81,8 +81,8 @@ class DisplayMeasPoints(QtWidgets.QWidget):
         self.ax_canvas_meas_points.xaxis.set_pane_color((1,1,1,1))
         self.ax_canvas_meas_points.yaxis.set_pane_color((1,1,1,1))
         self.ax_canvas_meas_points.zaxis.set_pane_color((1,1,1,1))
-        self.ax_canvas_meas_points.scatter(self.positions[:,0], 
-                                           self.positions[:,1], 
+        self.ax_canvas_meas_points.scatter(self.positions[:,0],
+                                           self.positions[:,1],
                                            self.positions[:,2])
         self.canvas_meas_points.draw()
 

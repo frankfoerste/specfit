@@ -6,15 +6,15 @@ import dask.array as da
 from pathlib import Path
 
 def hdf2spec_para(file_path, verbose=False):
-    """ 
+    """
     This function reads out the spectrum of a .hdf5-file and reads out the
     detector parameters given in the .hdf5-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .hdf5-file.
-    
+
     Returns
     -------
     array containing the spectrum
@@ -112,8 +112,8 @@ def hdf2spec_para(file_path, verbose=False):
             real_time = 1
             channels = int(len(spectra[0]))
             spectra = np.divide(spectra, life_time[:, None])
-        parameters = np.array([a0, a1, Fano, FWHM, np.mean(life_time), 
-                               a0 + a1 * (channels - 1), gating_time, 
+        parameters = np.array([a0, a1, Fano, FWHM, np.mean(life_time),
+                               a0 + a1 * (channels - 1), gating_time,
                                np.mean(real_time)])
         if verbose:
             print("parameters", parameters.shape)
@@ -125,21 +125,21 @@ def hdf2spec_para(file_path, verbose=False):
         else:
             write_operator = "w"
         with h5py.File(f"{save_path}/data/data.h5", write_operator) as tofile:
-            tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec, 
+            tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec, 
+            tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
                                   compression="gzip")
-            tofile.create_dataset(f"{file_name}/parameters", data=parameters, 
+            tofile.create_dataset(f"{file_name}/parameters", data=parameters,
                                   compression="gzip")
-        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/counts": counts}, 
+        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/counts": counts},
                    compression="gzip")
-        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/spectra": spectra}, 
+        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/spectra": spectra},
                    compression="gzip")
     return spectra, parameters, sum_spec, channels
 
 def hdf_tensor_positions(file_path):
     """
-    This function reads out the specific position of the spectrum in the 
+    This function reads out the specific position of the spectrum in the
     measurement-tensor.
     returns position = [x, y, z]
     position = spx_tensor_position(file_path)
@@ -152,10 +152,10 @@ def hdf_tensor_positions(file_path):
     if file_type == "hdf5": # For AnImaX mit python ansteuerung
         line_breaks = hdf5_file["SDD/scan index log/line breaks"][()]
         positions = [line_breaks[-2, 2] + 1, line_breaks[1, 1], 1]
-        tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                             range(positions[1]))), 
+        tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                             range(positions[1]))),
                                       dtype=np.uint32)
-        tensor_positions = np.hstack((tensor_positions, 
+        tensor_positions = np.hstack((tensor_positions,
                                       np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
     elif file_type == "h5":
         if "c1/main" in hdf5_file:
@@ -203,47 +203,47 @@ def hdf_tensor_positions(file_path):
                 width = max(axis1, axis2)
                 height = 1
             positions = [int(height), int(width), 1]
-            tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                                 range(positions[1]))), 
+            tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                                 range(positions[1]))),
                                           dtype=np.uint32)
-            tensor_positions = np.hstack((tensor_positions, 
+            tensor_positions = np.hstack((tensor_positions,
                                           np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
         elif "concentrations" in hdf5_file:
             shape = hdf5_file["spectra"].shape
             if len(shape) == 3:
                 positions = [shape[0], shape[1], 1]
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                                     range(positions[1]), 
-                                                                     range(positions[2]))), 
+                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                                     range(positions[1]),
+                                                                     range(positions[2]))),
                                               dtype=np.uint32)
             else:
                 positions = list(shape[:-1])
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                                     range(positions[1]), 
-                                                                     range(positions[2]))), 
+                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                                     range(positions[1]),
+                                                                     range(positions[2]))),
                                               dtype=np.uint32)
         else:
             shape = hdf5_file["Raw"].shape
             if len(shape) == 3:
                 positions = [shape[0], shape[1], 1]
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                                     range(positions[1]))), 
+                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                                     range(positions[1]))),
                                               dtype=np.uint32)
-                tensor_positions = np.hstack((tensor_positions, 
-                                              np.zeros((len(tensor_positions), 1), 
+                tensor_positions = np.hstack((tensor_positions,
+                                              np.zeros((len(tensor_positions), 1),
                                                        dtype=np.uint32)))
             else:
                 positions = list(shape[:-1])
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]), 
-                                                                     range(positions[1]), 
-                                                                     range(positions[2]))), 
+                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
+                                                                     range(positions[1]),
+                                                                     range(positions[2]))),
                                               dtype=np.uint32)
     with h5py.File(f"{save_path}/data/data.h5", "r+") as tofile:
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions, 
+        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
                               compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=tensor_positions, 
+        tofile.create_dataset(f"{file_name}/positions", data=tensor_positions,
                               compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=positions, 
+        tofile.create_dataset(f"{file_name}/position dimension", data=positions,
                               compression="gzip")
     hdf5_file.close()
     return positions, tensor_positions

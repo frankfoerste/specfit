@@ -14,7 +14,7 @@ class ShowProps(QtWidgets.QWidget):
         self.backup_text = ""
         self.init_UI()
         self.show()
-        
+
     def init_UI(self):
         # initialize widgets
         file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -29,15 +29,15 @@ class ShowProps(QtWidgets.QWidget):
         self.label_logo = QtWidgets.QLabel()
         self.label_logo.setPixmap(QtGui.QPixmap(parent_dir+"/Data/images/specfit_logo_vertical.png"))
         self.label_logo.setScaledContents(True)
-        self.label_logo.show() 
+        self.label_logo.show()
         self.layout.addWidget(self.label_logo, 3, 0, 1, 3)
-        
+
     def fill_text(self, string):
         self.measurement_properties.insertPlainText(f"{string}")
-        
+
     def save_props(self):
         with open(f"{self.data_path}/fit_properties.log", "w", encoding = "utf8") as tofile:
             tofile.writelines(str(self.measurement_properties.toPlainText()))
-        
+
     def clear_popup(self):
         self.measurement_properties.clear()

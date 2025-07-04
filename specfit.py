@@ -7,7 +7,7 @@ import time
 from glob import glob
 import numpy as np
 import dask.array as da
-import subprocess as sp 
+import subprocess as sp
 import natsort as ns
 from PyQt6 import QtGui, QtWidgets, QtCore
 from functools import partial
@@ -49,58 +49,58 @@ class RoDatabase(object):
         self.init_check_elements()
         self.read_char_lines()
         self.read_lineE()
-    
+
     def read_elements(self):
         """
         read out list of elements from elements.dat
         """
         self.elements = []
-        with open(self.working_dir+"/Data/elements.dat", "r", 
+        with open(self.working_dir+"/Data/elements.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").replace(" ", "").split("\t")
                 self.elements.append([int(line[0]), line[1], int(line[0])])
                 if line[0] == "98":
                     break
-    
+
     def read_lines(self):
         """
         read out list of lines from lines.dat
         """
         self.lines = []
-        with open(self.working_dir+"/Data/lines.dat", "r", 
+        with open(self.working_dir+"/Data/lines.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").split("\t")
                 self.lines.append([line[0], line[1]])
-    
+
     def read_PSE(self):
         """
         read out structure of PSE from PSE.dat
         """
         self.pse = []
-        with open(self.working_dir+"/Data/PSE.dat", "r", 
+        with open(self.working_dir+"/Data/PSE.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").split("\t")
                 self.pse.append([int(line[0]), line[1], int(line[2]), int(line[3]), int(line[4]), line[5]])
                 if line[0] == "98":
                     break
-    
+
     def init_check_elements(self):
         """
         here a list to determine wether a element is choosen or not is created
         """
         self.check_elements = []
-        for i in range(len(self.elements)):
+        for i, _ in enumerate(self.elements):
             self.check_elements.append(f"check_element_{i}")
-    
+
     def read_char_lines(self):
         """
         read out characteristic lines
         """
         self.characteristic_lines = {}
-        with open(self.working_dir+"/Data/characteristic_lines.dat", "r", 
+        with open(self.working_dir+"/Data/characteristic_lines.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.split()
@@ -110,11 +110,11 @@ class RoDatabase(object):
         read out fluorescence energy data from lineE.dat
         """
         self.lineE = {}
-        with open(self.working_dir+"/Data/lineE.dat", "r", 
+        with open(self.working_dir+"/Data/lineE.dat", "r",
                   encoding="ascii") as lineE_file:
             for line in lineE_file:
                 line = line.split()
-                self.lineE[float(line[0])] = [line[1], int(line[2]), 
+                self.lineE[float(line[0])] = [line[1], int(line[2]),
                                               line[3], int(line[4]), float(line[5])]
 
 database = RoDatabase()
@@ -123,7 +123,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         # initalize main window
         super(SpecFitGUIMain, self).__init__(parent)
-        self.__version__ = u"SpecFit - 1.0"
+        self.__version__ = u"SpecFit - 1.0.1"
         self.working_directory = os.getcwd()
         self.bg_color = "black"
         sp.call("", shell=True) # clear the screen to get rid of all the print
@@ -133,12 +133,12 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.s = sf.SpecFit()  # load the SpecFit class of specfit_deconvolution.py
         self.roi_widget = ShowROI(parent=self)
         self.plot3d = Plot3D()
-        self.pse_widget = PSE(parent=self, 
-                              PSE=database.pse, 
-                              elements=database.elements, 
-                              lines=database.lines, 
-                              check_elements=database.check_elements, 
-                              characteristic_lines=database.characteristic_lines, 
+        self.pse_widget = PSE(parent=self,
+                              PSE=database.pse,
+                              elements=database.elements,
+                              lines=database.lines,
+                              check_elements=database.check_elements,
+                              characteristic_lines=database.characteristic_lines,
                               lineE=database.lineE)
         self.popup_properties = show_measurement_properties.ShowProps(os.getcwd() + "/example_measurements/spx/1d/", self)
         self.ascii_specfit_logo = mpimg.imread(os.getcwd()+"/Data/images/SpecFit_ASCII.png")
@@ -166,15 +166,15 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.button_width = 80
         self.label_width = 40
         # define geometry and properties
-        
+
         self.screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.screen_width = self.screen_properties.width()
         self.screen_height = self.screen_properties.height()
         self.window_heigth = 600
         self.window_width = 1200
         self.setWindowTitle(self.__version__)
-        self.setGeometry(int((self.screen_width-self.window_width)//2), 
-                         int((self.screen_height-self.window_heigth)//2), 
+        self.setGeometry(int((self.screen_width-self.window_width)//2),
+                         int((self.screen_height-self.window_heigth)//2),
                          self.window_width, self.window_heigth)
         self.menubar = self.menuBar()
         self.win_toolbar = self.addToolBar("SpecFit")
@@ -540,7 +540,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.entry_smooth_cycles.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_smooth_cycles))
         self.entry_smooth_width.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_smooth_width))
         self.entry_calc_minima_order.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_calc_minima_order))
-        self.check_calc_minima.stateChanged.connect(lambda state: self.sfs.check_calc_minima.setChecked(state == QtCore.Qt.CheckState.CheckState.Checked))
+        self.check_calc_minima.stateChanged.connect(lambda state: self.sfs.check_calc_minima.setChecked(state == QtCore.Qt.CheckState.Checked))
 
     def set_spectra_nr(self, spectra_nr):
         """
@@ -581,7 +581,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 self.s.life_time = self.data.parameters[4]
             else:
                 self.s.life_time = self.data.parameters[0][4]
-            try: 
+            try:
                 self.s.real_time = self.data.parameters[0][7]  #TODO real time has to be implemented for every file format
             except:
                 pass
@@ -708,7 +708,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         """
         Function to update DataHandler with GUI_values
         """
-        self.data.parameters_user[:4] = np.asarray([self.entry_a0.text(), self.entry_a1.text(), self.entry_fano.text(), self.entry_FWHM.text()], dtype=float) #stores parameters defined by User in GUI, 
+        self.data.parameters_user[:4] = np.asarray([self.entry_a0.text(), self.entry_a1.text(), self.entry_fano.text(), self.entry_FWHM.text()], dtype=float) #stores parameters defined by User in GUI,
         self.data.update_channels(use_user_parameter=self.check_use_parameters.checkState().value)
         self.data.use_parameters = (self.check_use_parameters.checkState() == QtCore.Qt.CheckState.Checked)
         self.data.bg_zero = (self.check_set_bg_zero.checkState() == QtCore.Qt.CheckState.Checked)
@@ -793,7 +793,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # store the sum_spec in the self.selected_spectrum container
         self.selected_spectrum = self.data.sum_spec
         # plot the sum spec of the loaded measurement
-        self.plot_style(self.data.energies[low_index:high_index], self.data.sum_spec[low_index:high_index], 
+        self.plot_style(self.data.energies[low_index:high_index], self.data.sum_spec[low_index:high_index],
                         color="#48a0dcff", label="measurement")
         # add labels and legend to plot
         self.ax_canvas_spectrum.set_xlim(self.data.roi_start, self.data.roi_end)
@@ -817,7 +817,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         try:
             self.popup_properties.fill_text('position steps: {:d}-{:d}-{:d} \n'.format(*self.data.position_dimension))
         except:
-            pass  # for MCA no position_dimension is generated at the moment?        
+            pass  # for MCA no position_dimension is generated at the moment?
         # set main GUI on top
         self.activateWindow()
 
@@ -847,15 +847,17 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
          self.roi_widget.parameters = self.data.parameters
          self.roi_widget.plot_style_str = self.data.plot_style
          one_d_array = (self.data.position_dimension[0]== 1 and self.data.position_dimension[1]==1)
-         self.roi_widget.load_spectra(folder_path=self.data.folder_path, 
-                                      save_folder_path=self.data.save_folder_path, 
-                                      save_data_path=self.data.save_data_folder_path, 
-                                      load_type=self.data.loadtype, 
+         self.roi_widget.load_spectra(folder_path=self.data.folder_path,
+                                      save_folder_path=self.data.save_folder_path,
+                                      save_data_path=self.data.save_data_folder_path,
+                                      load_type=self.data.loadtype,
                                       one_dim=one_d_array)
          self.roi_widget.display_show_ROI()
 
     def change_plot_style(self, style):
-        self.data.plot_style = style
+        """
+        Change the scale of the plot according to the radio button toggled
+        """
         if style != self.data.plot_style:
             self.clear_ax_canvas_spectrum()
             self.plot_style_changed = True
@@ -867,7 +869,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 if not self.s.fit_in_progress:
                     self.check_fit()
                 elif self.s.fit_in_progress:
-                    self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(), 
+                    self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
                                      initialize=False)
             elif style == "log":
                 self.plot_style = self.ax_canvas_spectrum.semilogy
@@ -875,7 +877,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 if not self.s.fit_in_progress:
                     self.check_fit()
                 elif self.s.fit_in_progress:
-                    self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(), 
+                    self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
                                      initialize=False)
             elif style == "None":
                 self.plot_style = None
@@ -884,15 +886,16 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 self.ax_canvas_spectrum.set_xlim(0, self.ascii_imshow.properties()["size"][1])
                 self.ax_canvas_spectrum.set_ylim(self.ascii_imshow.properties()["size"][0], 1e-5)
         self.canvas_spectrum.draw()
-
+        self.data.plot_style = style
+    
     def load_parameter_in_specfit_deconvolution(self, spectra_nr=0):
         """
-        This function loads the parameters a0, a1, Fano, el.noise, E_max life_time, 
-        gating_time, strip_cycles, strip_width, smooth_cycles, smooth_width, 
+        This function loads the parameters a0, a1, Fano, el.noise, E_max life_time,
+        gating_time, strip_cycles, strip_width, smooth_cycles, smooth_width,
         minchange (nl_fit threshold) and database (xraylib) from the
         DataHandler into specfit_deconvolution
         """
-        assert self.data.loadtype in ["file", "msa_file", "angle_file", "folder", 
+        assert self.data.loadtype in ["file", "msa_file", "angle_file", "folder",
                                       "hdf5_file", "bcf_file", "csv_file"]
         parameters = self.get_selected_parameters()
         try:
@@ -920,7 +923,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         type and if the GUI parameters are used (e.g. after non-linear calibration)
         """
 
-        if self.data.use_parameters is False and self.data.loadtype in ["file", "msa_file", "angle_file", 
+        if self.data.use_parameters is False and self.data.loadtype in ["file", "msa_file", "angle_file",
                                                                         "hdf5_file", "bcf_file", "csv_file"]:
             parameters = self.data.parameters
         elif self.data.use_parameters is False and self.data.loadtype in ["folder"]:
@@ -952,7 +955,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         elif spectra_nr < -2:
             self.s.load_spec(self.data.sum_spec)
         else:
-            assert self.data.loadtype in ["angle_file", "file", "folder", "msa_file", 
+            assert self.data.loadtype in ["angle_file", "file", "folder", "msa_file",
                                           "hdf5_file", "bcf_file", "csv_file"]
             if self.data.loadtype == "angle_file":
                 angle = self.data.tensor_positions.T[2][spectra_nr]
@@ -963,7 +966,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     self.s.load_spec(self.data.spectra["0"])
                 elif type(self.data.spectra) is np.ndarray:
                     self.s.load_spec(self.data.spectra)
-            elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", 
+            elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file",
                                         "csv_file"]:
                 if self.s.fit_in_progress:
                     self.s.load_spec(self.data.spectra[spectra_nr]) # dict not empty
@@ -984,8 +987,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         except:
             self.statusBar().showMessage("Please load a measurment prior export.")
             return
-        export_2_npz_path = QtWidgets.QFileDialog().getSaveFileName(self, 
-                                                                  "select save path", 
+        export_2_npz_path = QtWidgets.QFileDialog().getSaveFileName(self,
+                                                                  "select save path",
                                                                   self.data.file_path.replace(self.data.file_type, ".npz"))[0]
         if ".npz" not in export_2_npz_path:
             export_2_npz_path += ".npz"
@@ -1098,20 +1101,20 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # display fit results on measurement properties
         self.popup_properties.clear_popup()
         self.popup_properties.fill_text(self.popup_properties.backup_text)
-        for _s in range(len(self.s.Lines)):
+        for _s, _ in enumerate(self.s.Lines):
             if _s == 0:
                self.popup_properties.fill_text("Results on Sum Spec\n+++++++++++++++++++\n")
-            self.popup_properties.fill_text("{}-{} : {:.0f}cps\n".format(xrl.AtomicNumberToSymbol(self.s.Lines[_s]["Z"]), 
-                                                                         self.s.Lines[_s]["edge"], 
+            self.popup_properties.fill_text("{}-{} : {:.0f}cps\n".format(xrl.AtomicNumberToSymbol(self.s.Lines[_s]["Z"]),
+                                                                         self.s.Lines[_s]["edge"],
                                                                          self.s.Lines[_s]["I"]))
         # plot the results
         self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, result_spec)
 
-    def plot_canvas(self, spectrum, energy, background, calc_spec, 
+    def plot_canvas(self, spectrum, energy, background, calc_spec,
                     initialize=True):
         """
         This function plots the given spectra in the canvas_spectrum
-        
+
         Parameters
         ----------
         spectrum : numpy.ndarray
@@ -1134,7 +1137,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 if self.plot_style == "lin":
                     self.ax_canvas_spectrum.set_ylim(0, np.max(spectrum[plot_start:plot_end]) * 1.1)
                 else:
-                    self.ax_canvas_spectrum.set_ylim(np.min(spectrum[plot_start:plot_end]) * 0.9, 
+                    self.ax_canvas_spectrum.set_ylim(np.min(spectrum[plot_start:plot_end]) * 0.9,
                                                      np.max(spectrum[plot_start:plot_end]) * 1.1)
             else:
                 xmin, xmax = self.ax_canvas_spectrum.get_xlim()
@@ -1147,21 +1150,21 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             if self.plot_style_changed:
                 self.clear_ax_canvas_spectrum()
                 if self.selected_energy is not None:
-                    self.selected_energy = self.ax_canvas_spectrum.axvline(self.selected_energy.get_xdata()[0], 
+                    self.selected_energy = self.ax_canvas_spectrum.axvline(self.selected_energy.get_xdata()[0],
                                                                            ymax=self.ax_canvas_spectrum.get_ylim()[
-                                                                                    -1] / 2, 
+                                                                                    -1] / 2,
                                                                            color="g")
-                self.plot_style(energy[plot_start:plot_end], 
-                                spectrum[plot_start:plot_end], 
-                                color="#48a0dcff", 
+                self.plot_style(energy[plot_start:plot_end],
+                                spectrum[plot_start:plot_end],
+                                color="#48a0dcff",
                                 label="measurement")                       # plot the given-spec
-                if background.size > 1: self.plot_style(energy[plot_start:plot_end], 
-                                                        background[plot_start:plot_end], 
-                                                        color="orange", 
+                if background.size > 1: self.plot_style(energy[plot_start:plot_end],
+                                                        background[plot_start:plot_end],
+                                                        color="orange",
                                                         label="background")                     # plot the background
-                if calc_spec.size >1: self.plot_style(energy[plot_start:plot_end], 
-                                                      calc_spec[plot_start:plot_end], 
-                                                      color="red", 
+                if calc_spec.size >1: self.plot_style(energy[plot_start:plot_end],
+                                                      calc_spec[plot_start:plot_end],
+                                                      color="red",
                                                       label="fitted spectrum")
                 self.plot_style_changed = False
             else:
@@ -1190,11 +1193,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.set_spectra_nr(spectra_nr=-1)
         if self.plot_style is not None:
             plot_start, plot_end = self.data.get_roi_indicees()
-            self.plot_style(self.data.energies[plot_start:plot_end], self.data.sum_spec[plot_start:plot_end], 
-                            color="#48a0dcff", 
+            self.plot_style(self.data.energies[plot_start:plot_end], self.data.sum_spec[plot_start:plot_end],
+                            color="#48a0dcff",
                             label="measurement")
-            try: self.plot_style(self.data.energies[plot_start:plot_end], self.s.Strip[plot_start:plot_end], 
-                                 color="orange", 
+            try: self.plot_style(self.data.energies[plot_start:plot_end], self.s.Strip[plot_start:plot_end],
+                                 color="orange",
                                  label="background")
             except: pass
             self.ax_canvas_spectrum.set_ylim(np.min(self.data.sum_spec)*0.9, np.max(self.data.sum_spec)*1.1)
@@ -1213,21 +1216,21 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.popup_properties.clear_popup()
         self.popup_properties.fill_text(self.popup_properties.backup_text)
         if self.data.loadtype in ["file"]:
-            self.save_file_path = QtWidgets.QFileDialog().getSaveFileName(self, 
-                                                                          "select save path", 
+            self.save_file_path = QtWidgets.QFileDialog().getSaveFileName(self,
+                                                                          "select save path",
                                                                           self.data.file_path.replace(self.data.file_type, "_results.dat"))[0]
             self.save_folder_path = "/".join(self.save_file_path.split("/")[:-1])
-        elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "angle_file", 
+        elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "angle_file",
                                     "csv_file"]:
-            self.save_folder_path = QtWidgets.QFileDialog().getExistingDirectory(self, 
-                                                                                 "select save folder", 
+            self.save_folder_path = QtWidgets.QFileDialog().getExistingDirectory(self,
+                                                                                 "select save folder",
                                                                                  self.data.folder_path)
 
-        def create_empty_results(load_type="folder", 
-                                 selected_elements=["Fe"], 
-                                 selected_lines=[["K"]], 
-                                 batch_fitting=True, 
-                                 dimension=[1, 1, 1], 
+        def create_empty_results(load_type="folder",
+                                 selected_elements=["Fe"],
+                                 selected_lines=[["K"]],
+                                 batch_fitting=True,
+                                 dimension=[1, 1, 1],
                                  verbose=False):
             """
             This function builds a dict with every chosen
@@ -1261,7 +1264,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 a np.zeros in the shape of the measurement dimension. While
                 fitting this array is filled
             """
-            assert load_type in ["file", "angle_file", "folder", "msa_file", "hdf5_file", "bcf_file", 
+            assert load_type in ["file", "angle_file", "folder", "msa_file", "hdf5_file", "bcf_file",
                                  "csv_file"]
             if batch_fitting:
                 dimension[0] = 1
@@ -1278,25 +1281,25 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         if not isinstance(dimension[0], np.ndarray):
                             results[f"{element}_{line}"] = np.zeros(dimension)
                         else:
-                            for scan in range(len(dimension)):
+                            for scan, _ in enumerate(dimension):
                                 results[f"{element}_{line}_scan_{scan}"] = np.zeros(dimension[scan])
 
                 for label in self.pse_widget.tab_udl.get_label_list():
                     if not isinstance(dimension[0], np.ndarray):
                         results[f"{label}"] = np.zeros(dimension)
                     else:
-                        for scan in range(len(dimension)):
+                        for scan, _ in enumerate(dimension):
                             results[f"{label}_scan_{scan}"] = np.zeros(dimension[scan])
             return results
 
-        def save_results(results, 
-                         save_path="results", 
-                         batch_fitting=True, 
-                         batch_iterator=0, 
-                         file_type=".spx", 
-                         dimension=[1, 1, 1], 
-                         save_storage=".h5", 
-                         verbose=False, 
+        def save_results(results,
+                         save_path="results",
+                         batch_fitting=True,
+                         batch_iterator=0,
+                         file_type=".spx",
+                         dimension=[1, 1, 1],
+                         save_storage=".h5",
+                         verbose=False,
                          ):
             if batch_fitting:
                 dimension[0] = 1
@@ -1317,7 +1320,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         if results_key in content:
                             tofile[results_key][()] = results[key]  # replace the results already in results.h5
                         else:
-                            tofile.create_dataset(results_key, 
+                            tofile.create_dataset(results_key,
                                                   data=results[key])
                 elif save_storage == ".npy":
                     if file_type == ".MSA":
@@ -1366,10 +1369,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         if self.data.loadtype == "file":  # means only one spectrum
             self.check_nl_fit.setChecked(False)
             show_fit_prop_in_popup()   # write fit-lines to properties-popup
-            results = create_empty_results(load_type=self.data.loadtype, 
-                                           selected_elements=self.pse_widget.selected_elements, 
-                                           selected_lines=self.pse_widget.selected_lines, 
-                                           batch_fitting=False, 
+            results = create_empty_results(load_type=self.data.loadtype,
+                                           selected_elements=self.pse_widget.selected_elements,
+                                           selected_lines=self.pse_widget.selected_lines,
+                                           batch_fitting=False,
                                            dimension=np.copy(self.data.position_dimension)
                                                 )
             self.check_fit(params_user=self.data.use_parameters)
@@ -1389,19 +1392,19 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     except:
                         infile.write("{}I: {}, custom line: {}{}\n".format("{", getResults[key]["I"], key, "}"))
             if self.sfs.check_save_background.isChecked():
-                np.savetxt(f"{self.save_folder_path}/background.txt", 
-                           np.column_stack([self.data.energies, self.s.Strip]), 
+                np.savetxt(f"{self.save_folder_path}/background.txt",
+                           np.column_stack([self.data.energies, self.s.Strip]),
                            delimiter="\t")
             if self.sfs.check_save_fitted_spectrum.isChecked():
-                np.savetxt(f"{self.save_folder_path}/fitted_spectrum.txt", 
-                           np.column_stack([self.data.energies, self.s.calc_spec()]), 
+                np.savetxt(f"{self.save_folder_path}/fitted_spectrum.txt",
+                           np.column_stack([self.data.energies, self.s.calc_spec()]),
                            delimiter="\t")
         elif self.data.loadtype == "angle_file":
             time_file_start = time.time()
-            results = create_empty_results(load_type=self.data.loadtype, 
-                                           selected_elements=self.pse_widget.selected_elements, 
-                                           selected_lines=self.pse_widget.selected_lines, 
-                                           batch_fitting=False, 
+            results = create_empty_results(load_type=self.data.loadtype,
+                                           selected_elements=self.pse_widget.selected_elements,
+                                           selected_lines=self.pse_widget.selected_lines,
+                                           batch_fitting=False,
                                            dimension=np.copy(self.data.position_dimension))
             self.check_use_parameters.setChecked(True)
             show_fit_prop_in_popup()
@@ -1415,23 +1418,23 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 if np.sum(self.data.spectra[angle][roi_min:roi_max])> self.data.mincount:
                     self.roi_widget.spec_nr = angle
                     self.load_spec_in_specfit_deconvolution()
-                    if self.data.bg_zero == True:
+                    if self.data.bg_zero is True:
                         self.s.Strip = np.zeros(len(self.s.meas_load))
                     else :
                         if self.check_calc_minima.isChecked():
                             self.s.strip()
                         else:
                             self.s.strip(calc_minima=False)
-                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), 
-                                                      self.data.parameters_user[0], 
-                                                      self.data.parameters_user[1], 
+                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)),
+                                                      self.data.parameters_user[0],
+                                                      self.data.parameters_user[1],
                                                       str(angle))
                     self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
                     self.s.linfit()
-                    self.plot_canvas(spectrum=self.s.meas_load, 
-                                     energy=self.data.energies, 
-                                     background=self.s.Strip, 
-                                     calc_spec=self.s.calc_spec(), 
+                    self.plot_canvas(spectrum=self.s.meas_load,
+                                     energy=self.data.energies,
+                                     background=self.s.Strip,
+                                     calc_spec=self.s.calc_spec(),
                                      initialize=False)
 
                     sp_results = self.s.get_result()
@@ -1451,10 +1454,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     time_file_end = time.time()
                     time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(angle+1))/(angle+1))
                     self.progress_bar.setValue(int((angle+1)/float(len(self.data.spectra))*100.0))
-                    self.statusBar().showMessage("progress : {:.0f}/{:.0f} - {:.2f} %% - time to go: {}".format(angle+1, 
-                                                                                                len(self.data.spectra), 
-                                                                                                (angle+1)/float(len(self.data.spectra))*100.0, 
-                                                                                                time.strftime("%H:%M:%S", 
+                    self.statusBar().showMessage("progress : {:.0f}/{:.0f} - {:.2f} %% - time to go: {}".format(angle+1,
+                                                                                                len(self.data.spectra),
+                                                                                                (angle+1)/float(len(self.data.spectra))*100.0,
+                                                                                                time.strftime("%H:%M:%S",
                                                                                                               time2go)))
                     QtWidgets.QApplication.processEvents()
                 self.s.fit_in_progress = True
@@ -1464,7 +1467,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     if key in list(tofile.keys()):
                         tofile[key][()] = results[key]
                     else:
-                        tofile.create_dataset(key, 
+                        tofile.create_dataset(key,
                                               data=results[key])
             if self.sfs.check_save_background.isChecked():
                 with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
@@ -1486,9 +1489,9 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             if len(datah5_files) != 0:
                 # if splitted files are detected, ask if batch fitting should
                 # be performed or data.h5
-                self.data_batch_fitting = QtWidgets.QMessageBox.question(self, "?", 
-                                                                    "Splitted data.h5 detected. Do you want to batch fit or use data.h5?", 
-                                                                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, 
+                self.data_batch_fitting = QtWidgets.QMessageBox.question(self, "?",
+                                                                    "Splitted data.h5 detected. Do you want to batch fit or use data.h5?",
+                                                                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                                                                     QtWidgets.QMessageBox.No)
                 if self.data_batch_fitting:
                     data_batches = len(datah5_files)
@@ -1515,10 +1518,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     batch_iterator = 0
                 # here the partitions of the loaded spectra are stored in a sorted order
                 if not self.batch_fitting:
-                    results = create_empty_results(load_type=self.data.loadtype, 
-                                                   selected_elements=self.pse_widget.selected_elements, 
-                                                   selected_lines=self.pse_widget.selected_lines, 
-                                                   batch_fitting=False, 
+                    results = create_empty_results(load_type=self.data.loadtype,
+                                                   selected_elements=self.pse_widget.selected_elements,
+                                                   selected_lines=self.pse_widget.selected_lines,
+                                                   batch_fitting=False,
                                                    dimension=np.copy(self.data.position_dimension))
                 # if the background should be save, an empty container will be created here
                 if self.sfs.check_save_background.isChecked():
@@ -1543,18 +1546,18 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         if i % self.data.position_dimension[1] == 0:
                             # if already on row was deconvolved, save it in the results h5
                             if batch_iterator > -1:
-                                save_results(results=results, 
-                                             save_path=self.save_folder_path, 
-                                             batch_fitting=self.batch_fitting, 
-                                             batch_iterator=batch_iterator, 
-                                             file_type=self.data.file_type, 
-                                             save_storage=save_storage, 
+                                save_results(results=results,
+                                             save_path=self.save_folder_path,
+                                             batch_fitting=self.batch_fitting,
+                                             batch_iterator=batch_iterator,
+                                             file_type=self.data.file_type,
+                                             save_storage=save_storage,
                                              dimension=np.copy(self.data.position_dimension))
                             # create an empty list
-                            results = create_empty_results(load_type=self.data.loadtype, 
-                                                           selected_elements=self.pse_widget.selected_elements, 
-                                                           selected_lines=self.pse_widget.selected_lines, 
-                                                           batch_fitting=True, 
+                            results = create_empty_results(load_type=self.data.loadtype,
+                                                           selected_elements=self.pse_widget.selected_elements,
+                                                           selected_lines=self.pse_widget.selected_lines,
+                                                           batch_fitting=True,
                                                            dimension=np.copy(self.data.position_dimension))
                             batch_iterator += 1
                     # try retrieving spectrum data, or load spectrum from
@@ -1570,7 +1573,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         # load the parameters of the spectrum into specfit deconvolution
                         self.load_parameter_in_specfit_deconvolution()
                         self.load_spec_in_specfit_deconvolution(spectra_nr=i)
-                        # if the background is to be set to 0 (low scattering), 
+                        # if the background is to be set to 0 (low scattering),
                         # set the background s.Strip to zero
                         if self.data.bg_zero is True:
                             self.s.Strip = np.zeros(len(self.s.meas_load))
@@ -1590,7 +1593,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         self.s.linfit()
                         if self.sfs.check_save_fitted_spectrum.isChecked():
                             fitted_spectra[i] = self.s.calc_spec()
-                        self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(), 
+                        self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
                                          initialize=False)
                         # now get all fit-results
                         getResults = self.s.get_result()
@@ -1636,20 +1639,20 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 # if the data file is splitted in batches, save each batch
                 # as new results in results.h5
                 if self.data_batch_fitting:
-                    save_results(results=results, 
-                                 save_path=self.save_folder_path, 
-                                 batch_fitting=True, 
-                                 batch_iterator=data_batch, 
-                                 file_type=self.data.file_type, 
-                                 save_storage=save_storage, 
+                    save_results(results=results,
+                                 save_path=self.save_folder_path,
+                                 batch_fitting=True,
+                                 batch_iterator=data_batch,
+                                 file_type=self.data.file_type,
+                                 save_storage=save_storage,
                                  dimension=np.copy(self.data.position_dimension))
                 else:
-                    save_results(results=results, 
-                                 save_path=self.save_folder_path, 
-                                 batch_fitting=self.batch_fitting, 
-                                 batch_iterator=batch_iterator, 
-                                 file_type=self.data.file_type, 
-                                 save_storage=save_storage, 
+                    save_results(results=results,
+                                 save_path=self.save_folder_path,
+                                 batch_fitting=self.batch_fitting,
+                                 batch_iterator=batch_iterator,
+                                 file_type=self.data.file_type,
+                                 save_storage=save_storage,
                                  dimension=np.copy(self.data.position_dimension))
                 # if the background should be saved, store the background to the
                 # results.h5 file
@@ -1696,7 +1699,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                             if results_key in tofile:
                                 tofile[results_key][()] = results
                             else:
-                                tofile.create_dataset(results_key, 
+                                tofile.create_dataset(results_key,
                                                       data=results)
             else:
                 files = glob(self.save_folder_path + "/*.npy")
@@ -1721,8 +1724,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
     def _on_button_press(self, event):
         self.pse_widget.tab_line_finder.find_nearest_lines(event.xdata)
         if self.selected_energy is None:
-            self.selected_energy = self.ax_canvas_spectrum.axvline(event.xdata, 
-                                                                   ymax=self.ax_canvas_spectrum.get_ylim()[-1] / 2, 
+            self.selected_energy = self.ax_canvas_spectrum.axvline(event.xdata,
+                                                                   ymax=self.ax_canvas_spectrum.get_ylim()[-1] / 2,
                                                                    color="g")
         else:
             self.selected_energy.set_xdata([event.xdata])
@@ -1730,9 +1733,9 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.canvas_spectrum.draw()
 
 def main():
-    module_list = ["showing ROI", "deconvoultion", "major important validation", 
-                   "data processing", "mathematical foundation", 
-                   "3D plotting", "SpecFit is awesome", "spectra analyzation", 
+    module_list = ["showing ROI", "deconvoultion", "major important validation",
+                   "data processing", "mathematical foundation",
+                   "3D plotting", "SpecFit is awesome", "spectra analyzation",
                    "periodic table", "data base", "system optimization"]
     app = QtWidgets.QApplication(sys.argv)
     app.setWindowIcon(QtGui.QIcon(os.getcwd()+"/Data/images/specfit_logo_256x256.png"))
@@ -1742,7 +1745,7 @@ def main():
     splash.show()
     app.processEvents()
     for module in module_list:
-        splash.showMessage(f"{module} is set up", QtCore.Qt.AlignBottom, 
+        splash.showMessage(f"{module} is set up", QtCore.Qt.AlignBottom,
                            QtCore.Qt.red), app.processEvents(), time.sleep(np.random.uniform(0., 0.3))
     splash.showMessage("done", QtCore.Qt.AlignBottom, QtCore.Qt.red), app.processEvents()
     specFit_GUI = SpecFitGUIMain()

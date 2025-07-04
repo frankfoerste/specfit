@@ -3,17 +3,17 @@ import h5py
 import os
 
 def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
-    """ 
+    """
     This function reads out the spectrum of a .msa-file and reads out the
     detector parameters given in the .msa-file. It returns an dict containing
     the names of the single-spectrum files, the sum_spec and the measurement
     parameters.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .MSA-file.
-    
+
     Returns
     -------
     list containing the spectrum
@@ -55,7 +55,7 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
         elif "#SPECTRUM" in line:
             start = counter
         elif "#ENDOFDATA" in line:
-            end = counter     
+            end = counter
         elif "#NXPOS" in line:
             x_pos = int(line.split()[2])
         elif "#NYPOS" in line:
@@ -89,11 +89,11 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     spectra_tmp = np.ndarray.flatten(spectra_tmp) # writes the intensities in one line
     factor = 0.25
     zero_peak_position = 25
-    zero_peak_frequency = 100   
+    zero_peak_frequency = 100
     if owner == "PRAXIS":  # new to also handle SEM_EDX
         spectra_tmp = np.reshape(spectra_tmp, (
             int(np.ceil(len(spectra_tmp) / channels)), channels))  # reshapes intensity to channels*spectra
-        for i in range(len(spectra_tmp)):
+        for i, _ in enumerate(spectra_tmp):
             life_time = np.sum(spectra_tmp[i][zero_peak_position - int(20 * factor):zero_peak_position + int(
                 20 * factor)]) / zero_peak_frequency
             if life_time == 0:
@@ -107,7 +107,7 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     if signal_sum_spec is not None:
         signal_sum_spec.emit("spectra done")
     spectra = {}
-    for i in range(len(spectra_tmp)):
+    for i, _ in enumerate(spectra_tmp):
         spectra["%d"%i] = spectra_tmp[i]
         counts.append(sum(spectra_tmp[i]))
         if sum(spectra_tmp[i]) > 1000:
@@ -137,14 +137,14 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     return spectra, sum_spec, parameters
 
 def msa2positions(file_path):
-    """ 
+    """
     This function reads out the positions of a .msa-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spx-file.
-    
+
     Returns
     -------
     [x_pos, y_pos, z_pos]
@@ -160,13 +160,13 @@ def msa2positions(file_path):
         if "#NZPOS" in line:
             z_pos = int(line.split()[2])
             break
-        ### read out start and end of the spectra   
+        ### read out start and end of the spectra
     return [x_pos, y_pos, z_pos]
 
 def msa2life_time(file_path):
-    """ 
+    """
     This function reads out the Life-Time of a .msa-file .
-    """  
+    """
     with open(file_path,"rb") as infile:
         content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
     for line in content:
@@ -176,9 +176,9 @@ def msa2life_time(file_path):
     return life_time
 
 def msa2real_time(file_path):
-    """ 
+    """
     This function reads out the Life-Time of a .msa-file .
-    """  
+    """
     with open(file_path,"rb") as infile:
         content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
     for line in content:
@@ -188,9 +188,9 @@ def msa2real_time(file_path):
     return real_time
 
 def msa2channels(file_path):
-    """ 
+    """
     This function reads out the number of channels of a .msa-file .
-    """  
+    """
     with open(file_path,"rb") as infile:
         content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
     for line in content:
@@ -210,7 +210,7 @@ def build_positions(positions, origin, steps):
     origin : list, array
         list or array containing the x0,y0,z0 position
     steps : list, array
-        list or array containing the x,y,z step width 
+        list or array containing the x,y,z step width
 
     Returns
     -------
@@ -235,7 +235,7 @@ def build_tensor_position(positions):
     ----------
     positions : list, array
         list or array containing the number of x,y,z positions
-    
+
     Returns
     -------
     array

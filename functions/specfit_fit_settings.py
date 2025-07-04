@@ -11,7 +11,7 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         super(SpecFitFitSettings, self).__init__(parent)
         self.parent = _parent
         self.__version__ = u"Fit Settings - 1.0"
-        self.bg_color = 'white'   
+        self.bg_color = 'white'
         self.specfit_fit_settings_layout = QtWidgets.QGridLayout()
         self.specfit_fit_settings_layout.setSpacing(0)
         self.setLayout(self.specfit_fit_settings_layout)
@@ -40,7 +40,7 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.font_bold = QtGui.QFont()  #: a bold font
         self.font_bold.setPixelSize(11)
         self.font_bold.setBold(True)
-        self.time_press = time.time()  #: time to check if mouse was double clicked 
+        self.time_press = time.time()  #: time to check if mouse was double clicked
         self.minimum = 'local'  #: variable used to switch between 'local' and 'global' minimum optimization
         self.plot_iterations = True  #: variable used to decide if iteration results should be plotted or not
         self.colors = list(col.TABLEAU_COLORS.values())*10  #: list of colors used for plotting
@@ -138,7 +138,7 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.specfit_fit_settings_layout.addWidget(self.entry_PU_threshold, 10, 1, 1, 1)
         self.specfit_fit_settings_layout.addWidget(self.entry_Escape_factor, 11, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(self.entry_Escape_threshold, 12, 1, 1, 1)
-        
+
     def __init_connections(self, ):
         self.entry_a0.textChanged.connect(partial(self.update_entries, self.parent.entry_a0))
         self.entry_a1.textChanged.connect(partial(self.update_entries, self.parent.entry_a1))
@@ -149,11 +149,11 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.entry_smooth_cycles.textChanged.connect(partial(self.update_entries, self.parent.entry_smooth_cycles))
         self.entry_smooth_width.textChanged.connect(partial(self.update_entries, self.parent.entry_smooth_width))
         self.entry_calc_minima_order.textChanged.connect(partial(self.update_entries, self.parent.entry_calc_minima_order))
-        self.check_calc_minima.stateChanged.connect(lambda state: self.parent.check_calc_minima.setChecked(state == QtCore.Qt.CheckState.CheckState.Checked))
-        
+        self.check_calc_minima.stateChanged.connect(lambda state: self.parent.check_calc_minima.setChecked(state == QtCore.Qt.CheckState.Checked))
+
     def update_entries(self, entry, text):
         entry.setText(text)
-    
+
     def set_PU_Escape_parameters(self,):
         if self.check_PU_Lines.isChecked():
             self.parent.s.PU_factor = float(self.entry_PU_factor.text())
@@ -167,12 +167,12 @@ class SpecFitFitSettings(QtWidgets.QWidget):
             self.parent.s.calc_Escape = True
         else:
             self.parent.s.calc_Escape = False
-        
+
     def show_sfs(self, _parent = None):
         self.parent = _parent
         self.show()
         self.activateWindow()
-    
+
     def get_parent_directory(self, path):
         """
         function to return parent directory path

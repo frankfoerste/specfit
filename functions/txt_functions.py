@@ -28,7 +28,7 @@ def txt2spec_para(file_path):
     FWHM = 0.2
     life_time = 1
     gating_time = 3e-6
-    
+
     start = 100 ### value to be sure, that the spectrum doesn't start beforehand
     FWHM = None
     with open(file_path, 'r') as infile:
@@ -71,32 +71,32 @@ def txt2spec_para(file_path):
                 try: spectrum.append(int(line[1]))
                 except: spectrum.append(int(float(line[0])))
                 if i == 1:
-                    try: 
+                    try:
                         line[1]
                         a1 = np.round(float(line[0])-a0,3)
                     except: pass
 #    assert len(spectrum) == channels
 #    spectrum = np.divide(spectrum,life_time)
-    
+
     if FWHM == None:
         parameters = [a0, a1, 0.115, 0.2, 1, a0 + a1 * i, gating_time]
-    else: 
+    else:
         parameters = [a0,a1,Fano,FWHM, life_time, a0 + a1 * (channels-1), gating_time]
     return np.asarray(spectrum), parameters
 
 
 def many_txt2spec_para(folder_path, signal):
-    ''' 
+    '''
     This function reads out the spectrum of a .spx-file and reads out the
     detector parameters given in the .spx-file.
-    
+
     Parameters
     ----------
     file_path : str
         complete folder path of the .spx-file.
     index : int
         the number of the spectrum in the measurement set
-    
+
     Returns
     -------
     list containing the spectrum
@@ -117,7 +117,7 @@ def many_txt2spec_para(folder_path, signal):
         pass
     sorted_folder = ns.natsorted(glob(f'{folder_path}/*.txt'))
     with open(f'{folder_path}/data/sorted_SpecFit.dat', 'w+', encoding="ISO-8859-1") as f:
-        for i in range(len(sorted_folder)):
+        for i, _ in enumerate(sorted_folder):
             f.write(f'({i}) {sorted_folder[i]} \n')
 
     for f in os.listdir(folder_path):
@@ -164,7 +164,7 @@ def many_txt2spec_para(folder_path, signal):
        #     else:
        #         worth_fit.append(False)
             spectra['%i'%file_nr] = np.divide(spectrum_tmp,life_time)
-#            np.save('%s/single_spectra/spectrum_%d'%(folder_path,file_nr),spectrum)  
+#            np.save('%s/single_spectra/spectrum_%d'%(folder_path,file_nr),spectrum)
             parameters.append(parameters_tmp)
             file_nr += 1
             signal_progress.emit(file_nr)
@@ -218,7 +218,7 @@ def many_txt2spec_para(folder_path, signal):
             counts.append(sum(spectrum))
             np.save(f'{folder_path}/single_spectra/spectrum_{file_nr}', spectrum)
             parameters.append(parameters_tmp)
-            file_nr += 1 
+            file_nr += 1
             signal_progress.emit(file_nr)
         sum_spec = sum_from_single_files(folder_path)
         np.save(f'{folder_path}/data/sum_spec', sum_spec)
@@ -276,10 +276,10 @@ def txt2life_time(file_path):
                 break
     print( 'returned life-time', life_time)
     return life_time
-    
+
 def spx_tensor_position(file_path):
     '''
-    This function reads out the specific position of the spectrum in the 
+    This function reads out the specific position of the spectrum in the
     measurement-tensor.
     returns position = [x,y,z]
     position = spx_tensor_position(file_path)
@@ -296,5 +296,5 @@ def sum_from_single_files(folder_path):
             sum_spec = np.load(single_spec_file)
             first_spec = False
         else:
-            sum_spec += np.load(single_spec_file)   
+            sum_spec += np.load(single_spec_file)
     return sum_spec

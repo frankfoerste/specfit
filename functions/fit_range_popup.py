@@ -31,7 +31,7 @@ class FitThresholdPopup(QtWidgets.QWidget):
         self.entry_mincounts = QtWidgets.QLineEdit("0", self)
         self.entry_mincounts.setGeometry(90, 460, 80, 20)
         self.__init__plot()
-        
+
     def __init__plot(self):
         """
         define the layout of the plot frame
@@ -40,13 +40,13 @@ class FitThresholdPopup(QtWidgets.QWidget):
         self.canvas_matplot= pltqt.FigureCanvasQTAgg(self.figure_matplot)
         self.canvas_matplot.setParent(self)
         self.canvas_matplot.move(5,0)
-        self.toolbar_matplot = pltqt.NavigationToolbar2QT(self.canvas_matplot, self)  
+        self.toolbar_matplot = pltqt.NavigationToolbar2QT(self.canvas_matplot, self)
         self.toolbar_matplot.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         self.toolbar_matplot.setGeometry(0,400, 510, 50)
-        
+
     def show_frp(self):
         self.show()
-        
+
     def define_counts(self):
         if self.loadtype == "folder":  # other loadtypes get the spectra from specfit_main
             dictpath = os.path.join(self.folder_path,os.path.join("data","spectra.pickle"))

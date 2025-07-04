@@ -9,19 +9,19 @@ from user_defined_lines import LinesWidget
 import line_finder as lf
 
 class PeriodicTable(QtWidgets.QWidget):
-    def __init__(self, 
-                 parent = None, 
-                 PSE = None, 
-                 elements = None, 
+    def __init__(self,
+                 parent = None,
+                 PSE = None,
+                 elements = None,
                  lines = None,
                  check_elements = None,
-                 characteristic_lines = None, 
+                 characteristic_lines = None,
                  lineE = None):
         # initalize main window
         super(PeriodicTable, self).__init__(parent)
-        try: 
+        try:
             QtGui.QIcon.setThemeName("ubuntu-mono-dark")
-        except: 
+        except:
             print(QtGui.QIcon.themeName())
         self.bg_color = "light grey"
         # implementing database
@@ -33,7 +33,7 @@ class PeriodicTable(QtWidgets.QWidget):
         self.check_line_labels = []  # list of check_line_labels
         self.check_elements = check_elements  # list to determine the selected elements
         self.lineE = lineE
-        # define geometry and properties           
+        # define geometry and properties
         self.screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         self.screen_width = self.screen_properties.width()
         self.screen_height = self.screen_properties.height()
@@ -55,8 +55,8 @@ class PeriodicTable(QtWidgets.QWidget):
                            +"QTextEdit {font-size: 11px}"\
                            +"QTabWidget {font-size: 11px}" )
         self.__init__UI()
-    
-    def __init__UI(self):  
+
+    def __init__UI(self):
         """
         define the layout of the UI
         """
@@ -75,22 +75,22 @@ class PeriodicTable(QtWidgets.QWidget):
         # add widgets to QVBoxLayout
         self.layout.addWidget(self.tabs, 0, 0)
         self.layout.addWidget(self.scroll_elements, 1, 0)
-        
+
     def __init__selected_elements_widget(self):
         self.element_widget = QtWidgets.QWidget()
         self.scroll_elements = QtWidgets.QScrollArea()
         self.scroll_elements.setWidget(self.element_widget)
-        
+
     def __init__line_finder_widget(self):
         module_path = os.path.dirname(lf.__file__)
         self.tab_line_finder = lf.LineFinder(parent = None, module_path = module_path)
         self.tab_line_finder.table_lines.doubleClicked.connect(self.select_line_on_double_click_line_finder)
-        
+
     def __init__PSE_widget(self):
         self.tab_PSE = QtWidgets.QWidget()
         self.PSE_layout = QtWidgets.QGridLayout()
         self.PSE_layout.setSpacing(0)
-        self.tab_PSE.setLayout(self.PSE_layout) 
+        self.tab_PSE.setLayout(self.PSE_layout)
         self.element_list()
         self.label_lanthanides = QtWidgets.QLabel("Lanthanides", self.tab_PSE)
         self.label_actinides= QtWidgets.QLabel("Actinides", self.tab_PSE)
@@ -99,22 +99,22 @@ class PeriodicTable(QtWidgets.QWidget):
         self.label_lanthanides.setStyleSheet("QWidget {font-size: 9px;}")
         self.label_actinides.setStyleSheet("QWidget {font-size: 9px;}")
         self.tabs.setFixedSize(365, 210)
-        
+
     def __init__udl_widget(self):
         self.tab_udl = LinesWidget()
-        
+
     def show_periodic_table(self):
         self.show()
-        
+
     def update_element_widget(self):
         self.element_widget.resize(365, 20*len(self.check_lines_list))
         self.scroll_elements.setWidget(self.element_widget)
-        
+
     def clear_element_line_list(self):
         self.clear_line_list()
         self.selected_elements = []
         self.selected_lines = []
-        
+
     def element_list(self):
         """
         This function creates checkbuttons for each element. You can select the
@@ -129,14 +129,14 @@ class PeriodicTable(QtWidgets.QWidget):
             self.check_elements[i].setStyleSheet("QWidget {font-size: 11px; background-color : %s}"%self.PSE[i][5])
             self.check_elements[i].pressed.connect(partial(self.read_element_choice,self.elements[i][1]))
             self.check_elements[i].setToolTip(self.create_tool_tip_element(i+1))
-   
+
     def create_tool_tip_element(self, element):
         element = str(element)
         tool_tip = ""
         for k, _ in enumerate(self.characteristic_lines[element]):
             tool_tip += f"{self.characteristic_lines['No.'][k]} \t {self.characteristic_lines[element][k]} \n"
         return tool_tip
- 
+
     def display_selected_lines(self):
        """
        display lines that are stored in dataclass in GUI -necessary after loading a paramfile
@@ -148,7 +148,7 @@ class PeriodicTable(QtWidgets.QWidget):
        # add user-defined-lines
        for element_str,start,end in self.user_defined_lines:
              self.tab_udl.new_filled_line(element_str, start, end)
-         
+
     def get_selected_lines(self):
         """
         This function reads out the lines checkbuttons and saves it into the
@@ -160,9 +160,9 @@ class PeriodicTable(QtWidgets.QWidget):
         self.selected_elements = []
         self.selected_lines = []
         for lines in self.check_lines_list:
-            self.selected_elements.append(lines[0].text()) ##TODO           
+            self.selected_elements.append(lines[0].text()) ##TODO
             line_list = []  # store for example ['Ka','Kb']
-            for j in range(1,14):                                                  
+            for j in range(1,14):
                 if lines[j].checkState() == QtCore.Qt.CheckState.Checked:
                     line_list.append(linedict[j])
             self.selected_lines.append(line_list)
@@ -217,7 +217,7 @@ class PeriodicTable(QtWidgets.QWidget):
             i = np.where(np.array(self.selected_elements) == element_str)[0][0]
             self.selected_elements.pop(i)
         self.update_element_widget()
-         
+
     def line_list(self, element_str):
         """
         This function creates checkbuttons for each line. You can select the
@@ -249,13 +249,13 @@ class PeriodicTable(QtWidgets.QWidget):
             self.check_lines_list[-1][i].setGeometry(25+ 36*(i-1), 0 + 20*(len_list-1), 33, 20)
             self.check_lines_list[-1][i].show()
         self.update_element_widget()
-        
+
     def Lines_separate(self, lineindex): #1:K 2:Ka 3:Kb
         """
-        prohibits that 
+        prohibits that
         K and Ka, Kb
         L and L1, L2, L3
-        M and M1, M2, M3, M4, M5 
+        M and M1, M2, M3, M4, M5
         can be checked together
         """
         for i, _ in enumerate(self.check_lines_list):
@@ -287,13 +287,13 @@ class PeriodicTable(QtWidgets.QWidget):
             elif (lineindex == 9 or lineindex == 10 or lineindex == 11 or lineindex == 12 or lineindex == 13):
                 if self.check_lines_list[i][lineindex].checkState().value != 0:
                     self.check_lines_list[i][8].setChecked(False)
-                    
+
     def select_lines_in_list(self,linelist):
        """
        selects the lines in linelist in a previousy created line_list of latest added element
        """
        linedict = {"K": 1, "Ka": 2, "Kb": 3,
-                   "L": 4, "L1": 5, "L2": 6, "L3": 7, 
+                   "L": 4, "L1": 5, "L2": 6, "L3": 7,
                    "M": 8, "M1": 9, "M2": 10, "M3":11,"M4": 12, "M5": 13}
        for line in linedict.keys():
            self.check_lines_list[-1][linedict[line]].setChecked(line in linelist)
@@ -342,20 +342,20 @@ class PeriodicTable(QtWidgets.QWidget):
         for i, _ in enumerate(self.elements):
             self.check_elements[i].setChecked(False)
         self.update_element_widget()
-        
+
     def fill_and_show_lines_widget(self):
         """
         load current spec and params in lines widget and display it
         """
         self.tab_udl.display_lines_widget()
-      
+
     def build_specfit_addlines(self):
         #builds dict{'element':(True/False, ['linename',...], Z), '':...,}
         # example: {'Cu': (True, ['K-line', 'L1'], 29)}
         self.specfit_addlines = {}
         for element, lines in zip(self.selected_elements, self.selected_lines):
             self.specfit_addlines[f"{element}"] = (True, lines, xrl.SymbolToAtomicNumber(element))
-        
+
     def select_line_on_double_click_line_finder(self, ):
         selected_line = self.tab_line_finder.table_lines.currentItem().text()
         element = selected_line.split()[3]
@@ -368,7 +368,7 @@ class PeriodicTable(QtWidgets.QWidget):
                         self.check_lines_list[i][j+1].setChecked(True)
                     else:
                         self.check_lines_list[i][j+1].setChecked(False)
-        
+
 def main():
     app = QtWidgets.QApplication(sys.argv)
     app.setStyle("GTK+")

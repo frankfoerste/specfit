@@ -31,12 +31,12 @@ class LineFinder(QtWidgets.QWidget):
         self.setGeometry(self.screen_width-self.popup_width-200, 0, self.popup_width, self.popup_heigth)
         self.table_lines = QtWidgets.QListWidget(self)
         self.init_UI()
-        
+
     def init_UI(self):
         ### initialize widgets ###
-        self.table_lines.setGeometry(0, 0, 350, 180) 
+        self.table_lines.setGeometry(0, 0, 350, 180)
         self.show()
-        
+
     def find_nearest_lines(self, energy):
         """
         This function retrieves the nearest item in an array to the given
@@ -52,7 +52,7 @@ class LineFinder(QtWidgets.QWidget):
             if (key >= energy_low) and (key <= energy_high):
                 self.pos_lines.append([value[4],value, key])
         self.pos_lines = sorted(self.pos_lines, reverse = True)
-        for i in range(len(self.pos_lines)):
+        for i, _ in enumerate(self.pos_lines):
             QtWidgets.QListWidgetItem(
                 f"{self.pos_lines[i][2]:.3f} keV - {self.pos_lines[i][1][0]} - {self.pos_lines[i][1][2]}",
                 self.table_lines)

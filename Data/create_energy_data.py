@@ -5,7 +5,7 @@ Created on Tue Jan 16 13:49:28 2018
 
 @author: frank
 """
-''' This function creates an energy data-file called lineE.dat' it contains 
+''' This function creates an energy data-file called lineE.dat' it contains
 the fluorescence energies for elements in the range of Z = [11,98] and E = [0,50].
 The data file is used to select an element-line directly from the plot.'''
 
