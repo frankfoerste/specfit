@@ -620,7 +620,8 @@ class DataHandler():
                             tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
                         if f"{self.file_name}/positions" not in tofile:
                             tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
-                    tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
+                    if f"{self.file_name}/position dimension" not in tofile:
+                        tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
 
         assert self.load_stored_spec_and_param(folder=True)
         if self.file_type == ".bcf":

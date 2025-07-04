@@ -1,11 +1,8 @@
-import os
-import numpy as np
 import pickle
+import numpy as np
 import time as t
-from glob import glob, iglob
 import psutil ### Module to determine system memory properties
-import matplotlib.pyplot as plt
-plt.ion()
+from pathlib import Path
 
 def spe2spec_para(file_path, print_warning=False):
     """
@@ -72,6 +69,8 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
+    folder_path = Path(folder_path)
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     worth_fit = []
     counts = []
     parameters = []
@@ -84,11 +83,7 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
     folder_size = 0
     machine_memory = psutil.virtual_memory().total * 1E-9
     start = t.time()
-    sorted_folder = np.sort(glob(f"{folder_path}/*.spe"))
-    try:
-        os.mkdir(f"{folder_path}/data/")
-    except:
-        pass
+    sorted_folder = sorted(folder_path.glob("*.spe"))
     if save_spec_as_dict is False:
         positions = spe_tensor_positions(folder_path)
         # read out the x, y, z axes
@@ -116,7 +111,7 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
         tensor_positions[:, 2] -= z[0]
         tensor_positions /= [x_steps, y_steps, z_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
-    folder_size = sum(os.path.getsize(f) for f in sorted_folder if os.path.isfile(f)) * 1E-9
+    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
     if (folder_size / machine_memory) < 0.7:                              ### for machines with big memory
         print("machine memory big enough. creating spectra dict")
@@ -189,12 +184,10 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
             return spectra, parameters
 
 def sum_from_single_files(folder_path, save_sum_spec=True):
-    try:
-        os.mkdir(f"{folder_path}/data/")
-    except:
-        pass
+    folder_path = Path(folder_path)
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     first_spec = True
-    for single_spec_file in iglob(f"{folder_path}/single_spectra/*.npy"):
+    for single_spec_file in folder_path.glob("single_spectra/*.npy"):
         if first_spec is True:
             sum_spec = np.load(single_spec_file)
             first_spec = False
@@ -318,7 +311,8 @@ def spe_tensor_positions(folder_path, file_type=".spe"):
     -------
     positions = np.array([x0, y0, z0], [x0, y1, z0], ..., [xn, ym, zk])
     """
-    files = glob(folder_path+"*"+file_type)
+    folder_path = Path(folder_path)
+    files = folder_path.glob(f"*{file_type}")
     positions = []
     for file in files:
         positions.append(spe_tensor_position(file))

@@ -87,13 +87,13 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     ### now save everything to a data h5 file
     print("### now save spectra to a data h5 file")
     if (folder_path/"data/data.h5").exists():
-        with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
+        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
-    spectra.to_hdf5(f"{folder_path}/data/data.h5", f"{file_name}/spectra", compression="gzip", shuffle=True)
+    spectra.to_hdf5(folder_path/"data/data.h5", f"{file_name}/spectra", compression="gzip", shuffle=True)
     if verbose:
         print("### now save everything to a data h5 file")
-    with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
+    with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
         tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec, compression="gzip",
                               shuffle=True)
         tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec, compression="gzip",
@@ -133,7 +133,6 @@ def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
     """
     folder_path = Path(folder_path)
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
-    
     bcf_file_list = folder_path.glob(folder_path/"*.bcf")   # creates a list with all .bcf-files stored inside the folder
     file_name = folder_path.name
     for file_nr, file_path in enumerate(bcf_file_list):          # iteration over all .bcf-files
@@ -211,10 +210,10 @@ def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
         print(f"overall life_time:\t {overall_life_time} s")
         print(f"overall real_time:\t {overall_real_time} s")
     if (folder_path/"data/data.h5").exists():
-        with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
+        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
-    with h5py.File(f"{folder_path}/data/data.h5", "w") as tofile:
+    with h5py.File(folder_path/"data/data.h5", "w") as tofile:
         tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
                               compression="gzip")
         tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,

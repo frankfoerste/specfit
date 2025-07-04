@@ -385,7 +385,6 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.check_use_parameters = QtWidgets.QCheckBox("GUI-para", self)
         self.check_set_bg_zero = QtWidgets.QCheckBox("bg = 0", self)
         self.check_calc_minima = QtWidgets.QCheckBox("calc minima", self)
-        self.check_calc_minima.setCheckState(QtCore.Qt.CheckState.Checked)
         self.check_calc_minima.clicked.connect(self.hide_calc_min)
         self.check_nl_fit = QtWidgets.QCheckBox("nl-fit", self)
         # set position of checkboxes

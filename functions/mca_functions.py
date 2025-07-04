@@ -1,9 +1,10 @@
-import os
+
 import h5py
 import psutil  # Module to determine system memory properties
 import numpy as np
+import natsort as ns
+from pathlib import Path
 import time as t
-from glob import iglob
 from glob import glob
 import matplotlib.pyplot as plt
 plt.ion()
@@ -113,7 +114,9 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, fwhm]
     """
-    folder_name = folder_path.split("/")[-1]
+    folder_path = Path(folder_path)
+    folder_name = folder_path.name
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     worth_fit = []
     counts = []
     parameters = []
@@ -147,20 +150,16 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
         tensor_positions[:, 2] -= monoE[0]
         tensor_positions /= [x_steps, z_steps, monoE_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
-    sorted_folder = np.sort(glob(f"{folder_path}/*.mca"))
-    try:
-        os.mkdir(f"{folder_path}/data/")
-    except:
-        pass
+    sorted_folder = ns.natsorted(folder_path.glob("*.mca"))
     # read out ionization current from .spec file
-    spec_file_path = glob("/".join(folder_path.split("/")[:-1]) + "/*.spec")[0]
+    spec_file_path = [file for file in folder_path.parent.glob("*.spec")][0]
     nr_scans, len_scans = read_nr_len_scans_from_spec(spec_file_path)
-    scan_0, _ = [int(tmp.replace(".mca", "")) for tmp in sorted_folder[0].split("/")[-1].split("_")[-2:]]
+    scan_0, _ = [int(tmp.replace(".mca", "")) for tmp in str(sorted_folder[0]).split("/")[-1].split("_")[-2:]]
     ionization_current = read_ionization_spec(spec_file_path, nr_scans,
                                               len_scans=len_scans,
                                               scan_0=scan_0)
     # read out spectra
-    folder_size = sum(os.path.getsize(f) for f in sorted_folder if os.path.isfile(f)) * 1E-9
+    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
     spectra = {}
     scan_tmp, scan_offset = 0, 0
@@ -170,7 +169,7 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
         print("machine memory big enough. creating spectra dict")
         for file_nr, mca_file in enumerate(sorted_folder):
             # determine number of scan which the file belongs to
-            scan, point = [int(tmp.replace(".mca", "")) for tmp in mca_file.split("/")[-1].split("_")[-2:]]
+            scan, point = [int(tmp.replace(".mca", "")) for tmp in str(mca_file).split("/")[-1].split("_")[-2:]]
             if len_scans[f"#S {scan}"] == 0:
                 continue
             file_nr = point
@@ -225,7 +224,7 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
             if signal_progress is not None:
                 signal_progress.emit(file_nr)
             iterator += 1
-        with h5py.File(f"{folder_path}/data/data.h5", "w") as tofile:
+        with h5py.File(folder_path/"data/data.h5", "w") as tofile:
             tofile.create_dataset(f"{folder_name}/spectra",
                                   data=np.array(list(spectra.values())),
                                   compression="gzip", compression_opts=9)
@@ -307,19 +306,17 @@ def read_nr_len_scans_from_spec(spec_file_path):
     return nr_scans, len_scans
 
 def sum_from_single_files(folder_path, save_sum_spec=True):
-    try:
-        os.mkdir(f"{folder_path}/data/")
-    except:
-        pass
+    folder_path = Path(folder_path)
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     first_spec = True
-    for single_spec_file in iglob(f"{folder_path}/single_spectra/*.npy"):
+    for single_spec_file in folder_path.glob("single_spectra/*.npy"):
         if first_spec is True:
             sum_spec = np.load(single_spec_file)
             first_spec = False
         else:
             sum_spec += np.load(single_spec_file)
     if save_sum_spec:
-        np.save(f"{folder_path}/data/sum_spec", sum_spec)
+        np.save(folder_path/"data/sum_spec", sum_spec)
     return sum_spec
 
 def mca2life_time(file_path):
@@ -431,9 +428,10 @@ def mca_tensor_position(file_path, XANES=False):
     It determines whether it is a line scan or a 3D-Scan.
     If XANES = True, the position is read out from the monoE parameter
     """
-    file_name = file_path.split("/")[-1].split("_")
+    file_path = Path(file_path)
+    file_name = file_path.name.split("_")
     point = int(file_name[-1].replace(".mca", ""))
-    if file_path[-4:] == ".mca":
+    if file_path.suffix == ".mca":
         metadata = mca_metadata(file_path)
         with open(file_path, "r", encoding="ISO-8859-1") as infile:
             for line in infile:
@@ -442,11 +440,11 @@ def mca_tensor_position(file_path, XANES=False):
                     # read out the mode of measurement and the coressponding motor and steps
                     mode = lines[2]
                     motors = lines[3:-1][::4]
-                    print(f"mode {mode} motors {motors}")
+                    print(f"mode: {mode} motors: {motors}")
                     ## either #S 1  eigermesh  m1 61.8 64.44 33  mz 22.59 22.91 4  10
                     ## or #S 1 ascan m1 15 17 20 1
                     ## ascan can be dscan also, Motorname is the one after
-                    if mode == "eigermesh":
+                    if mode in ["eigermesh", "mesh"]:
                         x = metadata[motors[0]]
                         y = metadata[motors[1]]
                         z = 1
@@ -482,6 +480,8 @@ def mca_tensor_positions(folder_path, file_type=".mca", XANES=False):
         files = sorted(glob(folder_path + "*" + file_type))
     elif isinstance(folder_path, list):
         files = folder_path
+    elif isinstance(folder_path, Path):
+        files = sorted(folder_path.glob(f"*{file_type}"))
     nr_scans = np.unique([int(file.split("/")[-1].split("_")[-2]) for file in files])
     len_scans = np.zeros(len(nr_scans), dtype = int)
     for file in files:

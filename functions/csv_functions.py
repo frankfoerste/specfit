@@ -2,6 +2,7 @@ import os
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 plt.ion()
 
 def csv2spec_para(file_path, print_warning = False):
@@ -20,7 +21,10 @@ def csv2spec_para(file_path, print_warning = False):
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
-    file_name = file_path.split("/")[-1]
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
+    file_name = file_path.name
     ### define default values
     a0 = 0.0
     a1 = 0.01
@@ -44,13 +48,10 @@ def csv2spec_para(file_path, print_warning = False):
                 line = line.split(",")
                 channel = int(line[0])-1
                 spectra[:,channel] = np.array([int(intensity) for intensity in line[1:]])
-    folder_path = "/".join(file_path.split("/")[:-1])
-    try: os.mkdir(f"{folder_path}/data/")
-    except: pass
-    if os.path.exists(f"{folder_path}/data/data.h5"):
-        with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
+    if (folder_path/"data/data.h5").exists():
+        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             del tofile[file_name]
-    with h5py.File(f"{folder_path}/data/data.h5", "w") as tofile:
+    with h5py.File(folder_path/"data/data.h5", "w") as tofile:
         tofile.create_dataset(f"{file_name}/spectra",
                               data = spectra,
                               compression = "gzip", compression_opts = 9)
@@ -70,7 +71,8 @@ def csv_position_dimension(file_path):
     returns dimension = [nr_x,nr_y,nr_z]
     position_dimension = csv_position_dimension(file_path)
     """
-    if file_path[-4:] == ".csv":
+    file_path = Path(file_path)
+    if file_path.suffix == ".csv":
         with open(file_path, "r") as infile:
             for line in infile:
                 if "Files Created (Actual):" in line:
@@ -85,7 +87,8 @@ def csv_tensor_positions(file_path):
     position = spx_tensor_position(file_path)
     It determines whether it is a line scan or a 3D-Scan.
     """
-    if file_path[-4:] == ".csv":
+    file_path = Path(file_path)
+    if file_path.suffix == ".csv":
         with open(file_path, "r") as infile:
             for line in infile:
                 if "Files Created (Actual):" in line:

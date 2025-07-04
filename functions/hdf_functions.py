@@ -20,12 +20,13 @@ def hdf2spec_para(file_path, verbose=False):
     array containing the spectrum
     array containing the detector parameters [a0, a1, FANO, FWHM]
     """
-    file_type = file_path.split(".")[-1]
-    file_name = file_path.split("/")[-1]
-    save_path = "/".join(file_path.split("/")[:-1])
-    Path(f"{save_path}/data/").mkdir(parents=True, exist_ok=True)
+    file_path = Path(file_path)
+    file_type = file_path.suffix
+    file_name = file_path.name
+    save_path = file_path.parent
+    Path(save_path/"data/").mkdir(parents=True, exist_ok=True)
     with h5py.File(file_path, "r") as hdf5_file:
-        if file_type == "h5":
+        if file_type == ".h5":
             if "concentrations" in hdf5_file.keys():
                 spectra = da.from_array(hdf5_file["spectra"][()])
                 sum_spec = np.sum(hdf5_file["spectra"], axis=(0, 1))
@@ -98,7 +99,7 @@ def hdf2spec_para(file_path, verbose=False):
                     sum_spec = np.divide(sum_spec, life_time)
                     channels = parameter[0][19]
                     gating_time = 3e-6
-        elif file_type == "hdf5":
+        elif file_type == ".hdf5":
             spectra = da.from_array(hdf5_file["SDD/measurement/detector"])
             sum_spec = np.squeeze(hdf5_file["SDD/sum spectra/sumS"], axis=1)
             counts = np.sum(spectra, axis=-1)
@@ -117,23 +118,23 @@ def hdf2spec_para(file_path, verbose=False):
                                np.mean(real_time)])
         if verbose:
             print("parameters", parameters.shape)
-        if os.path.exists(f"{save_path}/data/data.h5"):
-            with h5py.File(f"{save_path}/data/data.h5", "r+") as tofile:
+        if (save_path/"data/data.h5").exists():
+            with h5py.File(save_path/"data/data.h5", "r+") as tofile:
                 if file_name in tofile.keys():
                     del tofile[file_name]
             write_operator = "r+"
         else:
             write_operator = "w"
-        with h5py.File(f"{save_path}/data/data.h5", write_operator) as tofile:
+        with h5py.File(save_path/"data/data.h5", write_operator) as tofile:
             tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
                                   compression="gzip")
             tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
                                   compression="gzip")
             tofile.create_dataset(f"{file_name}/parameters", data=parameters,
                                   compression="gzip")
-        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/counts": counts},
+        da.to_hdf5(save_path/"data/data.h5", {f"{file_name}/counts": counts},
                    compression="gzip")
-        da.to_hdf5(f"{save_path}/data/data.h5", {f"{file_name}/spectra": spectra},
+        da.to_hdf5(save_path/"data/data.h5", {f"{file_name}/spectra": spectra},
                    compression="gzip")
     return spectra, parameters, sum_spec, channels
 
@@ -145,11 +146,12 @@ def hdf_tensor_positions(file_path):
     position = spx_tensor_position(file_path)
     It determines whether it is a line scan or a 3D-Scan.
     """
-    file_type = file_path.split(".")[-1]
-    file_name = file_path.split("/")[-1]
-    save_path = "/".join(file_path.split("/")[:-1])
+    file_path = Path(file_path)
+    file_type = file_path.suffix
+    file_name = file_path.name
+    save_path = file_path.parent
     hdf5_file = h5py.File(file_path, "r")
-    if file_type == "hdf5": # For AnImaX mit python ansteuerung
+    if file_type == ".hdf5": # For AnImaX mit python ansteuerung
         line_breaks = hdf5_file["SDD/scan index log/line breaks"][()]
         positions = [line_breaks[-2, 2] + 1, line_breaks[1, 1], 1]
         tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
@@ -157,7 +159,7 @@ def hdf_tensor_positions(file_path):
                                       dtype=np.uint32)
         tensor_positions = np.hstack((tensor_positions,
                                       np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
-    elif file_type == "h5":
+    elif file_type == ".h5":
         if "c1/main" in hdf5_file:
             for M in ("NEXAFS", "SmarM", "PI", "CounterSpec"):
                 if M == "NEXAFS":
@@ -238,7 +240,7 @@ def hdf_tensor_positions(file_path):
                                                                      range(positions[1]),
                                                                      range(positions[2]))),
                                               dtype=np.uint32)
-    with h5py.File(f"{save_path}/data/data.h5", "r+") as tofile:
+    with h5py.File(save_path/"data/data.h5", "r+") as tofile:
         tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
                               compression="gzip")
         tofile.create_dataset(f"{file_name}/positions", data=tensor_positions,

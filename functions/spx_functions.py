@@ -187,7 +187,7 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         tensor_positions /= [x_steps, y_steps, z_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
     sorted_folder = ns.natsorted(folder_path.glob("*.spx"))
-    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file())
+    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
     if (folder_size / machine_memory) < 0.7:                              # for machines with big memory
         print("machine memory big enough. creating spectra dict")

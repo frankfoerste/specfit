@@ -1,6 +1,7 @@
-import numpy as np
 import h5py
-import os
+from pathlib import Path
+import numpy as np
+
 
 def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     """
@@ -20,14 +21,12 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     list containing the detector parameters [a0, a1]
     int number of spectra
     """
-    file_name = file_path.split("/")[-1]
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+    file_name = file_path.name
+    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     worth_fit = []
     counts = []
-    folder_path = os.path.dirname(file_path)
-    try:
-        os.mkdir(f"{folder_path}/data/")
-    except:
-        pass
     if signal_sum_spec is not None:
         signal_sum_spec.emit("None")
     with open(file_path,"rb") as infile:
@@ -117,7 +116,7 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
     sum_spec = np.mean(list(spectra.values()), axis=0)
     parameters = [a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time]
-    with h5py.File(f"{folder_path}/data/data.h5", "w") as tofile:
+    with h5py.File(folder_path/"data/data.h5", "w") as tofile:
         tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
                               compression="gzip")
         tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
