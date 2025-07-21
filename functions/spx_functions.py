@@ -338,8 +338,13 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
     y = len(np.unique(positions[:, 1]))
     z = len(np.unique(positions[:, 2]))
     pos_dim = np.array([x, y, z])
-    tensor_positions = np.zeros(positions.shape, dtype=int)
-    tensor_positions[:, 2] = np.arange(z, dtype=int)
+    tensor_positions = np.copy(positions)
+    for i in range(3):
+        tensor_positions[:, i] = tensor_positions[:,i]-tensor_positions[:,i].min()
+        _unique = np.unique(tensor_positions[:,i])
+        if len(_unique) > 0:
+            tensor_positions[:,i] /= _unique[1]
+    tensor_positions = tensor_positions.astype(int)
     with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
         tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
                               compression="gzip")
@@ -506,6 +511,7 @@ def spx_tensor_positions(folder_path, file_type=".spx"):
     positions = []
     for file in files:
         positions.append(spx_tensor_position(file))
+    print(f"positions shape: {np.array(positions).shape}")
     return np.array(positions)
 
 def log_file_type(log_file):

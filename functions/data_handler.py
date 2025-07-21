@@ -779,27 +779,27 @@ class DataHandler():
 
     def run_spx_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "spx-progress - {file_nr} files")
+            f"spx-progress - {file_nr} files")
 
     def run_bcf_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "bcf-progress - {file_nr} files")
+            f"bcf-progress - {file_nr} files")
 
     def run_spe_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "spe-progress - {file_nr} files")
+            f"spe-progress - {file_nr} files")
 
     def run_mca_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "mca-progress - {file_nr} files")
+            f"mca-progress - {file_nr} files")
 
     def run_msa_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "msa-progress - {file_nr} files")
+            f"msa-progress - {file_nr} files")
 
     def run_txt_progress(self, file_nr):
         self.label_loading_progress.showMessage(
-            "txt-progress - {file_nr} files")
+            f"txt-progress - {file_nr} files")
 
     def check_param_file(self, param_path):
         """
