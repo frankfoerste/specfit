@@ -1,6 +1,7 @@
 import gc
 import h5py
 import itertools
+import psutil
 import numpy as np
 from pathlib import Path
 import dask.array as da
@@ -23,9 +24,11 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
+    print("bcf2spec_para")
     ### get the folder path sting
     folder_path = Path(file_path).parent
     file_name = Path(file_path).name
+    machine_memory = psutil.virtual_memory()
     ### create a data folder to store the data
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     ### open the bruker bcf file
@@ -54,7 +57,8 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     ### calculate the counts per spectrum
     if verbose:
         print("### calculate the counts per spectrum")
-    counts = da.from_array(np.array(data.sum(axis=-1)))
+    counts = da.from_array(np.array(data.sum(axis=-1)),
+                           chunks=(data.get_chunk_size()))
     ### get the size of the array
     if verbose:
         print("### get the size of the array")
@@ -63,7 +67,8 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     if verbose:
         print("### calculate a positions tensor from the size")
     row_indices, col_indices, depth_indices = np.indices(size, dtype=np.uint)
-    tensor_positions = np.column_stack((row_indices.flatten(), col_indices.flatten(), depth_indices.flatten()))
+    tensor_positions = da.from_array(np.column_stack((row_indices.flatten(), col_indices.flatten(), depth_indices.flatten())),
+                                     chunks=(10000,3))
     del row_indices, col_indices, depth_indices
     ### calculate the mean life time from the zero peaks
     if verbose:
@@ -78,12 +83,14 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
         print("### normalize the spectra to the measurement life time")
     spectra = data.data/life_times[...,None]
     del life_times, data
-    spectra = spectra.reshape(nr_spectra, channels).astype(np.float32)
-    # spectra = spectra.rechunk((100, 100, channels))
+    print(spectra)
+    spectra = da.asarray(spectra.reshape(nr_spectra, channels).astype(np.float64),
+                         ).rechunk(chunks=(5000, channels))
     ### store the parameters
     if verbose:
         print("### store the parameters")
-    parameters = np.array([a0, a1, fano, fwhm, life_time, a0 + a1*(channels), gating_time, real_time])
+    parameters = da.from_array(np.array([[a0, a1, fano, fwhm, life_time, a0 + a1*(channels), gating_time, real_time]]),
+                               chunks=(10000,8))
     ### now save everything to a data h5 file
     print("### now save spectra to a data h5 file")
     if (folder_path/"data/data.h5").exists():
@@ -91,6 +98,11 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
             if file_name in tofile.keys():
                 del tofile[file_name]
     spectra.to_hdf5(folder_path/"data/data.h5", f"{file_name}/spectra", compression="gzip", shuffle=True)
+    tensor_positions.to_hdf5(folder_path/"data/data.h5", f"{file_name}/tensor positions", compression="gzip", shuffle=True)
+    tensor_positions.to_hdf5(folder_path/"data/data.h5", f"{file_name}/positions", compression="gzip", shuffle=True)
+    parameters.to_hdf5(folder_path/"data/data.h5", f"{file_name}/parameters", compression="gzip", shuffle=True)
+    counts.to_hdf5(folder_path/"data/data.h5", f"{file_name}/counts", compression="gzip", shuffle=True)
+    del counts
     if verbose:
         print("### now save everything to a data h5 file")
     with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
@@ -98,17 +110,8 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
                               shuffle=True)
         tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec, compression="gzip",
                               shuffle=True)
-        tofile.create_dataset(f"{file_name}/counts", data=counts, compression="gzip",
-                              shuffle=True)
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters, compression="gzip",
-                              shuffle=True)
-        tofile.create_dataset(f"{file_name}/positions", data=tensor_positions, compression="gzip",
-                              shuffle=True)
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions, compression="gzip",
-                              shuffle=True)
         tofile.create_dataset(f"{file_name}/position dimension", data=size, compression="gzip",
                               shuffle=True)
-    del counts
     return spectra, parameters, size, tensor_positions, np.array(sum_spec)
 
 def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
@@ -275,7 +278,9 @@ def bcf_tensor_position(file_path):
     """
     This function returns the tensor_positions and position_dim
     """
-    bcf_file = hs.load(file_path, lazy=True)
+    print("bcv_tensor_position")
+    bcf_file = hs.load(file_path, lazy=True,
+                       select_type="spectrum_image")
     if len(bcf_file) <= 5:
         data = bcf_file[4]
         spectra_tmp = data.data

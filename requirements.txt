@@ -14,3 +14,4 @@ scipy>=1.14
 scikit-image>=0.20
 tables>=3.10
 xraylib>=4.0
+pandas

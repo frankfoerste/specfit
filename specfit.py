@@ -4,6 +4,7 @@ import gc
 import traceback
 import h5py
 import time
+from datetime import datetime
 from glob import glob
 import numpy as np
 import dask.array as da
@@ -15,11 +16,11 @@ import matplotlib.backends.backend_qt5agg as pltqt
 from matplotlib import figure
 import matplotlib.image as mpimg
 import xraylib as xrl
-script_dir = os.path.dirname(os.path.abspath(__file__))
-functions_path = os.path.join(script_dir, "functions")
-data_path = os.path.join(script_dir, "Data")
-sys.path.append(functions_path)
-sys.path.append(data_path)
+import logging
+from pathlib import Path
+script_dir = Path.cwd()
+sys.path.append(str(script_dir/"functions"))
+sys.path.append(str(script_dir/"data"))
 from fit_range_popup import FitThresholdPopup
 from show_ROI import ShowROI
 import specfit_deconvolution as sf # Module to fit lines to spectrum
@@ -42,7 +43,7 @@ class RoDatabase(object):
         """
         Initialise and execute complete readout
         """
-        self.working_dir = os.path.dirname(os.path.abspath(__file__))
+        self.working_dir = Path.cwd()
         self.read_elements()
         self.read_lines()
         self.read_PSE()
@@ -55,7 +56,7 @@ class RoDatabase(object):
         read out list of elements from elements.dat
         """
         self.elements = []
-        with open(self.working_dir+"/Data/elements.dat", "r",
+        with open(self.working_dir/"Data/elements.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").replace(" ", "").split("\t")
@@ -68,7 +69,7 @@ class RoDatabase(object):
         read out list of lines from lines.dat
         """
         self.lines = []
-        with open(self.working_dir+"/Data/lines.dat", "r",
+        with open(self.working_dir/"Data/lines.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").split("\t")
@@ -79,7 +80,7 @@ class RoDatabase(object):
         read out structure of PSE from PSE.dat
         """
         self.pse = []
-        with open(self.working_dir+"/Data/PSE.dat", "r",
+        with open(self.working_dir/"Data/PSE.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.replace("\n", "").split("\t")
@@ -100,7 +101,7 @@ class RoDatabase(object):
         read out characteristic lines
         """
         self.characteristic_lines = {}
-        with open(self.working_dir+"/Data/characteristic_lines.dat", "r",
+        with open(self.working_dir/"Data/characteristic_lines.dat", "r",
                   encoding="ascii") as f:
             for line in f:
                 line = line.split()
@@ -110,7 +111,7 @@ class RoDatabase(object):
         read out fluorescence energy data from lineE.dat
         """
         self.lineE = {}
-        with open(self.working_dir+"/Data/lineE.dat", "r",
+        with open(self.working_dir/"Data/lineE.dat", "r",
                   encoding="ascii") as lineE_file:
             for line in lineE_file:
                 line = line.split()
@@ -124,7 +125,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # initalize main window
         super(SpecFitGUIMain, self).__init__(parent)
         self.__version__ = u"SpecFit - 1.0.1"
-        self.working_directory = os.getcwd()
+        self.working_directory = Path.cwd()
+        self.start_logger()
         self.bg_color = "black"
         sp.call("", shell=True) # clear the screen to get rid of all the print
         # implementing database
@@ -140,8 +142,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                               check_elements=database.check_elements,
                               characteristic_lines=database.characteristic_lines,
                               lineE=database.lineE)
-        self.popup_properties = show_measurement_properties.ShowProps(os.getcwd() + "/example_measurements/spx/1d/", self)
-        self.ascii_specfit_logo = mpimg.imread(os.getcwd()+"/Data/images/SpecFit_ASCII.png")
+        self.popup_properties = show_measurement_properties.ShowProps(Path.cwd()/"example_measurements/spx/1d/", self)
+        self.ascii_specfit_logo = mpimg.imread(Path.cwd()/"Data/images/SpecFit_ASCII.png")
         self.elements = database.elements  #: list of elements
         self.lines = database.lines  #: list of lines for ex. K, Ka, ..
         self.pse = database.pse  #: list with definitions of the PSE
@@ -196,52 +198,52 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         """
         # set actions connected to the menu or toolbar
         # load folder action
-        self.action_load_folder = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/folder-blue-open-icon.png"), "load folder", self)
+        self.action_load_folder = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/folder-blue-open-icon.png")), "load folder", self)
         self.action_load_folder.setShortcut("Ctrl+O")
         self.action_load_folder.setStatusTip("load measurement folder (.txt or .spx)")
         self.action_load_folder.triggered.connect(self.load_folder)
         # load file action
-        self.action_load_file = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/file-open.png"), "load file", self)
+        self.action_load_file = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/file-open.png")), "load file", self)
         self.action_load_file.setShortcut("Ctrl+Shift+O")
         self.action_load_file.setStatusTip("load measurement file")
         self.action_load_file.triggered.connect(lambda: self.load_file(angle_file=False) )
         # load angle file action
-        self.action_load_angle = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/angle-open.png"), "load angle-file", self)
+        self.action_load_angle = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/angle-open.png")), "load angle-file", self)
         self.action_load_angle.setShortcut("Ctrl+Shift+A")
         self.action_load_angle.setStatusTip("load angle file (for GI or GE measurements)")
         self.action_load_angle.triggered.connect(lambda: self.load_file(angle_file=True) )
         # load settings action
-        self.action_load_settings = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/settings-open.png"), "load setting-file", self)
+        self.action_load_settings = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/settings-open.png")), "load setting-file", self)
         self.action_load_settings.setShortcut("Ctrl+Shift+S")
         self.action_load_settings.setStatusTip("load settings file")
         self.action_load_settings.triggered.connect(self.open_param_file)
         # save settings action
-        self.action_save_settings = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/settings-save.png"), "save settings", self)
+        self.action_save_settings = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/settings-save.png")), "save settings", self)
         self.action_save_settings.setShortcut("Ctrl+Shift+P")
         self.action_save_settings.setStatusTip("save settings in file")
         self.action_save_settings.triggered.connect(self.save_param_file)
         # open fit settings dialog action
-        self.action_fit_settings = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/settings-save.png"), "set fit settings", self)
+        self.action_fit_settings = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/settings-save.png")), "set fit settings", self)
         self.action_fit_settings.setShortcut("Ctrl+S")
         self.action_fit_settings.setStatusTip("fit settings")
         self.action_fit_settings.triggered.connect(self.show_specfit_fit_settings)
         # check fit action
-        self.action_check_fit = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/check-fit.png"), "check fit", self)
+        self.action_check_fit = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/check-fit.png")), "check fit", self)
         self.action_check_fit.setShortcut("F5")
         self.action_check_fit.setStatusTip("check fit")
         self.action_check_fit.triggered.connect(self.check_fit)
         # view ROI action
-        self.action_roi_image = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/show-ROI.png"), "view ROI", self)
+        self.action_roi_image = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/show-ROI.png")), "view ROI", self)
         self.action_roi_image.setShortcut("F6")
         self.action_roi_image.setStatusTip("view ROI (F6)")
         self.action_roi_image.triggered.connect(self.fill_and_display_show_roi)
         # plot maximum pixel spectrum action
-        self.action_max_pixel_spec = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/video-display.png"), "maximum pixel spectrum", self)
+        self.action_max_pixel_spec = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/video-display.png")), "maximum pixel spectrum", self)
         self.action_max_pixel_spec.setStatusTip("plot maximum pixel spec")
         self.action_max_pixel_spec.triggered.connect(lambda: self.plot_canvas(self.data.max_pixel_spec, self.data.energies, None, None ))
         self.action_max_pixel_spec.triggered.connect(lambda: self.set_spectra_nr(-2))
         # show 3d plot action
-        self.action_show_plot3d = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/plot-3d.png"), "plot 3D", self)
+        self.action_show_plot3d = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/plot-3d.png")), "plot 3D", self)
         self.action_show_plot3d.setShortcut("F8")
         self.action_show_plot3d.setStatusTip("plot 3D")
         self.action_show_plot3d.triggered.connect(self.show_plot3d)
@@ -250,18 +252,18 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_show_display_meas_points.setStatusTip("display measurement points 3D")
         self.action_show_display_meas_points.triggered.connect(self.show_display_meas_points)
         # clear plot action
-        self.action_clear_plot = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/clear-plot.png"), "clear plot", self)
+        self.action_clear_plot = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/clear-plot.png")), "clear plot", self)
         self.action_clear_plot.setShortcut("F4")
         self.action_clear_plot.setStatusTip("clear plot")
         self.action_clear_plot.triggered.connect(self.clear_plot)
         # clear element selection action
-        self.action_clear_element_lines = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/clear-elements.png"), "clear elements and lines", self)
+        self.action_clear_element_lines = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/clear-elements.png")), "clear elements and lines", self)
         self.action_clear_element_lines.setShortcut("F2")
         self.action_clear_element_lines.setStatusTip("clear elements and lines")
         self.action_clear_element_lines.triggered.connect(self.pse_widget.clear_element_line_list)
         self.action_clear_element_lines.triggered.connect(self.clear_ax_canvas_spectrum)
         # fit action
-        self.action_fit = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/fit-and-save.png"), "fit and save", self)
+        self.action_fit = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/fit-and-save.png")), "fit and save", self)
         self.action_fit.setShortcut("F1")
         self.action_fit.setStatusTip("fit and save")
         self.action_fit.triggered.connect(self.fit_folder)
@@ -286,11 +288,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_show_counts.setStatusTip("show counts")
         self.action_show_counts.triggered.connect(self.fill_and_show_fit_threshold_widget)
         # start debugging console action
-        self.action_ipython_console = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/bug.png"), "start ipython console", self)
+        self.action_ipython_console = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/bug.png")), "start ipython console", self)
         self.action_ipython_console.setStatusTip("start ipython console")
         self.action_ipython_console.triggered.connect(self.ipython_console)
         # exit action
-        self.action_exit = QtGui.QAction(QtGui.QIcon(self.working_directory+"/Data/icons/exit.png"), "Exit", self)
+        self.action_exit = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/exit.png")), "Exit", self)
         self.action_exit.setShortcut("Ctrl+Q")
         self.action_exit.setStatusTip("Exit application with Ctrl+Q")
         self.action_exit.triggered.connect(QtWidgets.QApplication.quit)
@@ -540,6 +542,20 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.entry_smooth_width.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_smooth_width))
         self.entry_calc_minima_order.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_calc_minima_order))
         self.check_calc_minima.stateChanged.connect(lambda state: self.sfs.check_calc_minima.setChecked(state == QtCore.Qt.CheckState.Checked))
+    
+    def start_logger(self,):
+        """
+        Start the logging process for the SpecFit application
+        """
+        self.logger = logging.getLogger(__name__)
+        Path(self.working_directory/"Data/Log").mkdir(parents=True, exist_ok=True)
+        logging.basicConfig(filename=self.working_directory/"Data/Log/specfit.log",
+                            format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
+                            datefmt="%Y%m%d-%H%M%S",
+                            encoding="utf-8",
+                            # filemode="w",
+                            )
+        self.logger.setLevel(logging.DEBUG)
 
     def set_spectra_nr(self, spectra_nr):
         """
@@ -582,18 +598,16 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 self.s.life_time = self.data.parameters[0][4]
             try:
                 self.s.real_time = self.data.parameters[0][7]  #TODO real time has to be implemented for every file format
-            except:
-                pass
+            except IndexError as e:
+                self.logger.info("Real time not provided in {self.data.file_type} - %s"%e)
             self.display_values_in_gui()
             self.show_sum_spec()
             self.roi_widget.file_type = self.data.file_type
             self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
             self.statusBar().showMessage("Loading done.")
         except Exception as e:
-            print("data folder could not be loaded")
-            print(f"error code {e}")
-            traceback.print_exc()
-            print( "__________________________________________________________")
+            self.logger.debug("data folder could not be loaded with error code %s"%e)
+            print(traceback.print_exc())
             self.reset_2_default()
         gc.collect()
 
@@ -616,10 +630,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.statusBar().showMessage("Loading done.")
             self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
         except Exception as e:
-            print("data file could not be loaded")
-            print(f"error code {e}")
-            traceback.print_exc()
-            print("__________________________________________________________")
+            self.logger.debug("data folder could not be loaded with error code %s"%e)
             self.reset_2_default()
         gc.collect()
 
@@ -667,10 +678,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         for text in self.ax_canvas_spectrum.texts:
             text.remove()
         self.pse_widget.clear_line_list()
-        try:
-            self.popup_properties.clear_popup()
-        except:
-            pass
+        self.popup_properties.clear_popup()
         self.data.reset_2_default()
         self.data.label_loading_progress = self.statusBar()
         self.data.file_dialog = QtWidgets.QFileDialog(self)
@@ -806,12 +814,16 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.popup_properties.fill_text(f"energy : [{self.data.energies[0]:.2f}, {self.data.energies[-1]:.2f}] keV\n")
         if np.ndim(self.data.parameters) == 1:
             self.popup_properties.fill_text(f"life time : {np.mean(self.data.parameters[4])} s\n")
-            try: self.popup_properties.fill_text(f"real time : {np.mean(self.data.parameters[7])} s\n")
-            except: pass
+            try: 
+                self.popup_properties.fill_text(f"real time : {np.mean(self.data.parameters[7])} s\n")
+            except IndexError as e:
+                self.logger.info("Real time not provided in %s - %s"%(self.data.file_type, e))
         else:
             self.popup_properties.fill_text(f"life time : {np.mean(self.data.parameters[:, 4])} s\n")
-            try: self.popup_properties.fill_text(f"real time : {np.mean(self.data.parameters[:, 7])} s \n")
-            except: pass
+            try: 
+                self.popup_properties.fill_text(f"real time : {np.mean(self.data.parameters[:, 7])} s \n")
+            except IndexError as e:
+                self.logger.info("Real time not provided in %s - %s"%(self.data.file_type,e))
         self.popup_properties.fill_text(f"position steps: {self.data.position_dimension[0]}-{self.data.position_dimension[1]}-{self.data.position_dimension[2]}\n")
         try:
             self.popup_properties.fill_text('position steps: {:d}-{:d}-{:d} \n'.format(*self.data.position_dimension))
@@ -842,6 +854,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
          """
          Function to load current params in ROI widget and display it.
          """
+
          self.roi_widget.load_type = self.data.loadtype
          self.roi_widget.parameters = self.data.parameters
          self.roi_widget.plot_style_str = self.data.plot_style
@@ -900,14 +913,19 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         try:
             self.s.Det = parameters[:5]
             self.s.life_time = parameters[4]
-            try: self.s.real_time = parameters[7]  # TODO real time has to be implemented for every file format
-            except: pass
+            try: 
+                self.s.real_time = parameters[7]  # TODO real time has to be implemented for every file format
+            except IndexError as e:
+                self.logger.info("Real time not provided in %s - %s"%(self.data.file_type, e))
             self.s.gating_time = parameters[6]
-        except:
+        except IndexError as e:
+            self.logger.info("Parameters in load_parameter_in_specfit_deconvolution have dim=2 - %s"%e)
             self.s.Det = parameters[spectra_nr, :5]
             self.s.life_time = parameters[spectra_nr, 4]
-            try: self.s.real_time = parameters[spectra_nr, 7]  # TODO real time has to be implemented for every file format
-            except: pass
+            try: 
+                self.s.real_time = parameters[spectra_nr, 7]  # TODO real time has to be implemented for every file format
+            except IndexError as e:
+                self.logger.info("Real time not provided in %s - %s"%(self.data.file_type, e))
             self.s.gating_time = parameters[spectra_nr, 6]
         self.s.strip_cycles = self.data.strip_cycles
         self.s.strip_width = self.data.strip_width
@@ -958,8 +976,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                                           "hdf5_file", "bcf_file", "csv_file"]
             if self.data.loadtype == "angle_file":
                 angle = self.data.tensor_positions.T[2][spectra_nr]
-                try: self.s.load_spec(self.data.spectra[angle])
-                except:   self.statusBar().showMessage("Error - spec could not be loaded")
+                try: 
+                    self.s.load_spec(self.data.spectra[angle])
+                except:
+                    self.statusBar().showMessage("Error - spec could not be loaded")
             elif self.data.loadtype == "file":
                 if type(self.data.spectra) is dict:
                     self.s.load_spec(self.data.spectra["0"])
@@ -1376,10 +1396,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                                                 )
             self.check_fit(params_user=self.data.use_parameters)
             self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
-            if self.check_calc_minima.isChecked():
-                self.s.strip()
-            else:
-                self.s.strip(calc_minima=False)
+            self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+            # if self.check_calc_minima.isChecked():
+            #     self.s.strip()
+            # else:
+            #     self.s.strip(calc_minima=False)
             self.s.linfit()
             # get the results from specfit deconvolution
             getResults = self.s.get_result()
@@ -1420,10 +1441,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     if self.data.bg_zero is True:
                         self.s.Strip = np.zeros(len(self.s.meas_load))
                     else :
-                        if self.check_calc_minima.isChecked():
-                            self.s.strip()
-                        else:
-                            self.s.strip(calc_minima=False)
+                        self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+                        # if self.check_calc_minima.isChecked():
+                        #     self.s.strip()
+                        # else:
+                        #     self.s.strip(calc_minima=False)
                     self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)),
                                                       self.data.parameters_user[0],
                                                       self.data.parameters_user[1],
@@ -1577,10 +1599,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         if self.data.bg_zero is True:
                             self.s.Strip = np.zeros(len(self.s.meas_load))
                         else:
-                            if self.check_calc_minima.isChecked():
-                                self.s.strip()
-                            else:
-                                self.s.strip(calc_minima=False)
+                            self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+                            # if self.check_calc_minima.isChecked():
+                            #     self.s.strip()
+                            # else:
+                            #     self.s.strip(calc_minima=False)
                         # if the background should be saved, store the estimated
                         # background s.Strip to the background array
                         if self.sfs.check_save_background.isChecked():
@@ -1737,9 +1760,9 @@ def main():
                    "3D plotting", "SpecFit is awesome", "spectra analyzation",
                    "periodic table", "data base", "system optimization"]
     app = QtWidgets.QApplication(sys.argv)
-    app.setWindowIcon(QtGui.QIcon(os.getcwd()+"/Data/images/specfit_logo_256x256.png"))
+    app.setWindowIcon(QtGui.QIcon(str(Path.cwd()/"Data/images/specfit_logo_256x256.png")))
     app.setStyle("GTK+")
-    pixmap = QtGui.QPixmap(os.getcwd()+"/Data/images/logo_ls.png")
+    pixmap = QtGui.QPixmap(str(Path.cwd()/"Data/images/logo_ls.png"))
     splash = QtWidgets.QSplashScreen(pixmap)
     splash.show()
     app.processEvents()

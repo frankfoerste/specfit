@@ -2,8 +2,8 @@ import h5py
 import psutil
 import numpy as np
 import time as t
+import xarray as xr
 from glob import iglob
-from glob import glob
 import codecs
 import natsort as ns
 from pathlib import Path
@@ -116,11 +116,17 @@ def spx2spec_para(file_path,
                                   compression="gzip")
     return spectrum, parameters
 
-def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
-                       save_sum_spec=True, save_spectra=True,
-                       save_counts=True, save_parameters=True,
-                       save_any=True, print_warning=False,
+def many_spx2spec_para(folder_path, 
+                       signal=None,
+                       worth_fit_threshold=200,
+                       save_sum_spec=True, 
+                       save_spectra=True,
+                       save_counts=True, 
+                       save_parameters=True,
+                       save_any=True, 
+                       print_warning=False,
                        save_spec_as_dict=True,
+                       data_compression="lzf",
                        return_values=False):
     """
     This function reads out the spectrum of a .spx-file and reads out the
@@ -148,15 +154,13 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         write_operator = "r+"
     else:
         write_operator = "w"
-    worth_fit = []
-    counts = []
-    parameters = []
+    # assign default values
     zero_peak_frequency = 1e4
     signal_progress = signal
-    folder_size = 0
     zero_peak_position = 96
     zero_peak_frequency = 10000
-    machine_memory = psutil.virtual_memory().total
+    # create an empty xarray Dataset to fill in read out data
+    ds = xr.Dataset()
     start = t.time()
     # derive the position of the spx-file
     if save_spec_as_dict is False:
@@ -168,15 +172,15 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         # calculate the stepsizes in every direction
         try:
             x_steps = x[1] - x[0]
-        except:
+        except IndexError:
             x_steps = 1
         try:
             y_steps = y[1] - y[0]
-        except:
+        except IndexError:
             y_steps = 1
         try:
             z_steps = z[1] - z[0]
-        except:
+        except IndexError:
             z_steps = 1
         # calculate the tensor positions by dividing positions by steps
         tensor_positions = np.copy(positions)
@@ -187,185 +191,118 @@ def many_spx2spec_para(folder_path, signal=None , worth_fit_threshold=200,
         tensor_positions /= [x_steps, y_steps, z_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
     sorted_folder = ns.natsorted(folder_path.glob("*.spx"))
-    folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
+    worth_fit = []
+    ds["counts"] = xr.DataArray(np.zeros(len(sorted_folder)),
+                                dims=("#"))
+    ds["parameters"] = xr.DataArray(np.zeros((len(sorted_folder), 8)),
+                                    dims=("#", "Para"),
+                                    coords={"Para": ["a0", "a1", "Fano", "FWHM",
+                                                  "life_time", "max_energy",
+                                                  "gating_time", "real_time"]})
     life_time = False
-    if (folder_size / machine_memory) < 0.7:                              # for machines with big memory
-        print("machine memory big enough. creating spectra dict")
-        for file_nr, spx_file in enumerate(sorted_folder):
-            with open(spx_file, "r", encoding="ISO-8859-1") as infile:
-                for line in infile:
-                    if "<LifeTime>" in line:
-                        line = line.replace("<LifeTime>", "").replace("</LifeTime>", "").replace("\r\n", "").replace("    ", "").replace(", ", ".")
-                        life_time = int(line) / 1000.0
-                    elif "<RealTime>" in line:
-                        real_time = int(line.replace("<RealTime>", "").replace("</RealTime>", "").replace("\r\n", "").replace("    ", "")) / 1000.0
-                    elif "<ZeroPeakPosition>" in line:
-                            zero_peak_position = int(line.replace("<ZeroPeakPosition>", "").replace("</ZeroPeakPosition>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<ZeroPeakFrequency>" in line:
-                            zero_peak_frequency = int(line.replace("<ZeroPeakFrequency>", "").replace("</ZeroPeakFrequency>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<PulsePairResTimeCount>" in line:
-                        gating_time  = int(line.replace("<PulsePairResTimeCount>", "").replace("</PulsePairResTimeCount>", "").replace("\r\n", "").replace("    ", "")) * 1e-6
-                        if gating_time == 0.0:
-                            gating_time = 3e-6
-                    elif "<ChannelCount>" in line:
-                        channels = int(line.replace("<ChannelCount>", "").replace("</ChannelCount>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<CalibAbs>" in line:
-                        a0 = float(line.replace("/", "").replace("<CalibAbs>", "").replace("\r\n", "").replace(", ", "."))
-                    elif "<CalibLin>" in line:
-                        a1 = float(line.replace("/", "").replace("<CalibLin>", "").replace("\r\n", "").replace(", ", "."))
-                    elif "<SigmaAbs>" in line:
-                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "").replace(", ", ".")))
-                    elif "<SigmaLin>" in line:
-                        Fano = float(line.replace("/", "").replace("<SigmaLin>", "").replace("\r\n", "").replace(", ", "."))/(3.85e-3) # 3.85eV is die mittlere Energie zur Erzeugung eines Elektron Loch Paares
-                    elif "<Channels>" in line:
-                        spectrum = line.replace("<Channels>", "").replace("</Channels>", "").replace("\r\n", "").replace("    ", "").split(",")
-                        break
-            try:
-                spectrum = [int(intensity) for intensity in spectrum]
-            except:
-                spectrum = [float(intensity) for intensity in spectrum]
-            # calculate the life time from the zero peak
-            # detector is set in 10keV, 20keV or 40keV and maipulate the
-            # spectrum in order to represent an 40keV spectrum
-            factor = (1/a1)/100
-            if not (94 < zero_peak_frequency < 99):
-                zero_peak_position = int(zero_peak_position/factor)
-            a1 *= factor
-            max_energy = a0 + a1 * (channels-1)
-            life_time = np.sum(spectrum[zero_peak_position-int(20/factor):zero_peak_position+int(20/factor)]) / zero_peak_frequency * factor
-            if life_time == 0:
-                print("factor:\t", factor)
-                print("zero peak position and frequency:\t", zero_peak_position, zero_peak_frequency)
-                print(f"error in {spx_file}\nlife_time is ZERO\nsetting life_time to 1")
-                life_time = 1
-            parameters.append([a0, a1, Fano, FWHM, life_time, max_energy, gating_time, real_time])
-            spectrum = np.divide(spectrum, life_time)
-            # sometimes the number of channels are corrupted, add or remove channels
-            # to comply with 4096
-            if channels < 4096:
-                spectrum = np.r_[spectrum, np.zeros(4096-channels)]
-            elif channels > 4096:
-                spectrum = spectrum[:4096]
-            sum_spec_tmp = sum(spectrum)
-            counts.append(sum_spec_tmp)
-            if sum_spec_tmp > worth_fit_threshold:
-                worth_fit.append(True)
-            else:
-                worth_fit.append(False)
-            # now we try to rebuild specfit load in routine to support array
-            # spectra
-            if save_spec_as_dict:
-                if file_nr == 0:
-                    spectra = {}
-                spectra[f"{file_nr}"] = spectrum
-            else:
-                if file_nr == 0:
-                    spectra = np.empty((len(x), len(y), len(z), 4096))
-                x_pos, y_pos, z_pos = tensor_positions[file_nr]
-                spectra[x_pos][y_pos][z_pos] = spectrum
-            if signal_progress is not None:
-                signal_progress.emit(file_nr)
-        if save_spectra and save_any:
-            with h5py.File(f'{folder_path}/data/data.h5', write_operator) as tofile:
-                tofile.create_dataset(f'{file_name}/spectra',
-                                      data=np.array(list(spectra.values())),
-                                      compression='gzip', compression_opts=9)
-            if save_spec_as_dict:
-                max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
-                sum_spec = calc_sum_spec(spectra)
-            else:
-                max_pixel_spec = np.max(spectra.reshape((np.prod(spectra.shape[:-1]), 4096)), axis=0)
-                sum_spec = np.sum(spectra.reshape((np.prod(spectra.shape[:-1]), 4096)), axis=0)
-
-    else:  # for machines with low memory
-        print("machine memory to small. creating single spectra")
-        Path(f"{folder_path}/single_spectra/").mkdir(parents=True, exist_ok=True)
-        for file_nr, spx_file in enumerate(sorted_folder):
-            with open(spx_file, "r", encoding="ISO-8859-1") as infile:
-                for line in infile:
-                    if "<LifeTime>" in line:
-                        life_time = int(line.replace("<LifeTime>", "").replace("</LifeTime>", "").replace("\r\n", "").replace("    ", "")) / 1000.0
-                    elif "<RealTime>" in line:
-                        real_time = int(line.replace("<RealTime>", "").replace("</RealTime>", "").replace("\r\n", "").replace("    ", "")) / 1000.0
-                    elif "<PulsePairResTimeCount>" in line:
-                        gating_time  = int(line.replace("<PulsePairResTimeCount>", "").replace("</PulsePairResTimeCount>", "").replace("\r\n", "").replace("    ", "")) * 1e-6
-                        if gating_time == 0.0:
-                            gating_time = 3e-6
-                    elif "<ZeroPeakPosition>" in line:
-                         zero_peak_position = int(line.replace("<ZeroPeakPosition>", "").replace("</ZeroPeakPosition>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<ZeroPeakFrequency>" in line:
-                         zero_peak_frequency = int(line.replace("<ZeroPeakFrequency>", "").replace("</ZeroPeakFrequency>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<ChannelCount>" in line:
-                        channels = int(line.replace("<ChannelCount>", "").replace("</ChannelCount>", "").replace("\r\n", "").replace("    ", ""))
-                    elif "<CalibAbs>" in line:
-                        a0 = float(line.replace("/", "").replace("<CalibAbs>", "").replace("\r\n", ""))
-                    elif "<CalibLin>" in line:
-                        a1 = float(line.replace("/", "").replace("<CalibLin>", "").replace("\r\n", ""))
-                    elif "<SigmaAbs>" in line:
-                        FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "")))
-                    elif "<SigmaLin>" in line:
-                        Fano = float(line.replace("/", "").replace("<SigmaLin>", "").replace("\r\n", ""))/(3.85e-3) # 3.85eV is die mittlere Energie zur Erzeugung eines Elektron Loch Paares
-                    elif "<Channels>" in line:
-                        spectrum = line.replace("<Channels>", "").replace("</Channels>", "").replace("\r\n", "").replace("    ", "").split(",")
-                        break
-            max_energy = a0 + a1*(channels-1)
-            try:
-                spectrum = [int(intensity) for intensity in spectrum]
-            except:
-                spectrum = [float(intensity) for intensity in spectrum]
-            # calculate the life time from the zero peak and check if the
-            # detector is set in 10keV, 20keV or 40keV and maipulate the
-            # spectrum in order to represent an 40keV spectrum
-            factor = (1/a1)/100
-            life_time = np.sum(spectrum[zero_peak_position-int(20*factor):zero_peak_position+int(20*factor)]) / zero_peak_frequency
-            parameters.append([a0, a1, Fano, FWHM, life_time, max_energy, gating_time])
-            spectrum = np.divide(spectrum, life_time)
-            sum_spec = sum(spectrum)
-            counts.append(sum_spec)
-            if sum_spec > worth_fit_threshold:
-                worth_fit.append(True)
-            else:
-                worth_fit.append(False)
-
-            np.save(f"{folder_path}/single_spectra/spectrum_{file_nr}", spectrum)
-            if signal_progress is not None:
-                signal_progress.emit(file_nr)
-        sum_spec = sum_from_single_files(folder_path)
-    # transform all data objects to array
-    parameters = np.array(parameters)
-    positions = spx_tensor_positions(folder_path=(folder_path/""))
-    x = len(np.unique(positions[:, 0]))
-    y = len(np.unique(positions[:, 1]))
-    z = len(np.unique(positions[:, 2]))
-    pos_dim = np.array([x, y, z])
-    tensor_positions = np.copy(positions)
+    for file_nr, spx_file in enumerate(sorted_folder):
+        with open(spx_file, "r", encoding="ISO-8859-1") as infile:
+            for line in infile:
+                if "<LifeTime>" in line:
+                    line = line.replace("<LifeTime>", "").replace("</LifeTime>", "").replace("\r\n", "").replace("    ", "").replace(", ", ".")
+                    life_time = int(line) / 1000.0
+                elif "<RealTime>" in line:
+                    real_time = int(line.replace("<RealTime>", "").replace("</RealTime>", "").replace("\r\n", "").replace("    ", "")) / 1000.0
+                elif "<ZeroPeakPosition>" in line:
+                        zero_peak_position = int(line.replace("<ZeroPeakPosition>", "").replace("</ZeroPeakPosition>", "").replace("\r\n", "").replace("    ", ""))
+                elif "<ZeroPeakFrequency>" in line:
+                        zero_peak_frequency = int(line.replace("<ZeroPeakFrequency>", "").replace("</ZeroPeakFrequency>", "").replace("\r\n", "").replace("    ", ""))
+                elif "<PulsePairResTimeCount>" in line:
+                    gating_time  = int(line.replace("<PulsePairResTimeCount>", "").replace("</PulsePairResTimeCount>", "").replace("\r\n", "").replace("    ", "")) * 1e-6
+                    if gating_time == 0.0:
+                        gating_time = 3e-6
+                elif "<ChannelCount>" in line:
+                    channels = int(line.replace("<ChannelCount>", "").replace("</ChannelCount>", "").replace("\r\n", "").replace("    ", ""))
+                elif "<CalibAbs>" in line:
+                    a0 = float(line.replace("/", "").replace("<CalibAbs>", "").replace("\r\n", "").replace(", ", "."))
+                elif "<CalibLin>" in line:
+                    a1 = float(line.replace("/", "").replace("<CalibLin>", "").replace("\r\n", "").replace(", ", "."))
+                elif "<SigmaAbs>" in line:
+                    FWHM = 2*np.sqrt(2*np.log(2))*np.sqrt(float(line.replace("/", "").replace("<SigmaAbs>", "").replace("\r\n", "").replace(", ", ".")))
+                elif "<SigmaLin>" in line:
+                    Fano = float(line.replace("/", "").replace("<SigmaLin>", "").replace("\r\n", "").replace(", ", "."))/(3.85e-3) # 3.85eV is die mittlere Energie zur Erzeugung eines Elektron Loch Paares
+                elif "<Channels>" in line:
+                    spectrum = line.replace("<Channels>", "").replace("</Channels>", "").replace("\r\n", "").replace("    ", "").split(",")
+                    break
+        spectrum = [float(intensity) for intensity in spectrum]
+        # calculate the life time from the zero peak
+        # detector is set in 10keV, 20keV or 40keV and maipulate the
+        # spectrum in order to represent an 40keV spectrum
+        factor = (1/a1)/100
+        if not (94 < zero_peak_frequency < 99):
+            zero_peak_position = int(zero_peak_position/factor)
+        a1 *= factor
+        max_energy = a0 + a1 * (channels-1)
+        life_time = np.sum(spectrum[zero_peak_position-int(20/factor):zero_peak_position+int(20/factor)]) / zero_peak_frequency * factor
+        if life_time == 0:
+            print("factor:\t", factor)
+            print("zero peak position and frequency:\t", zero_peak_position, zero_peak_frequency)
+            print(f"error in {spx_file}\nlife_time is ZERO\nsetting life_time to 1")
+            life_time = 1
+        ds["parameters"][file_nr] = np.array([a0, a1, Fano, FWHM, life_time, max_energy, gating_time, real_time])
+        spectrum = np.divide(spectrum, life_time)
+        # sometimes the number of channels are corrupted, add or remove channels
+        # to comply with 4096
+        if channels < 4096:
+            spectrum = np.r_[spectrum, np.zeros(4096-channels)]
+        elif channels > 4096:
+            spectrum = spectrum[:4096]
+        sum_spec_tmp = sum(spectrum)
+        ds["counts"][file_nr] = sum_spec_tmp
+        if sum_spec_tmp > worth_fit_threshold:
+            worth_fit.append(True)
+        else:
+            worth_fit.append(False)
+        # now we try to rebuild specfit load in routine to support array spectra
+        if save_spec_as_dict:
+            if file_nr == 0:
+                # spectra = np.zeros((len(sorted_folder), len(spectrum)))
+                ds["spectra"] = xr.DataArray(np.zeros((len(sorted_folder), channels)),
+                                                           dims=("#", "energy"),
+                                                           coords={"energy": np.arange(ds["parameters"][file_nr][0],
+                                                                                       ds["parameters"][file_nr][5]+ds["parameters"][file_nr][1],
+                                                                                       ds["parameters"][file_nr][1])})
+            ds["spectra"][file_nr] = spectrum
+        else:
+            if file_nr == 0:
+                spectra = np.empty((len(x), len(y), len(z), 4096))
+            x_pos, y_pos, z_pos = tensor_positions[file_nr]
+            spectra[x_pos][y_pos][z_pos] = spectrum
+        if signal_progress is not None:
+            signal_progress.emit(file_nr)
+    ds["max pixel spec"] = ds["spectra"].max(axis=0)
+    ds["sum spec"] = ds["spectra"].mean(axis=0)
+    ds["positions"] = xr.DataArray(spx_tensor_positions(folder_path=(folder_path/"")),
+                                   dims=("#", "xyz"))
+    x = len(np.unique(ds["positions"][:, 0]))
+    y = len(np.unique(ds["positions"][:, 1]))
+    z = len(np.unique(ds["positions"][:, 2]))
+    ds["position dimension"] = xr.DataArray([x, y, z],
+                                            dims=("xyz"))
+    ds["tensor positions"] = ds["positions"].copy()
     for i in range(3):
-        tensor_positions[:, i] = tensor_positions[:,i]-tensor_positions[:,i].min()
-        _unique = np.unique(tensor_positions[:,i])
-        if len(_unique) > 0:
-            tensor_positions[:,i] /= _unique[1]
-    tensor_positions = tensor_positions.astype(int)
-    with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
-        tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/counts", data=counts,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=positions,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=pos_dim,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
-                              compression="gzip")
+        ds["tensor positions"][:, i] = ds["tensor positions"][:,i]-ds["tensor positions"][:,i].min()
+        if ds["position dimension"][i] > 1:
+            _unique = np.unique(ds["tensor positions"][:,i])
+            ds["tensor positions"][:,i] /= _unique[1]
+    ds["tensor positions"] = ds["tensor positions"].astype(int)
+    ds.to_netcdf(
+        path=folder_path/"data/data.h5",
+        group=file_name,
+        mode=write_operator,
+        engine="h5netcdf",
+    )
     print(f"spx loadingtime - {t.time()-start:.2f}")
     if return_values:
         if save_spec_as_dict is False:
-            return spectra, parameters, positions, tensor_positions
+            return ds["spectra"], ds["parameters"], ds["positions"], ds["tensor_positions"]
         else:
-            return spectra, parameters
+            return ds["spectra"], ds["parameters"]
 
 def sum_from_single_files(folder_path, save_sum_spec=True):
     Path(f"{folder_path}/data/").mkdir(parents=True, exist_ok=True)
@@ -483,15 +420,6 @@ def spx_tensor_position(file_path):
                             return np.frombuffer(data[1:], dtype=np.float64)[15:18]
                         else:
                             return np.frombuffer(data[1:], dtype=np.float64)[15:18]
-    if len(file_path.split("(")) != 1:
-        if file_path[-4:] == ".txt":
-            position = file_path.split("(")[2].replace(").txt", "")
-        elif file_path[-4:] == ".spx":
-            position = file_path.split("(")[2].replace(").spx", "")
-        position = position.split(",")
-        return [float(position[i]) for i in range(3)]
-    elif len(file_path.split("(")) == 1:
-        return [0, 0, float(file_path.split("_")[-1].replace("z", "").replace(".spx", ""))]
 
 def spx_tensor_positions(folder_path, file_type=".spx"):
     """
@@ -510,8 +438,8 @@ def spx_tensor_positions(folder_path, file_type=".spx"):
     files = folder_path.glob(f"*{file_type}")
     positions = []
     for file in files:
-        positions.append(spx_tensor_position(file))
-    print(f"positions shape: {np.array(positions).shape}")
+        position = spx_tensor_position(file)
+        positions.append(position)
     return np.array(positions)
 
 def log_file_type(log_file):

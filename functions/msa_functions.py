@@ -115,7 +115,7 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
             worth_fit.append(False)
     max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
     sum_spec = np.mean(list(spectra.values()), axis=0)
-    parameters = [a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time]
+    parameters = np.asarray([a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time])
     with h5py.File(folder_path/"data/data.h5", "w") as tofile:
         tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
                               compression="gzip")

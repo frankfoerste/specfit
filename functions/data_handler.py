@@ -1,6 +1,7 @@
 import os
 import sys
 import h5py
+from dask import dataframe
 import time
 from pathlib import Path
 import numpy as np
@@ -1093,10 +1094,9 @@ class DataHandler():
                 if len(z) != 1:
                     self.step_width[2] = z[1]-z[0]
                 self.step_width = np.round(self.step_width, 3)
-                tensor_position = (positions-start_position)/self.step_width
-                tensor_position[tensor_position == np.inf] = 0
-                # this if a value is NaN
-                tensor_position[tensor_position != tensor_position] = 0
+                _mask = self.step_width != 0
+                tensor_position = positions-start_position
+                tensor_position[:, _mask] /= self.step_width[_mask]
                 tensor_position = np.around(tensor_position, 0).astype(int)
             elif self.file_type == ".spe":
                 positions = spe.spe_tensor_position(file_list[0])
@@ -1116,10 +1116,9 @@ class DataHandler():
                 if len(z) != 1:
                     self.step_width[2] = z[1]-z[0]
                 self.step_width = np.round(self.step_width, 3)
-                tensor_position = (positions-start_position)/self.step_width
-                tensor_position[tensor_position == np.inf] = 0
-                # this if a value is NaN
-                tensor_position[tensor_position != tensor_position] = 0
+                _mask = self.step_width != 0
+                tensor_position = positions-start_position
+                tensor_position[:, _mask] /= self.step_width[_mask]
                 tensor_position = np.around(tensor_position, 0).astype(int)
             elif self.file_type == ".mca":
                 positions_tmp, self.len_scans = mca.mca_tensor_positions(
@@ -1169,14 +1168,10 @@ class DataHandler():
                             self.step_width[scan][2] = monoE[scan][1] - \
                                 monoE[scan][0]
                         self.step_width[scan] = self.step_width[scan]
-                        tensor_position[scan] = (positions[scan]-start_position[scan])/self.step_width[scan]
-                        tensor_position[scan][tensor_position[scan]
-                                              == np.inf] = 0
-                        # this if a value is NaN
-                        tensor_position[scan][tensor_position[scan]
-                                              != tensor_position[scan]] = 0
-                        tensor_position[scan] = np.around(
-                            tensor_position[scan], 0).astype(int)
+                        _mask = self.step_width[scan] != 0
+                        tensor_position[scan] = positions[scan]-start_position[scan]
+                        tensor_position[scan,:, _mask] /= self.step_width[scan,_mask]
+                        tensor_position[scan] = np.around(tensor_position[scan], 0).astype(int)
                     else:
                         # if only one point in the measurement
                         x[scan] = np.unique(positions[scan][0])
