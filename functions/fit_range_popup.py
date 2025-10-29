@@ -4,7 +4,7 @@ import matplotlib.backends.backend_qt5agg as pltqt
 import matplotlib.figure as figure
 import numpy as np
 import natsort as ns
-import specfit_GUI_functions as sfunc
+import utils
 
 class FitThresholdPopup(QtWidgets.QWidget):
     popup_threshold = QtCore.pyqtSignal(object)
@@ -52,7 +52,7 @@ class FitThresholdPopup(QtWidgets.QWidget):
             dictpath = os.path.join(self.folder_path,os.path.join("data","spectra.pickle"))
             print(self.folder_path)
             if os.path.exists(dictpath):
-                self.spec = sfunc.open_dict_pickle(dictpath)
+                self.spec = utils.open_dict_pickle(dictpath)
                 self.use_spectra = True
             else:
                 print("use_counts") # TODO

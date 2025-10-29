@@ -1,6 +1,5 @@
 import sys
 import collections
-import os
 import h5py
 import numpy as np
 from pathlib import Path
@@ -69,7 +68,7 @@ def txt2spec_para(file_path):
     tensor_positions[:, 2] = np.arange(z, dtype=int)
     folder_path = "/".join(file_path.split("/")[:-1])
     Path(f"{folder_path}/data/").mkdir(parents=True, exist_ok=True)
-    if os.path.exists(f"{folder_path}/data/data.h5"):
+    if (folder_path / "data/data.h5").exists():
         with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
@@ -123,9 +122,9 @@ def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
     plot and save an image with spectra,background and spectra-fit
     """
     angle = _cast_to_float(angle)
-    if not os.path.exists(save_folder_path +"/ang_images"):
-        os.mkdir(save_folder_path +"/ang_images")
-    savepath = save_folder_path +"/ang_images/fit_plot_{0:0.4f}.png".format(angle)
+    if not (save_folder_path +"/ang_images").exists():
+        Path(save_folder_path / "ang_images").mkdir(parents=True, exist_ok=True)
+    savepath = save_folder_path / f"/ang_images/fit_plot_{angle:0.4f}.png"
     fit_with_bg = np.add(fit,bg)
     fig,ax =plt.subplots()
     try:
@@ -146,8 +145,8 @@ def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
 def save_numpy_arrays(energy,spectra,bg,fit,angle,save_folder_path):
     angle = _cast_to_float(angle)
     fit_with_bg = np.add(fit,bg)
-    if not os.path.exists(save_folder_path +"/ang_npz"):
-        os.mkdir(save_folder_path +"/ang_npz")
+    if not (save_folder_path +"/ang_npz").exists():
+        Path(save_folder_path / "ang_npz").mkdir(parents=True, exist_ok=True)
     outfile = save_folder_path +"/ang_npz/en_sp_bg_fit_{0:0.4f}.png".format(angle)
     np.savez(outfile,energy,spectra,bg,fit_with_bg)
 

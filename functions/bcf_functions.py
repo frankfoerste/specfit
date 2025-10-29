@@ -6,6 +6,8 @@ import numpy as np
 from pathlib import Path
 import dask.array as da
 import hyperspy.api as hs
+import xarray as xr
+import utils
 
 def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
                   save_counts=True, save_parameters=True,
@@ -24,22 +26,27 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     list containing the spectrum
     list containing the detector parameters [a0, a1, FANO, FWHM]
     """
-    print("bcf2spec_para")
-    ### get the folder path sting
-    folder_path = Path(file_path).parent
-    file_name = Path(file_path).name
-    machine_memory = psutil.virtual_memory()
-    ### create a data folder to store the data
-    Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
-    ### open the bruker bcf file
+    # get the folder path sting
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+    file_name = file_path.name
+    write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
+                                                   file_name=file_name)
+    ds = xr.Dataset()
+    # create a data folder to store the data
+    (folder_path / "data").mkdir(parents=True, exist_ok=True)
+    # open the bruker bcf file
     data = hs.load(file_path, lazy=True,
                    select_type="spectrum_image",
+                   signal_type="EDS_SEM"
                    )
-    ### the last entry contains the measurement data (the others images)
-    ### read out parameter
+    # the last entry contains the measurement data (the others images)
+    # read out parameter
     if verbose:
-        print("### read out parameters ###")
+        print("# read out parameters ###")
     nr_spectra = int(data.data.shape[0] * data.data.shape[1])
+    dx = int(data.original_metadata.Microscope.DX)/1000
+    dy = int(data.original_metadata.Microscope.DY)/1000
     a0 = data.original_metadata["Spectrum"]["CalibAbs"] # "Null"energie in keV
     a1 = data.original_metadata["Spectrum"]["CalibLin"] # Kanalbreite in keV
     fwhm = 2*np.sqrt(2*np.log(2))*np.sqrt(data.original_metadata["Spectrum"]["SigmaAbs"])
@@ -48,63 +55,176 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
     gating_time = 3e-6 # Zeit zum Auslesen Spektrum
     real_time = data.metadata["Acquisition_instrument"]["SEM"]["Detector"]["EDS"]["real_time"]
     real_time /= nr_spectra
-    ### calculate the mean sum spectrum
+    # calculate the mean sum spectrum
     if verbose:
-        print("### calculate the mean sum spectrum")
+        print("# calculate the mean sum spectrum")
     sum_spec = data.sum()/nr_spectra
-    ### calculate the maximum pixel spectrum
+    # calculate the maximum pixel spectrum
     max_pixel_spec = data.max()
-    ### calculate the counts per spectrum
+    # calculate the counts per spectrum
     if verbose:
-        print("### calculate the counts per spectrum")
-    counts = da.from_array(np.array(data.sum(axis=-1)),
-                           chunks=(data.get_chunk_size()))
-    ### get the size of the array
+        print("# calculate the counts per spectrum")
+    ds["counts"] = xr.DataArray(data=np.ravel(data.sum(axis=-1)),
+                                dims=("spec_nr"),
+                                coords={"spec_nr": np.arange(len(data))},
+                                attrs={"units": "counts per second"})
+    
+    # get the size of the array
     if verbose:
-        print("### get the size of the array")
+        print("# get the size of the array")
     size = [data.data.shape[0], data.data.shape[1],1]
-    ### calculate a positions tensor from the size
+    ds["position dimension"] = xr.DataArray(data=size,
+                                            dims=("dimension"))
+    # calculate a positions tensor from the size
     if verbose:
-        print("### calculate a positions tensor from the size")
+        print("# calculate a positions tensor from the size")
     row_indices, col_indices, depth_indices = np.indices(size, dtype=np.uint)
-    tensor_positions = da.from_array(np.column_stack((row_indices.flatten(), col_indices.flatten(), depth_indices.flatten())),
-                                     chunks=(10000,3))
+    ds["tensor positions"] = xr.DataArray(data=np.column_stack((row_indices.flatten(), col_indices.flatten(), depth_indices.flatten())),
+                                   dims=("spec_nr", "dimension")
+                                   )
+    ds["positions"] = xr.DataArray(data=ds["tensor positions"]*[dx,dy,1],
+                                   dims=("spec_nr", "dimension"),
+                                   coords={"dimension": ["x", "y", "z"]},
+                                   attrs={"units": ["mm", "mm", "mm"]})
+    
     del row_indices, col_indices, depth_indices
-    ### calculate the mean life time from the zero peaks
+    # calculate the mean life time from the zero peaks
     if verbose:
-        print("### calculate the mean life time from the zero peaks")
+        print("# calculate the mean life time from the zero peaks")
     life_time = data.data[...,75:116].sum()/nr_spectra*1e-4
-    ### calculate lifetime for each spectrum
+    # calculate lifetime for each spectrum
     if verbose:
-        print("### calculate lifetime for each spectrum")
+        print("# calculate lifetime for each spectrum")
     life_times = data.data[...,75:116].sum(axis=-1)*1e-4
-    ### normalize the spectra to the measurement life time
+    # normalize the spectra to the measurement life time
     if verbose:
-        print("### normalize the spectra to the measurement life time")
+        print("# normalize the spectra to the measurement life time")
     spectra = data.data/life_times[...,None]
-    del life_times, data
-    print(spectra)
-    spectra = da.asarray(spectra.reshape(nr_spectra, channels).astype(np.float64),
-                         ).rechunk(chunks=(5000, channels))
-    ### store the parameters
+    spectra = spectra.reshape([data.data.shape[0], data.data.shape[1], 1, channels])
+    ds["spectra"] = xr.DataArray(spectra,
+                                 dims=("X", "Y", "Z", "energy"),
+                                 coords={"energy": np.arange(a0, a0 + a1*(channels), a1),
+                                         "X": np.arange(data.data.shape[0]),
+                                         "Y": np.arange(data.data.shape[1]),
+                                         "Z": np.arange(1)},
+                                 attrs={"units": "counts per second"})
+    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
+    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
+    
+    # store the parameters
     if verbose:
-        print("### store the parameters")
-    parameters = da.from_array(np.array([[a0, a1, fano, fwhm, life_time, a0 + a1*(channels), gating_time, real_time]]),
-                               chunks=(10000,8))
-    ### now save everything to a data h5 file
-    print("### now save spectra to a data h5 file")
+        print("# store the parameters")
+    ds["parameters"] = xr.DataArray(data=[a0, a1, fano, fwhm, life_time, 
+                                          a0 + a1*(channels), gating_time,
+                                          real_time],
+                                    dims=("parameter"),
+                                    coords={"parameter": ["a0", "a1", "Fano", "FWHM",
+                                                     "life_time", "max_energy",
+                                                     "gating_time", "real_time"]},
+                                    attrs={"units": ["keV", "keV", "a.u.", "keV",
+                                                     "s", "keV", "s", "s"]})
+
+    # now save everything to a data h5 file
+    print("# now save spectra to a data h5 file")
     if (folder_path/"data/data.h5").exists():
         with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
-    spectra.to_hdf5(folder_path/"data/data.h5", f"{file_name}/spectra", compression="gzip", shuffle=True)
-    tensor_positions.to_hdf5(folder_path/"data/data.h5", f"{file_name}/tensor positions", compression="gzip", shuffle=True)
-    tensor_positions.to_hdf5(folder_path/"data/data.h5", f"{file_name}/positions", compression="gzip", shuffle=True)
-    parameters.to_hdf5(folder_path/"data/data.h5", f"{file_name}/parameters", compression="gzip", shuffle=True)
-    counts.to_hdf5(folder_path/"data/data.h5", f"{file_name}/counts", compression="gzip", shuffle=True)
-    del counts
+    ds.to_netcdf(
+        path=folder_path/"data/data.h5",
+        group=file_name,
+        mode=write_operator,
+        engine="h5netcdf",
+        encoding=utils.create_hdf5_encoding(dataset=ds),
+    )
     if verbose:
-        print("### now save everything to a data h5 file")
+        print("# now save everything to a data h5 file")
+
+    return ds["spectra"], ds["parameters"], ds["position dimension"], ds["tensor positions"], ds["sum spec"]
+
+def bcf2spec_para_dask(folder_path, verbose=True):
+    """
+    This is a copy of the bcf2spec_para function with dask implementation
+    """
+    # get the folder path sting
+    file_path = Path(file_path)
+    folder_path = file_path.parent
+    file_name = file_path.name
+    if (folder_path / "data/data.h5").exists():
+        with h5py.File(folder_path / "data/data.h5", "r+") as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
+        write_operator = "r+"
+    else:
+        write_operator = "w"
+    # create a data folder to store the data
+    (folder_path / "data").mkdir(parents=True, exist_ok=True)
+    # open the bruker bcf file
+    data = hs.load(file_path, lazy=True,
+                   select_type="spectrum_image",
+                   signal_type="EDS_SEM"
+                   )
+    # the last entry contains the measurement data (the others images)
+    # read out parameter
+    if verbose:
+        print("# read out parameters ###")
+    nr_spectra = int(data.data.shape[0] * data.data.shape[1])
+    dx = int(data.original_metadata.Microscope.DX)/1000
+    dy = int(data.original_metadata.Microscope.DY)/1000
+    a0 = data.original_metadata["Spectrum"]["CalibAbs"] # "Null"energie in keV
+    a1 = data.original_metadata["Spectrum"]["CalibLin"] # Kanalbreite in keV
+    fwhm = 2*np.sqrt(2*np.log(2))*np.sqrt(data.original_metadata["Spectrum"]["SigmaAbs"])
+    fano = data.original_metadata["Spectrum"]["SigmaLin"]/(3.85e-3)
+    channels = data.original_metadata["Spectrum"]["ChannelCount"] # Anzahl Kanäle
+    gating_time = 3e-6 # Zeit zum Auslesen Spektrum
+    real_time = data.metadata["Acquisition_instrument"]["SEM"]["Detector"]["EDS"]["real_time"]
+    real_time /= nr_spectra
+    # calculate the mean sum spectrum
+    if verbose:
+        print("# calculate the mean sum spectrum")
+    sum_spec = data.sum()/nr_spectra
+    # calculate the maximum pixel spectrum
+    max_pixel_spec = data.max()
+    # calculate the counts per spectrum
+    if verbose:
+        print("# calculate the counts per spectrum")
+    counts = da.from_array(np.array(data.sum(axis=-1)),
+                           chunks=(data.get_chunk_size()))
+    # get the size of the array
+    if verbose:
+        print("# get the size of the array")
+    size = [data.data.shape[0], data.data.shape[1],1]
+   # calculate a positions tensor from the size
+    if verbose:
+        print("# calculate a positions tensor from the size")
+    row_indices, col_indices, depth_indices = np.indices(size, dtype=np.uint)
+    tensor_positions = da.from_array(np.column_stack((row_indices.flatten(), col_indices.flatten(), depth_indices.flatten())),
+                                     chunks=(10000,3))
+    del row_indices, col_indices, depth_indices
+    # calculate the mean life time from the zero peaks
+    if verbose:
+        print("# calculate the mean life time from the zero peaks")
+    life_time = data.data[...,75:116].sum()/nr_spectra*1e-4
+    # calculate lifetime for each spectrum
+    if verbose:
+        print("# calculate lifetime for each spectrum")
+    life_times = data.data[...,75:116].sum(axis=-1)*1e-4
+    # normalize the spectra to the measurement life time
+    if verbose:
+        print("# normalize the spectra to the measurement life time")
+    spectra = data.data/life_times[...,None]
+    spectra = spectra.reshape([data.data.shape[0], data.data.shape[1], 1, channels])
+    spectra = da.asarray(spectra.reshape(nr_spectra, channels).astype(np.float64),
+                         ).rechunk(chunks=(5000, channels))
+    # store the parameters
+    if verbose:
+        print("# store the parameters")
+    parameters = da.from_array(np.array([[a0, a1, fano, fwhm, life_time, a0 + a1*(channels), gating_time, real_time]]),
+                               chunks=(10000,8))
+    # now save everything to a data h5 file
+    print("# now save spectra to a data h5 file")
+    if verbose:
+        print("# now save everything to a data h5 file")
     with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
         tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec, compression="gzip",
                               shuffle=True)
@@ -112,7 +232,7 @@ def bcf2spec_para(file_path, save_sum_spec=True, save_spectra=True,
                               shuffle=True)
         tofile.create_dataset(f"{file_name}/position dimension", data=size, compression="gzip",
                               shuffle=True)
-    return spectra, parameters, size, tensor_positions, np.array(sum_spec)
+    return spectra, parameters, position_dimension, tensor_positions, sum_spec
 
 def many_bcf2spec_para(folder_path, signal=None ,worth_fit_threshold=200,
                        save_sum_spec=True, save_spectra=True,
@@ -294,3 +414,7 @@ def bcf_tensor_position(file_path):
     tensor_position = np.hstack((tensor_position,
                                   np.zeros((len(tensor_position),1), dtype=np.uint)))
     return tensor_position, position_dim
+
+if __name__ == "__main__":
+    folder = "C:\\Doktorarbeit\\development\\specfit\\example_measurements\\bcf\\"
+    bcf2spec_para(file_path=folder+"spider.bcf")

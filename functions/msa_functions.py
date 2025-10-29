@@ -1,6 +1,8 @@
 import h5py
 from pathlib import Path
 import numpy as np
+import xarray as xr
+import utils
 
 
 def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
@@ -25,11 +27,14 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     folder_path = file_path.parent
     file_name = file_path.name
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
-    worth_fit = []
-    counts = []
+    write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
+                                                   file_name=file_name)
+    ds = xr.Dataset()
+    # worth_fit = []
+    # counts = []
     if signal_sum_spec is not None:
         signal_sum_spec.emit("None")
-    with open(file_path,"rb") as infile:
+    with open(file_path, "rb") as infile:
         content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
     for counter, line in enumerate(content):
         if signal_progress is not None:
@@ -78,8 +83,8 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     steps = np.array([x_step, y_step, z_step])
     steps[steps==0] = 1
     origin = [x0, y0, z0]
-    positions = build_positions(position_dimension, origin, steps)
-    tensor_positions = build_tensor_position(position_dimension)
+    # positions = build_positions(position_dimension, origin, steps)
+    # tensor_positions = build_tensor_position(position_dimension)
     max_energy =  a0 + a1*channels
     if signal_sum_spec is not None:
         signal_sum_spec.emit("progress spectra")
@@ -105,35 +110,80 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
             int(np.ceil(len(spectra_tmp) / channels)), channels))  # reshapes intensity to channels*spectra
     if signal_sum_spec is not None:
         signal_sum_spec.emit("spectra done")
-    spectra = {}
-    for i, _ in enumerate(spectra_tmp):
-        spectra["%d"%i] = spectra_tmp[i]
-        counts.append(sum(spectra_tmp[i]))
-        if sum(spectra_tmp[i]) > 1000:
-            worth_fit.append(True)
-        else:
-            worth_fit.append(False)
-    max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
-    sum_spec = np.mean(list(spectra.values()), axis=0)
-    parameters = np.asarray([a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time])
-    with h5py.File(folder_path/"data/data.h5", "w") as tofile:
-        tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/counts", data=counts,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=position_dimension,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=positions,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-                              compression="gzip")
-    return spectra, sum_spec, parameters
+    # spectra = {}
+    # for i, _ in enumerate(spectra_tmp):
+    #     spectra["%d"%i] = spectra_tmp[i]
+    #     counts.append(sum(spectra_tmp[i]))
+    #     if sum(spectra_tmp[i]) > 1000:
+    #         worth_fit.append(True)
+    #     else:
+    #         worth_fit.append(False)
+    ds["parameters"] = xr.DataArray(data=[a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time],
+                                    dims=("parameter"),
+                                    coords={"parameter": ["a0", "a1", "Fano", "FWHM",
+                                                     "life_time", "max_energy",
+                                                     "gating_time", "real_time"],},
+                                    attrs={"units": ["keV", "keV", "a.u.", "keV",
+                                                     "s", "keV", "s", "s"]})
+    ds["spectra"] = xr.DataArray(data=spectra_tmp.reshape([x_pos, y_pos, z_pos, channels]),
+                                 dims=("X", "Y", "Z", "energy"),
+                                 coords={"energy": np.arange(ds["parameters"][0],
+                                                             ds["parameters"][5],
+                                                             ds["parameters"][1]),
+                                         "X": np.arange(x_pos),
+                                         "Y": np.arange(y_pos),
+                                         "Z": np.arange(z_pos),},
+                                 attrs={"units": "counts per second"})
+    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
+                                dims=("spec_nr"),
+                                coords={"spec_nr": np.arange(x_pos*y_pos*z_pos)},
+                                attrs={"units": "counts per second"})
+    ds["positions"] = xr.DataArray(data=build_positions(position_dimension, origin, steps),
+                                   dims=("spec_nr", "dimension"),
+                                   coords={"dimension": ["x", "y", "z"]},
+                                   attrs={"units": ["mm", "mm", "mm"]})
+    ds["tensor positions"] = xr.DataArray(data=build_tensor_position(position_dimension),
+                                   dims=("spec_nr", "dimension"),
+                                   coords={"dimension": ["x", "y", "z"]},
+                                   attrs={"units": ["mm", "mm", "mm"]})
+    ds["position dimension"] = xr.DataArray([x_pos, y_pos, z_pos],
+                                            dims=("dimension"))
+    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
+    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
+    # set units to coordinates
+    ds.coords["spec_nr"].attrs["units"] = "#"
+    ds.coords["energy"].attrs["units"] = "keV"
+    # set units to DataArrays
+    ds["max pixel spec"].attrs["units"] = "counts per second"
+    ds["sum spec"].attrs["units"] = "counts per second"
+
+    # save the hdf5
+    ds.to_netcdf(
+        path=folder_path/"data/data.h5",
+        group=file_name,
+        mode=write_operator,
+        engine="h5netcdf",
+        encoding=utils.create_hdf5_encoding(dataset=ds),
+    )
+    
+    # with h5py.File(folder_path/"data/data.h5", "w") as tofile:
+    #     tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/counts", data=counts,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/position dimension", data=position_dimension,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/positions", data=positions,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
+    #                           compression="gzip")
+    #     tofile.create_dataset(f"{file_name}/parameters", data=parameters,
+    #                           compression="gzip")
+    return ds["spectra"], ds["sum spec"], ds["parameters"]
 
 def msa2positions(file_path):
     """
@@ -245,3 +295,9 @@ def build_tensor_position(positions):
     pos_arr_z = np.arange(positions[2])
     tensor_positions = np.array(np.meshgrid(pos_arr_x,pos_arr_y,pos_arr_z)).T.reshape(-1,3)
     return sorted(tensor_positions, key=lambda x:x[1])
+
+if __name__ == "__main__":
+    folder = Path("C:\\Doktorarbeit\\development\\specfit\\example_measurements\\msa\\")
+    files = folder.glob("*.MSA")
+    for file in files:
+        msa2spec_sum_para(file_path=file)

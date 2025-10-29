@@ -1,11 +1,11 @@
 import sys
-import os
 import numpy as np
 from PyQt6 import QtWidgets, QtGui
 import matplotlib.backends.backend_qt5agg as pltqt
 import matplotlib.figure as figure
 import spx_functions as spx
 from glob import glob
+from pathlib import Path
 
 class DisplayMeasPoints(QtWidgets.QWidget):
     def __init__(self, parent = None):
@@ -13,10 +13,7 @@ class DisplayMeasPoints(QtWidgets.QWidget):
         screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
         screen_width = screen_properties.width()
         screen_height = screen_properties.height()
-        if sys.platform == "linux" or sys.platform == "linux2":
-            self.homedir = os.environ["HOME"]
-        else:
-            self.homedir = "C:/"
+        self.homedir = Path.home()
         self.version = "measurement range 1.00"
         try: QtGui.QIcon.setThemeName("ubuntu-mono-dark")
         except: pass

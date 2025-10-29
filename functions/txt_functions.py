@@ -5,7 +5,7 @@ import natsort as ns
 from pathlib import Path
 import time as t
 import numpy as np
-import specfit_GUI_functions as sfunc
+import utils
 
 def txt2spec_para(file_path):
     """
@@ -145,7 +145,7 @@ def many_txt2spec_para(folder_path, signal):
             file_nr += 1
             signal_progress.emit(file_nr)
         pickle.dump(spectra, open(f"{folder_path}/data/spectra.pickle", "wb"), protocol=pickle.HIGHEST_PROTOCOL)
-        sum_spec = sfunc.sum_spec(spectra)
+        sum_spec = utils.sum_spec(spectra)
         max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
         np.save(folder_path/"data/max_pixel_spec", max_pixel_spec)
         np.save(folder_path/"data/sum_spec", sum_spec)

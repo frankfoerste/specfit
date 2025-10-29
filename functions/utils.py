@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import h5py
 
 def norm2sec(spectrum, time):
     """
@@ -48,3 +49,27 @@ def open_dict_pickle(load_path):
     """
     with open(load_path, 'rb') as loadfrom:
         return pickle.load(loadfrom)
+    
+def get_hdf5_write_operator(hdf5_file, file_name):
+    """
+    This function checks the hdf5 file for its content and determines if
+    the write operator should overwrite or append
+    """
+    if hdf5_file.exists():
+        with h5py.File(hdf5_file, "r+") as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
+        write_operator = "r+"
+    else:
+        write_operator = "w"
+    return write_operator
+    
+def create_hdf5_encoding(dataset):
+    """
+    This function creates a encoding dictionary for the compression
+    of hdf5 files with xarray
+    """
+    # Encoding options for compression (same for all variables)
+    encoding = {var: {"compression": "gzip", 
+                      "compression_opts": 5} for var in dataset.data_vars}
+    return encoding

@@ -7,6 +7,7 @@ from glob import iglob
 import codecs
 import natsort as ns
 from pathlib import Path
+import utils
 import matplotlib.pyplot as plt
 plt.ion()
 
@@ -146,14 +147,9 @@ def many_spx2spec_para(folder_path,
     """
     folder_path = Path(folder_path)
     file_name = folder_path.name
-    Path(folder_path /"data").mkdir(parents=True, exist_ok=True)
-    if (folder_path/"data/data.h5").exists():
-        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
-            if file_name in tofile.keys():
-                del tofile[file_name]
-        write_operator = "r+"
-    else:
-        write_operator = "w"
+    Path(folder_path / "data").mkdir(parents=True, exist_ok=True)
+    write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
+                                                   file_name=file_name)
     # assign default values
     zero_peak_frequency = 1e4
     signal_progress = signal
@@ -193,12 +189,34 @@ def many_spx2spec_para(folder_path,
     sorted_folder = ns.natsorted(folder_path.glob("*.spx"))
     worth_fit = []
     ds["counts"] = xr.DataArray(np.zeros(len(sorted_folder)),
-                                dims=("#"))
+                                dims=("spec_nr"),
+                                coords={"spec_nr": np.arange(len(sorted_folder))},
+                                attrs={"units": "counts per second"})
     ds["parameters"] = xr.DataArray(np.zeros((len(sorted_folder), 8)),
-                                    dims=("#", "Para"),
-                                    coords={"Para": ["a0", "a1", "Fano", "FWHM",
-                                                  "life_time", "max_energy",
-                                                  "gating_time", "real_time"]})
+                                    dims=("spec_nr", "parameter"),
+                                    coords={"parameter": ["a0", "a1", "Fano", "FWHM",
+                                                     "life_time", "max_energy",
+                                                     "gating_time", "real_time"]},
+                                    attrs={"units": ["keV", "keV", "a.u.", "keV",
+                                                     "s", "keV", "s", "s"]})
+    # read out the positions of the measurement folder
+    ds["positions"] = xr.DataArray(spx_tensor_positions(folder_path=(folder_path/"")),
+                                   dims=("spec_nr", "dimension"),
+                                   coords={"dimension": ["x", "y", "z"]},
+                                   attrs={"units": ["mm", "mm", "mm"]})
+    x = len(np.unique(ds["positions"][:, 0]))
+    y = len(np.unique(ds["positions"][:, 1]))
+    z = len(np.unique(ds["positions"][:, 2]))
+    ds["position dimension"] = xr.DataArray([x, y, z],
+                                            dims=("dimension"))
+    ds["tensor positions"] = ds["positions"].copy()
+    for i in range(3):
+        ds["tensor positions"][:, i] = ds["tensor positions"][:,i]-ds["tensor positions"][:,i].min()
+        if ds["position dimension"][i] > 1:
+            _unique = np.unique(ds["tensor positions"][:,i])
+            ds["tensor positions"][:,i] /= _unique[1]
+    ds["tensor positions"] = ds["tensor positions"].astype(int)
+    # read out the files
     life_time = False
     for file_nr, spx_file in enumerate(sorted_folder):
         with open(spx_file, "r", encoding="ISO-8859-1") as infile:
@@ -261,13 +279,8 @@ def many_spx2spec_para(folder_path,
         # now we try to rebuild specfit load in routine to support array spectra
         if save_spec_as_dict:
             if file_nr == 0:
-                # spectra = np.zeros((len(sorted_folder), len(spectrum)))
-                ds["spectra"] = xr.DataArray(np.zeros((len(sorted_folder), channels)),
-                                                           dims=("#", "energy"),
-                                                           coords={"energy": np.arange(ds["parameters"][file_nr][0],
-                                                                                       ds["parameters"][file_nr][5]+ds["parameters"][file_nr][1],
-                                                                                       ds["parameters"][file_nr][1])})
-            ds["spectra"][file_nr] = spectrum
+                spectra = np.zeros((len(sorted_folder), len(spectrum)))
+            spectra[file_nr] = spectrum
         else:
             if file_nr == 0:
                 spectra = np.empty((len(x), len(y), len(z), 4096))
@@ -275,29 +288,35 @@ def many_spx2spec_para(folder_path,
             spectra[x_pos][y_pos][z_pos] = spectrum
         if signal_progress is not None:
             signal_progress.emit(file_nr)
-    ds["max pixel spec"] = ds["spectra"].max(axis=0)
-    ds["sum spec"] = ds["spectra"].mean(axis=0)
-    ds["positions"] = xr.DataArray(spx_tensor_positions(folder_path=(folder_path/"")),
-                                   dims=("#", "xyz"))
-    x = len(np.unique(ds["positions"][:, 0]))
-    y = len(np.unique(ds["positions"][:, 1]))
-    z = len(np.unique(ds["positions"][:, 2]))
-    ds["position dimension"] = xr.DataArray([x, y, z],
-                                            dims=("xyz"))
-    ds["tensor positions"] = ds["positions"].copy()
-    for i in range(3):
-        ds["tensor positions"][:, i] = ds["tensor positions"][:,i]-ds["tensor positions"][:,i].min()
-        if ds["position dimension"][i] > 1:
-            _unique = np.unique(ds["tensor positions"][:,i])
-            ds["tensor positions"][:,i] /= _unique[1]
-    ds["tensor positions"] = ds["tensor positions"].astype(int)
+
+    # reshape the spectra to the shape of the measurement
+    spectra = spectra.reshape([x, y, z, channels])
+    ds["spectra"] = xr.DataArray(data=spectra,
+                                 dims=("X", "Y", "Z", "energy"),
+                                 coords={"energy": np.arange(ds["parameters"][file_nr][0],
+                                                             ds["parameters"][file_nr][5]+ds["parameters"][file_nr][1],
+                                                             ds["parameters"][file_nr][1]),
+                                         "X": np.arange(x),
+                                         "Y": np.arange(y),
+                                         "Z": np.arange(z),},
+                                 attrs={"units": "counts per second"})
+    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
+    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
+    # set units to coordinates
+    ds.coords["spec_nr"].attrs["units"] = "#"
+    ds.coords["energy"].attrs["units"] = "keV"
+    # set units to DataArrays
+    ds["max pixel spec"].attrs["units"] = "counts per second"
+    ds["sum spec"].attrs["units"] = "counts per second"
+    # save the hdf5
     ds.to_netcdf(
         path=folder_path/"data/data.h5",
         group=file_name,
         mode=write_operator,
         engine="h5netcdf",
+        encoding=utils.create_hdf5_encoding(dataset=ds),
     )
-    print(f"spx loadingtime - {t.time()-start:.2f}")
+    print(f"spx loadingtime - {t.time()-start:.2f} s")
     if return_values:
         if save_spec_as_dict is False:
             return ds["spectra"], ds["parameters"], ds["positions"], ds["tensor_positions"]
@@ -508,3 +527,7 @@ def calc_sum_spec(spectrum):
     nr_arrays = len(values)
     sum_spec = np.divide(values.sum(axis=0), nr_arrays)
     return sum_spec
+
+if __name__ == "__main__":
+    folder = "C:\\Doktorarbeit\\development\\specfit\\example_measurements\\spx\\"
+    many_spx2spec_para(folder_path=folder)

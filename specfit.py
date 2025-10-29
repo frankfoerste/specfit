@@ -24,7 +24,7 @@ sys.path.append(str(script_dir/"data"))
 from fit_range_popup import FitThresholdPopup
 from show_ROI import ShowROI
 import specfit_deconvolution as sf # Module to fit lines to spectrum
-import specfit_GUI_functions as sfunc # Module used for the specfit_GUI
+import utils # Module used for the specfit_GUI
 from data_handler import DataHandler
 import show_measurement_properties # Module to print the measurement properties in a text widget
 from plot3d import Plot3D
@@ -403,8 +403,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.entry_FWHM = QtWidgets.QLineEdit("0", self)
         self.entry_strip_cycles = QtWidgets.QLineEdit("5", self)
         self.entry_strip_width = QtWidgets.QLineEdit("60", self)
-        self.entry_smooth_cycles = QtWidgets.QLineEdit("0", self)
-        self.entry_smooth_width = QtWidgets.QLineEdit("1", self)
+        self.entry_smooth_cycles = QtWidgets.QLineEdit("1", self)
+        self.entry_smooth_width = QtWidgets.QLineEdit("2", self)
         self.entry_roi_start = QtWidgets.QLineEdit("1", self)
         self.roi_widget.roi_low = self.entry_roi_start # inherit this entry to the show_ROI widget to be able to read the energy range into show_ROI
         self.entry_roi_end = QtWidgets.QLineEdit("15", self)
@@ -612,26 +612,26 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         gc.collect()
 
     def load_file(self, angle_file=False):
-        try:
-            self.reset_2_default()
-            self.data.elements = self.elements
-            self.data.label_loading_progress = self.statusBar()
-            self.data.open_data_file(angle_file)
-            self.threshold_handler = FitThresholdPopup(self.data.folder_path)
-            self.load_parameter_in_specfit_deconvolution()
-            self.statusBar().showMessage("loading done")
-            self.popup_properties.data_path = self.data.save_folder_path
-            self.popup_properties.fill_text(f"file path:\n {self.data.file_path}\n")
-            self.display_values_in_gui()
-            if angle_file:
-                self.check_use_parameters.setChecked(False)
-            self.show_sum_spec()
-            self.roi_widget.file_type = self.data.file_type
-            self.statusBar().showMessage("Loading done.")
-            self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
-        except Exception as e:
-            self.logger.debug("data folder could not be loaded with error code %s"%e)
-            self.reset_2_default()
+        # try:
+        self.reset_2_default()
+        self.data.elements = self.elements
+        self.data.label_loading_progress = self.statusBar()
+        self.data.open_data_file(angle_file)
+        self.threshold_handler = FitThresholdPopup(self.data.folder_path)
+        self.load_parameter_in_specfit_deconvolution()
+        self.statusBar().showMessage("loading done")
+        self.popup_properties.data_path = self.data.save_folder_path
+        self.popup_properties.fill_text(f"file path:\n {self.data.file_path}\n")
+        self.display_values_in_gui()
+        if angle_file:
+            self.check_use_parameters.setChecked(False)
+        self.show_sum_spec()
+        self.roi_widget.file_type = self.data.file_type
+        self.statusBar().showMessage("Loading done.")
+        self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
+        # except Exception as e:
+        #     self.logger.debug("data folder could not be loaded with error code %s"%e)
+        #     self.reset_2_default()
         gc.collect()
 
     def npy_2_bin(self):
@@ -1012,7 +1012,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         if ".npz" not in export_2_npz_path:
             export_2_npz_path += ".npz"
         # now read out data
-        data = sfunc.open_dict_pickle(f"{self.data.save_data_folder_path}/spectra.pickle")
+        data = utils.open_dict_pickle(f"{self.data.save_data_folder_path}/spectra.pickle")
         # check the dimension of the loaded data
         dimension = list(self.data.position_dimension)
         dimension.append(self.data.len_spectrum)
@@ -1731,10 +1731,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 for results_key in unique_keys:
                     if results_key + "_0" in files:
                         results = np.load(self.save_folder_path+f"/{results_key}_0.npy")
-                        os.remove(self.save_folder_path+f"/{results_key}_0.npy")
+                        (self.save_folder_path / f"/{results_key}_0.npy").unlink()
                     for batch in range(rows-1):
                         results = np.concatenate((results, np.load(self.save_folder_path+f"/{results_key}_{batch+1}.npy")), axis=0)
-                        os.remove(self.save_folder_path+f"/{results_key}_{batch+1}.npy")
+                        (self.save_folder_path / f"/{results_key}_{batch+1}.npy").unlink()
                     np.save(self.save_folder_path+f"/{results_key}.npy", results)
         self.popup_properties.save_props()
         compute_time_end = time.time()
