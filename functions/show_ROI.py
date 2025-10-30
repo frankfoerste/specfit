@@ -316,7 +316,7 @@ class ShowROI(QtWidgets.QWidget):
         try:
             self.counts = self.counts.reshape(self.positions)
         except:
-            if self.file_type == ".MSA":
+            if self.file_type in [".MSA", ".msa"]:
                 self.counts = self.counts.reshape((self.len_z, self.len_y, self.len_x))
                 self.counts = np.flip(self.counts, 0)
                 x = np.copy(self.x)
@@ -378,7 +378,7 @@ class ShowROI(QtWidgets.QWidget):
         self.get_line_energy()
         self.calc_roi_intensity()
         self.results = np.copy(self.results.reshape(self.counts.shape))
-        if self.file_type in [".MSA"]:
+        if self.file_type in [".MSA", ".msa"]:
             self.results = np.flip(self.results, 0)
         self.slider_layer.setMaximum(self.results.shape[-1]-1)
         self.button_save_ROI.show()
@@ -766,7 +766,7 @@ class ShowROI(QtWidgets.QWidget):
                 self.parent.ax_canvas_spectrum.legend()
                 self.parent.canvas_spectrum.draw()
                 self.button_save_selection.show()
-            self.parent.set_spectra_nr(spectra_nr=np.round(self.spec_nr, 0))
+            self.parent.set_spectrum_nr(spectrum_nr=np.round(self.spec_nr, 0))
             self.parent.roi_widget.spec_nr = np.round(self.spec_nr, 0)
         else:
             self.x0, self.y0, self.z0 = self.retrieve_xy_from_click(event)

@@ -58,8 +58,7 @@ class BCFThread(QtCore.QThread):
         self.folder_path = folderpath
 
     def run(self):
-        bcf.many_bcf2spec_para(self.folder_path,
-                               self.signals.progress)
+        bcf.many_bcf2spec_para(folder_path=self.folder_path)
         self.signals.finished.emit("Done")
 
 
@@ -283,6 +282,8 @@ class DataHandler():
             self.max_pixel_spec = f[f"{file_key}max pixel spec"][()]
             self.len_spectrum = len(self.sum_spec)
             self.spectra = f[f"{file_key}spectra"][()]
+            # flatten the spectra
+            self.spectra = self.spectra.reshape(-1, self.spectra.shape[-1])
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
 
@@ -307,7 +308,6 @@ class DataHandler():
             self.file_list = list(
                 np.sort(glob(f"{self.folder_path}/*{self.file_type}")))
             self.life_time = msa.msa2life_time(f"{self.file_path}")
-            self.len_spectrum = msa.msa2channels(self.file_path)
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
                 reload = self.get_reload()
                 if reload == QtWidgets.QMessageBox.Yes:
@@ -327,19 +327,10 @@ class DataHandler():
             if (self.save_data_folder_path / "data.h5").is_file() and self.check_h5():
                 reload = self.get_reload()
                 if reload == QtWidgets.QMessageBox.Yes:
-                    self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.bcf2spec_para(
-                        self.file_path)
-                    if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0)
-                    self.parameters_user = np.copy(self.parameters[0])
+                    bcf.bcf2spec_para(file_path=self.file_path)
             else:
-                self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.bcf2spec_para(
-                    self.file_path)
-                if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0)
-                self.parameters_user = np.copy(self.parameters[0])
-            self.len_spectrum = len(self.sum_spec)
-
+                bcf.bcf2spec_para(file_path=self.file_path)
+                
         elif self.file_type == ".csv":
             self.loadtype = "csv_file"
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
@@ -362,7 +353,6 @@ class DataHandler():
                 self.position_dimension = csv.csv_position_dimension(self.file_path)
                 self.sum_spec = np.sum(self.spectra, axis=0)
                 self.parameters_user = np.copy(self.parameters)
-            self.len_spectrum = len(self.sum_spec)
 
         elif self.file_type == ".hdf5" or self.file_type == ".h5":
             self.loadtype = "hdf5_file"
@@ -391,11 +381,9 @@ class DataHandler():
 
         else:
             if self.file_type == ".spx":
-                self.spectra["0"], self.parameters = spx.spx2spec_para(
-                    self.file_path)
+                spx.spx2spec_para(file_path=self.file_path)
                 if self.parameters.ndim == 1:
                     self.parameters = np.expand_dims(self.parameters, axis=0)
-                self.len_spectrum = spx.spx2channels(self.file_path)
                 self.tensor_positions = np.array([1, 1, 1])
                 self.position_dimension = [1, 1, 1]
                 self.sum_spec = self.spectra["0"]
@@ -431,7 +419,6 @@ class DataHandler():
                     self.file_path)
                 if self.parameters.ndim == 1:
                     self.parameters = np.expand_dims(self.parameters, axis=0)
-                self.len_spectrum = txt.txt2channels(self.file_path)
                 self.tensor_positions = np.array([1, 1, 1])
                 self.position_dimension = [1, 1, 1]
                 self.sum_spec = self.spectra["0"]
@@ -444,11 +431,9 @@ class DataHandler():
                     if reload == QtWidgets.QMessageBox.Yes:
                         self.spectra, self.parameters, self.tensor_positions, \
                         self.position_dimension, self.sum_spec = angles.txt2spec_para(self.file_path)
-                        self.len_spectrum = len(self.sum_spec)
                 else:
                     self.spectra, self.parameters, self.tensor_positions, \
                     self.position_dimension, self.sum_spec = angles.txt2spec_para(self.file_path)
-                    self.len_spectrum = len(self.sum_spec)
         
         print("I am now updating from the h5file")
         self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
@@ -540,7 +525,8 @@ class DataHandler():
                         tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
 
         assert self.load_stored_spec_and_param(folder=True)
-
+        print("I am now updating from the h5file")
+        self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
         self.life_time = self.parameters[0][4]
         self.real_time = self.parameters[0][7]
         self.create_save_folder()
@@ -642,10 +628,7 @@ class DataHandler():
 
     def run_file_worker(self):
         if self.file_type == ".bcf":
-            self.spectra, self.parameters, self.position_dimension, self.tensor_positions, self.sum_spec = bcf.many_bcf2spec_para(
-                self.folder_path)
-            if self.parameters.ndim == 1:
-                self.parameters = np.expand_dims(self.parameters, axis=0)
+            bcf.many_bcf2spec_para(folder_path=self.folder_path)
         else:
             # start the worker
             if self.file_path in [".msa", ".MSA"]:

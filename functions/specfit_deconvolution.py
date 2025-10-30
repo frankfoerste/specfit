@@ -104,7 +104,7 @@ class SpecFit(object):
                           [], [], [], [], [], []]
         return self.xrl_lines
 
-    def load_spec(self, spectrum, add = False): #spectrum has to be a list: [., ., .]
+    def load_spec(self, spectrum, add=False): #spectrum has to be a list: [., ., .]
         """
         load spec in self.measure load
         """
@@ -198,7 +198,7 @@ class SpecFit(object):
                 self.user_defined_lines_ROI.append(udl[self.ROI[0]:self.ROI[1]])
         except: print("somethings wrong with user defined lines, ROI definition")
 
-    def strip(self, calc_minima = True, only_minima_on_sum_spec = True):
+    def strip(self, calc_minima=True, only_minima_on_sum_spec=True):
         """
         To erase the background of an energy dispersive x-ray spectrum the
         spectrum is smoothed and the so generated background is stripped off
@@ -257,13 +257,13 @@ class SpecFit(object):
         Spec = np.copy(self.meas_load)
         # prior stripping check if spectrum shall be smoothed
         if self.smooth_cycles > 0:
-            Spec = __strip_jit(Spec, cycles = self.smooth_cycles,
-                               width = self.smooth_width, smooth = True)
+            Spec = __strip_jit(Spec, cycles=self.smooth_cycles,
+                               width=self.smooth_width, smooth=True)
         # if no smoothing required check if loaded Spec's dimension is bigger
         #  than 1, apply array stripping
         if np.ndim(Spec) > 1:
-            self.Strip = __strip_array(Spec, cycles = self.strip_cycles,
-                                       width = self.strip_width, )
+            self.Strip = __strip_array(Spec, cycles=self.strip_cycles,
+                                       width=self.strip_width, )
         else:
             if calc_minima:
                 # check if local intensity minima shall only be calculated on
@@ -273,34 +273,34 @@ class SpecFit(object):
                     # calculation the type is changed to np.ndarray, this way no
                     # extra minima calculation is performed
                     if not isinstance(self.minima, np.ndarray):
-                        self.minima = argrelextrema(Spec[self.ROI[0]:self.ROI[1]], np.less, order = self.order)[0]
+                        self.minima = argrelextrema(Spec[self.ROI[0]:self.ROI[1]], np.less, order=self.order)[0]
                 else:
-                    self.minima = argrelextrema(Spec[self.ROI[0]:self.ROI[1]], np.less, order = self.order)[0]
+                    self.minima = argrelextrema(Spec[self.ROI[0]:self.ROI[1]], np.less, order=self.order)[0]
                 # if there are minima, linear interpolate between the minima and
                 # keep lowest intensity, return smoothed and stripped spectrum
                 if len(self.minima) != 0:
                     # form linear interpolation over all channel and intensity
                     # minima
                     interpolation = np.interp(np.arange(0, len(Spec[self.ROI[0]:self.ROI[1]])),
-                                    xp = np.append(0, np.append(self.minima, len(Spec[self.ROI[0]:self.ROI[1]]))),
-                                    fp = np.append(Spec[self.ROI[0]:self.ROI[1]][0],
+                                    xp=np.append(0, np.append(self.minima, len(Spec[self.ROI[0]:self.ROI[1]]))),
+                                    fp=np.append(Spec[self.ROI[0]:self.ROI[1]][0],
                                                    np.append(Spec[self.ROI[0]:self.ROI[1]][self.minima], Spec[self.ROI[0]:self.ROI[1]][-1])))
                     # mask where the interpolation is smaller than the spectrum
                     mask = Spec[self.ROI[0]:self.ROI[1]] > interpolation
                     # replace spectrum who comply with mask with interpolation
                     Spec[self.ROI[0]:self.ROI[1]][mask] = interpolation[mask]
                     # smooth if required
-                    self.Strip = __strip_jit(Spec, cycles = self.strip_cycles, width = self.strip_width)
+                    self.Strip = __strip_jit(Spec, cycles=self.strip_cycles, width=self.strip_width)
                 else:
                     self.minima = [0, len(Spec[self.ROI[0]:self.ROI[1]])]
                     interpolation = np.interp(np.arange(0, self.minima[1]),
-                                    xp = self.minima,
-                                    fp = [Spec[self.ROI[0]], Spec[self.ROI[1]]])
+                                    xp=self.minima,
+                                    fp=[Spec[self.ROI[0]], Spec[self.ROI[1]]])
                     mask = Spec[self.ROI[0]:self.ROI[1]] > interpolation
                     Spec[self.ROI[0]:self.ROI[1]][mask] = interpolation[mask]
-                    self.Strip = __strip_jit(Spec, cycles = self.strip_cycles, width = self.strip_width)
+                    self.Strip = __strip_jit(Spec, cycles=self.strip_cycles, width=self.strip_width)
             else:
-                self.Strip = __strip_jit(Spec, cycles = self.strip_cycles, width = self.strip_width)
+                self.Strip = __strip_jit(Spec, cycles=self.strip_cycles, width=self.strip_width)
         return Spec
 
     def nl_det(self):
@@ -526,16 +526,16 @@ class SpecFit(object):
                 # iterate over all transitions and create a gaussian
                 # distribution for every transition
                 for _l in self.Lines[_s]["lines"]:
-                    self.M[_s] += self.det_resp(_l["E"], energy, T = _l["type"])*_l["g"]/g_sum_pileup_escape*self.Det[1]
+                    self.M[_s] += self.det_resp(_l["E"], energy, T=_l["type"])*_l["g"]/g_sum_pileup_escape*self.Det[1]
             else:
                 g_sum = self.Lines[_s]["g_sum"]
                 for _l in self.Lines[_s]["lines"]: ###without PU
-                    self.M[_s] += self.det_resp(_l["E"], energy, T = _l["type"])*_l["g"]/g_sum*self.Det[1]
+                    self.M[_s] += self.det_resp(_l["E"], energy, T=_l["type"])*_l["g"]/g_sum*self.Det[1]
         for i, udl in enumerate(self.user_defined_lines): # user defined lines
             self.M[_s+i+1] += udl[self.Bins[0]: self.Bins[-1]+1]
         self.M = self.M.swapaxes(0, 1)
 
-    def linfit(self, onedim = True):
+    def linfit(self, onedim=True):
         """
         This function performs a linear fit with the given measurement parameter.
         No change of the parameter takes place.
@@ -579,7 +579,7 @@ class SpecFit(object):
             self.result_udl.append(np.sum(self.M[:, len(self.Lines)+i])/I[len(self.Lines)+i])
         return resid
 
-    def fit(self, minchange = None , full = True):
+    def fit(self, minchange=None , full=True):
         """
         nonlinear fit, changes parameters till change in std is smaller than minchange
         """
@@ -605,7 +605,7 @@ class SpecFit(object):
         print("final parameters: ", self.Det)
         return self.Det, resid_std
 
-    def calc_spec(self, print_results = False):
+    def calc_spec(self, print_results=False):
         """
         return spectrum+background as a list
         """
@@ -628,7 +628,7 @@ class SpecFit(object):
         for udl, r_udl in zip(self.user_defined_lines, self.result_udl):
             spec += udl
         if print_results:
-            integral = np.trapz(spec-self.Strip-self.NLDet, x = np.arange(0, 4096, 1))
+            integral = np.trapz(spec-self.Strip-self.NLDet, x=np.arange(0, 4096, 1))
             self.get_result()
         return spec
 

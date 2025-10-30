@@ -5,7 +5,6 @@ import traceback
 import h5py
 import time
 from datetime import datetime
-from glob import glob
 import numpy as np
 import dask.array as da
 import subprocess as sp
@@ -241,7 +240,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_max_pixel_spec = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/video-display.png")), "maximum pixel spectrum", self)
         self.action_max_pixel_spec.setStatusTip("plot maximum pixel spec")
         self.action_max_pixel_spec.triggered.connect(lambda: self.plot_canvas(self.data.max_pixel_spec, self.data.energies, None, None ))
-        self.action_max_pixel_spec.triggered.connect(lambda: self.set_spectra_nr(-2))
+        self.action_max_pixel_spec.triggered.connect(lambda: self.set_spectrum_nr(-2))
         # show 3d plot action
         self.action_show_plot3d = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/plot-3d.png")), "plot 3D", self)
         self.action_show_plot3d.setShortcut("F8")
@@ -557,17 +556,17 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                             )
         self.logger.setLevel(logging.DEBUG)
 
-    def set_spectra_nr(self, spectra_nr):
+    def set_spectrum_nr(self, spectrum_nr):
         """
-        change the self.spectra_nr to the designated value
+        change the self.spectrum_nr to the designated value
         introduced to distinguish between max_pixel spectrum and other"""
-        self.spectra_nr = spectra_nr
-        if spectra_nr == -1:
+        self.spectrum_nr = spectrum_nr
+        if spectrum_nr == -1:
             self.selected_spectrum = self.data.max_pixel_spec
-        elif spectra_nr < -1:
+        elif spectrum_nr < -1:
             self.selected_spectrum = self.data.sum_spec
         else:
-            self.selected_spectrum = self.data.spectra[f"{spectra_nr}"]
+            self.selected_spectrum = self.data.spectra[f"{spectrum_nr}"]
 
     def hide_calc_min(self, ):
         """
@@ -592,10 +591,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.popup_properties.fill_text(f"folder path:\n {self.data.folder_path}\n")
             self.popup_properties.fill_text(f"files: {len(self.data.file_list)}\n")
             self.load_parameter_in_specfit_deconvolution()
-            if self.data.file_type == ".bcf":
-                self.s.life_time = self.data.parameters[4]
-            else:
-                self.s.life_time = self.data.parameters[0][4]
+            self.s.life_time = self.data.parameters[0][4]
             try:
                 self.s.real_time = self.data.parameters[0][7]  #TODO real time has to be implemented for every file format
             except IndexError as e:
@@ -689,7 +685,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.batch_fitting = False
         self.sfs.check_batch_fitting.setChecked(False)
         self.data_batch_fitting = False
-        self.spectra_nr = None
+        self.spectrum_nr = None
         self.canvas_spectrum.draw()
 
     def open_param_file(self):
@@ -697,7 +693,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         Function to open a display to select a file and set it's parameters
         """
         self.pse_widget.tab_udl.reset_2_default()
-        param_path = QtWidgets.QFileDialog(self).getOpenFileName(filter="(*.txt *.dat)")[0]
+        param_path = Path(QtWidgets.QFileDialog(self).getOpenFileName(filter="(*.txt *.dat)")[0])
         self.data.check_param_file(param_path)
         self.display_values_in_gui()
         self.check_fit()
@@ -706,7 +702,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         """
         Function to open a dalog to determine a save location and saves settings and parameters
         """
-        filename = QtWidgets.QFileDialog(self).getSaveFileName()[0]
+        filename = Path(QtWidgets.QFileDialog(self).getSaveFileName()[0])
         self.store_gui_values()
         outstring =  self.data.save_param_file(filename)
         self.statusBar().showMessage(outstring)
@@ -900,7 +896,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.canvas_spectrum.draw()
         self.data.plot_style = style
     
-    def load_parameter_in_specfit_deconvolution(self, spectra_nr=0):
+    def load_parameter_in_specfit_deconvolution(self, spectrum_nr=0):
         """
         This function loads the parameters a0, a1, Fano, el.noise, E_max life_time,
         gating_time, strip_cycles, strip_width, smooth_cycles, smooth_width,
@@ -920,13 +916,13 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.s.gating_time = parameters[6]
         except IndexError as e:
             self.logger.info("Parameters in load_parameter_in_specfit_deconvolution have dim=2 - %s"%e)
-            self.s.Det = parameters[spectra_nr, :5]
-            self.s.life_time = parameters[spectra_nr, 4]
+            self.s.Det = parameters[spectrum_nr, :5]
+            self.s.life_time = parameters[spectrum_nr, 4]
             try: 
-                self.s.real_time = parameters[spectra_nr, 7]  # TODO real time has to be implemented for every file format
+                self.s.real_time = parameters[spectrum_nr, 7]  # TODO real time has to be implemented for every file format
             except IndexError as e:
                 self.logger.info("Real time not provided in %s - %s"%(self.data.file_type, e))
-            self.s.gating_time = parameters[spectra_nr, 6]
+            self.s.gating_time = parameters[spectrum_nr, 6]
         self.s.strip_cycles = self.data.strip_cycles
         self.s.strip_width = self.data.strip_width
         self.s.smooth_cycles = self.data.smooth_cycles
@@ -952,30 +948,30 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             parameters = self.data.parameters_user
         return parameters
 
-    def load_spec_in_specfit_deconvolution(self, spectra_nr=None):
+    def load_spec_in_specfit_deconvolution(self, spectrum_nr=None):
         """
         loads a spectrum in specfit_deconvolution depending on DataHandler.load_type
         and determines the ROI positions, the corresponding energies in
         specfit_deconvolution.Bins and corresponding intensities in
         specfit_deconvolution.Meas.
-        negative spectra_nr means DataHandler.sum_spec
+        negative spectrum_nr means DataHandler.sum_spec
         IMPORTANT first load data, than the spectrum spec
         """
-        if spectra_nr is None:
-            spectra_nr = self.roi_widget.spec_nr
-        if spectra_nr >= 0:
-            self.s.load_spec(self.data.spectra[spectra_nr])
-        elif spectra_nr == -1:
+        if spectrum_nr is None:
+            spectrum_nr = self.roi_widget.spec_nr
+        if spectrum_nr >= 0:
+            self.s.load_spec(self.data.spectra[spectrum_nr])
+        elif spectrum_nr == -1:
             self.s.load_spec(self.data.sum_spec)
-        elif spectra_nr == -2:
+        elif spectrum_nr == -2:
             self.s.load_spec(self.data.max_pixel_spec)
-        elif spectra_nr < -2:
+        elif spectrum_nr < -2:
             self.s.load_spec(self.data.sum_spec)
         else:
             assert self.data.loadtype in ["angle_file", "file", "folder", "msa_file",
                                           "hdf5_file", "bcf_file", "csv_file"]
             if self.data.loadtype == "angle_file":
-                angle = self.data.tensor_positions.T[2][spectra_nr]
+                angle = self.data.tensor_positions.T[2][spectrum_nr]
                 try: 
                     self.s.load_spec(self.data.spectra[angle])
                 except:
@@ -988,12 +984,12 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file",
                                         "csv_file"]:
                 if self.s.fit_in_progress:
-                    self.s.load_spec(self.data.spectra[spectra_nr]) # dict not empty
+                    self.s.load_spec(self.data.spectra[spectrum_nr]) # dict not empty
                 elif not self.s.fit_in_progress:
                     try:
                         self.s.load_spec(self.roi_widget.rect_sum_spec)
                     except:
-                        self.s.load_spec(self.data.spectra[spectra_nr])
+                        self.s.load_spec(self.data.spectra[spectrum_nr])
         self.s.set_ROI(self.data.get_roi_indicees())
 
     def export_2_npz(self, ):
@@ -1006,9 +1002,9 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         except:
             self.statusBar().showMessage("Please load a measurment prior export.")
             return
-        export_2_npz_path = QtWidgets.QFileDialog().getSaveFileName(self,
+        export_2_npz_path = Path(QtWidgets.QFileDialog().getSaveFileName(self,
                                                                   "select save path",
-                                                                  self.data.file_path.replace(self.data.file_type, ".npz"))[0]
+                                                                  self.data.file_path.replace(self.data.file_type, ".npz"))[0])
         if ".npz" not in export_2_npz_path:
             export_2_npz_path += ".npz"
         # now read out data
@@ -1077,9 +1073,9 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # load all needed parameters into specfit_deconvolution
         self.load_parameter_in_specfit_deconvolution()
         # now load the spectrum in specfit_deconvolution and crop to ROI
-        if self.spectra_nr is None:
-            self.spectra_nr = self.roi_widget.spec_nr
-        self.load_spec_in_specfit_deconvolution(spectra_nr=self.spectra_nr)
+        if self.spectrum_nr is None:
+            self.spectrum_nr = self.roi_widget.spec_nr
+        self.load_spec_in_specfit_deconvolution(spectrum_nr=self.spectrum_nr)
         # set order of Minimum detection
         self.s.calc_minima_order = int(self.entry_calc_minima_order.text())
         # set PU and Escape parameters
@@ -1209,7 +1205,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.clear_ax_canvas_spectrum()
         self.s.Strip = None
         self.roi_widget.spec_nr = -1  # reset to sum spec
-        self.set_spectra_nr(spectra_nr=-1)
+        self.set_spectrum_nr(spectrum_nr=-1)
         if self.plot_style is not None:
             plot_start, plot_end = self.data.get_roi_indicees()
             self.plot_style(self.data.energies[plot_start:plot_end], self.data.sum_spec[plot_start:plot_end],
@@ -1235,15 +1231,15 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.popup_properties.clear_popup()
         self.popup_properties.fill_text(self.popup_properties.backup_text)
         if self.data.loadtype in ["file"]:
-            self.save_file_path = QtWidgets.QFileDialog().getSaveFileName(self,
+            self.save_file_path = Path(QtWidgets.QFileDialog().getSaveFileName(self,
                                                                           "select save path",
-                                                                          self.data.file_path.replace(self.data.file_type, "_results.dat"))[0]
-            self.save_folder_path = "/".join(self.save_file_path.split("/")[:-1])
+                                                                          self.data.file_path.replace(self.data.file_type, "_results.dat"))[0])
+            self.save_folder_path = self.save_file_path.parent
         elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "angle_file",
                                     "csv_file"]:
-            self.save_folder_path = QtWidgets.QFileDialog().getExistingDirectory(self,
+            self.save_folder_path = Path(QtWidgets.QFileDialog().getExistingDirectory(self,
                                                                                  "select save folder",
-                                                                                 self.data.folder_path)
+                                                                                 str(self.data.folder_path)))
 
         def create_empty_results(load_type="folder",
                                  selected_elements=["Fe"],
@@ -1334,7 +1330,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         for meas in tofile.keys():
                             for res in tofile[meas].keys():
                                 content.append(f"{meas}/{res}")
-                        if file_type == ".MSA":
+                        if file_type in [".MSA", ".msa"]:
                             results[key] = results[key].reshape(np.flip(dimension))
                         if results_key in content:
                             tofile[results_key][()] = results[key]  # replace the results already in results.h5
@@ -1342,7 +1338,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                             tofile.create_dataset(results_key,
                                                   data=results[key])
                 elif save_storage == ".npy":
-                    if file_type == ".MSA":
+                    if file_type in [".MSA", ".msa"]:
                         results[key] = results[key].reshape(np.flip(dimension))
                     np.save(f"{save_path}/{results_key}.npy", results[key])
 
@@ -1412,11 +1408,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     except:
                         infile.write("{}I: {}, custom line: {}{}\n".format("{", getResults[key]["I"], key, "}"))
             if self.sfs.check_save_background.isChecked():
-                np.savetxt(f"{self.save_folder_path}/background.txt",
+                np.savetxt(self.save_folder_path / "background.txt",
                            np.column_stack([self.data.energies, self.s.Strip]),
                            delimiter="\t")
             if self.sfs.check_save_fitted_spectrum.isChecked():
-                np.savetxt(f"{self.save_folder_path}/fitted_spectrum.txt",
+                np.savetxt(self.save_folder_path / "fitted_spectrum.txt",
                            np.column_stack([self.data.energies, self.s.calc_spec()]),
                            delimiter="\t")
         elif self.data.loadtype == "angle_file":
@@ -1484,20 +1480,20 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 self.s.fit_in_progress = True
             for key in results.keys():
                 print("here is the key as follows: ", key)
-                with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
+                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
                     if key in list(tofile.keys()):
                         tofile[key][()] = results[key]
                     else:
                         tofile.create_dataset(key,
                                               data=results[key])
             if self.sfs.check_save_background.isChecked():
-                with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
+                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
                     if "background" in list(tofile.keys()):
                         tofile["background"][()] = background
                     else:
                         tofile.create_dataset(f"{self.data.file_name}/background", data=background)
             if self.sfs.check_save_fitted_spectrum.isChecked():
-                with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
+                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
                     if "fitted spectra" in list(tofile.keys()):
                         tofile["fitted spectra"][()] = fitted_spectra
                     else:
@@ -1506,7 +1502,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "csv_file"]:
             show_fit_prop_in_popup()
             # check if the data file was splitted
-            datah5_files = ns.natsorted(glob(self.data.folder_path+"/data/data_*.h5"))
+            datah5_files = ns.natsorted(self.data.folder_path.glob("data/data_*.h5"))
             if len(datah5_files) != 0:
                 # if splitted files are detected, ask if batch fitting should
                 # be performed or data.h5
@@ -1586,14 +1582,14 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     try:
                         cur_spectra = self.data.spectra[i]
                     except IndexError:
-                        cur_spectra = np.load(f"{self.folder_path}/single_spectra/spectrum_{i}.npy")
+                        cur_spectra = np.load(self.folder_path / "single_spectra/spectrum_{i}.npy")
                     # if the set minimal count rate per spectrum is exceeded
                     # perform the deconvolution
                     if self.data.mincount == 0 or np.sum(cur_spectra[roi_min:roi_max])> self.data.mincount:# TODO geht nicht mit einzelspektren
                         self.roi_widget.spec_nr = i
                         # load the parameters of the spectrum into specfit deconvolution
                         self.load_parameter_in_specfit_deconvolution()
-                        self.load_spec_in_specfit_deconvolution(spectra_nr=i)
+                        self.load_spec_in_specfit_deconvolution(spectrum_nr=i)
                         # if the background is to be set to 0 (low scattering),
                         # set the background s.Strip to zero
                         if self.data.bg_zero is True:
@@ -1683,7 +1679,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         background_key = f"{self.data.file_name}/background_{data_batch}"
                     else:
                         background_key = f"{self.data.file_name}/background"
-                    with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
+                    with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
                         if background_key in list(tofile.keys()):
                             tofile[background_key][()] = background
                         else:
@@ -1694,7 +1690,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         fitted_spectra_key = f"fitted spectra_{data_batch}"
                     else:
                         fitted_spectra_key = "fitted spectra"
-                    with h5py.File(f"{self.save_folder_path}/results.h5", "a") as tofile:
+                    with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
                         if fitted_spectra_key in list(tofile.keys()):
                             tofile[fitted_spectra_key][()] = fitted_spectra
                         else:
@@ -1703,7 +1699,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # result in the results.h5
         if self.batch_fitting or self.data_batch_fitting:
             if save_storage == ".h5":
-                with h5py.File(f"{self.save_folder_path}/results.h5", "r+") as tofile:
+                with h5py.File(self.save_folder_path / "results.h5", "r+") as tofile:
                     unique_keys = np.unique(["_".join(key.split("_")[:2]) for key in tofile.keys()])
                     if self.batch_fitting:
                         rows = self.data.position_dimension[0]
@@ -1724,18 +1720,18 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                                 tofile.create_dataset(results_key,
                                                       data=results)
             else:
-                files = glob(self.save_folder_path + "/*.npy")
+                files = self.save_folder_path.glob("*.npy")
                 unique_keys = np.unique(["_".join(key.split("/")[-1].split("_")[:2]) for key in files])
                 files = [key.split("/")[-1].replace(".npy", "") for key in files]
                 rows = self.data.position_dimension[0]
                 for results_key in unique_keys:
                     if results_key + "_0" in files:
-                        results = np.load(self.save_folder_path+f"/{results_key}_0.npy")
-                        (self.save_folder_path / f"/{results_key}_0.npy").unlink()
+                        results = np.load(self.save_folder_path / f"{results_key}_0.npy")
+                        (self.save_folder_path / f"{results_key}_0.npy").unlink()
                     for batch in range(rows-1):
-                        results = np.concatenate((results, np.load(self.save_folder_path+f"/{results_key}_{batch+1}.npy")), axis=0)
-                        (self.save_folder_path / f"/{results_key}_{batch+1}.npy").unlink()
-                    np.save(self.save_folder_path+f"/{results_key}.npy", results)
+                        results = np.concatenate((results, np.load(self.save_folder_path / f"{results_key}_{batch+1}.npy")), axis=0)
+                        (self.save_folder_path / f"{results_key}_{batch+1}.npy").unlink()
+                    np.save(self.save_folder_path / f"{results_key}.npy", results)
         self.popup_properties.save_props()
         compute_time_end = time.time()
         self.pse_widget.tab_udl.print_gaussian_fit_error_results()

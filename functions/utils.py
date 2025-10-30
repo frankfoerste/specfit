@@ -73,3 +73,45 @@ def create_hdf5_encoding(dataset):
     encoding = {var: {"compression": "gzip", 
                       "compression_opts": 5} for var in dataset.data_vars}
     return encoding
+
+def set_xarray_units(dataset):
+    """
+    Function to automatically set the correct units to
+    the axes and variable of an xarray dataset utilised
+    by SpecFit.
+    The Dataset needs to have the coordinates
+    spec_nr  - ['']
+    dimension  - ['']
+    energy  - ['keV']
+    X  - ['mm']
+    Y  - ['mm']
+    Z  - ['mm']
+    parameters
+    with the DataArrays:
+    counts [spec_nr] - 'counts per second'
+    position dimension [dimension]  - ['x', 'y', 'z']
+    tensor positions [spec_nr, dimension]  - ['mm', 'mm', 'mm']
+    positions [spec_nr, dimension]  - ['mm', 'mm', 'mm']
+    spectra [X, Y, Z, energy]  - 'counts per second'
+    max pixel spec [energy]  - 'counts per second'
+    sum spec [energy]  - 'counts per second'
+    parameters [parameter]  - ['keV', 'keV', 'a.u.', 'keV', 's', 'keV', 's', 's']
+ 
+    """    
+    dataset.coords["spec_nr"].attrs["units"] = ""
+    dataset.coords["parameter"].attrs["units"] = ["keV", "keV", "a.u.", 
+                                                  "keV", "s", "keV", 
+                                                  "s", "s"]
+    dataset.coords["dimension"].attrs["units"] = ""
+    dataset.coords["energy"].attrs["units"] = "keV"
+    dataset.coords["X"].attrs["units"] = "mm"
+    dataset.coords["Y"].attrs["units"] = "mm"
+    dataset.coords["Z"].attrs["units"] = "mm"
+    # set units to DataArrays
+    dataset["counts"].attrs["units"] = "counts per second"
+    dataset["position dimension"].attrs["units"] = ["x", "y", "z"]
+    dataset["positions"].attrs["units"] = ["mm", "mm", "mm"]
+    dataset["tensor positions"].attrs["units"] = ["x", "y", "z"]
+    dataset["spectra"].attrs["units"] = "counts per second"
+    dataset["max pixel spec"].attrs["units"] = "counts per second"
+    dataset["sum spec"].attrs["units"] = "counts per second"

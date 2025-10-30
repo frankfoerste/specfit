@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 def spx2spec_para(file_path,
-                  save_results=True,
-                  print_warning=False):
+                  return_values=False):
     """
     This function reads out the spectrum of a .spx-file and reads out the
     detector parameters given in the .spx-file.
@@ -32,6 +31,8 @@ def spx2spec_para(file_path,
     folder_path = file_path.parent
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     file_name = file_path.name
+    write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
+                                                   file_name=file_name)
     # define default values
     a0 = -0.96
     a1 = 0.01
@@ -39,7 +40,8 @@ def spx2spec_para(file_path,
     Fano = 0.113
     channels = False
     gating_time = 3e-6
-    zero_peak_frequency = 1e4
+    X0, Y0, Z0 = spx_tensor_position(file_path=file_path)
+    ds = xr.Dataset()
     with open(file_path, "r", encoding="ISO-8859-1") as infile:
         for line in infile:
             if "<Channels>" in line:
@@ -86,48 +88,54 @@ def spx2spec_para(file_path,
     if life_time == 0:
         print(f"error in {file_path}\nlife_time is ZERO\nsetting life_time to 1")
         life_time = 1
-    parameters = np.array([a0, a1, Fano, FWHM, life_time, max_energy, gating_time, real_time])
     spectrum = np.divide(spectrum, life_time)
-    # save data if decided
-    if save_results:
-        if (folder_path/"data/data.h5").exists():
-            with h5py.File(f"{folder_path}/data/data.h5", "r+") as tofile:
-                if file_name in tofile.keys():
-                    del tofile[file_name]
-            write_operator = "r+"
-        else:
-            write_operator = "w"
-        with h5py.File(f"{folder_path}/data/data.h5", write_operator) as tofile:
-            tofile.create_dataset(f"{file_name}/spectra",
-                                  data=spectrum,
-                                  compression="gzip", compression_opts=9)
-            tofile.create_dataset(f"{file_name}/sum spec", data=spectrum,
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/counts", data=[np.sum(spectrum)],
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/max pixel spec", data=spectrum,
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/position dimension", data=np.array([1, 1, 1]),
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/tensor positions", data=np.array([[0, 0, 0]]),
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/positions", data=np.array([[0, 0, 0]]),
-                                  compression="gzip")
-    return spectrum, parameters
+    ds["position dimension"] = xr.DataArray([1, 1, 1],
+                                            dims=("dimension"))
+    ds["tensor positions"] = xr.DataArray([[0, 0, 0]],
+                                            dims=("spec_nr", "dimension"),)
+    ds["positions"] = xr.DataArray(data=[[X0, Y0, Z0]],
+                                   dims=("spec_nr", "dimension"),
+                                   coords={"dimension": ["x", "y", "z"]},
+                                   attrs={"units": ["mm", "mm", "mm"]})
+    ds["parameters"] = xr.DataArray(data=[[a0, a1, Fano, FWHM, life_time, max_energy, gating_time, real_time]],
+                                    dims=("spec_nr", "parameter"),
+                                    coords={"parameter": ["a0", "a1", "Fano", "FWHM",
+                                                     "life_time", "max_energy",
+                                                     "gating_time", "real_time"]},
+                                    attrs={"units": ["keV", "keV", "a.u.", "keV",
+                                                     "s", "keV", "s", "s"]})
+    ds["spectra"] = xr.DataArray(data=spectrum.reshape((1,1,1,channels)),
+                                 dims=("X", "Y", "Z", "energy"),
+                                 coords={"energy": np.arange(ds["parameters"][0][0],
+                                                             ds["parameters"][0][5]+ds["parameters"][0][1],
+                                                             ds["parameters"][0][1]),
+                                        #  "X": np.asarray(X0),
+                                         "X": np.arange(X0, X0+0.1),
+                                         "Y": np.arange(Y0, Y0+0.1),
+                                         "Z": np.arange(Z0, Z0+0.1),},
+                                 attrs={"units": "counts per second"})
+    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
+                                dims=("spec_nr"),
+                                coords={"spec_nr": np.arange(1)},
+                                attrs={"units": "counts per second"})
+    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
+    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
+    # set units to xarray Dataset
+    utils.set_xarray_units(dataset=ds)
+    # save the hdf5
+    ds.to_netcdf(
+        path=folder_path/"data/data.h5",
+        group=file_name,
+        mode=write_operator,
+        engine="h5netcdf",
+        encoding=utils.create_hdf5_encoding(dataset=ds),
+    )
+    if return_values:
+        return ds["spectra"], ds["parameters"]
 
 def many_spx2spec_para(folder_path, 
                        signal=None,
-                       worth_fit_threshold=200,
-                       save_sum_spec=True, 
-                       save_spectra=True,
-                       save_counts=True, 
-                       save_parameters=True,
-                       save_any=True, 
-                       print_warning=False,
                        save_spec_as_dict=True,
-                       data_compression="lzf",
                        return_values=False):
     """
     This function reads out the spectrum of a .spx-file and reads out the
@@ -187,11 +195,6 @@ def many_spx2spec_para(folder_path,
         tensor_positions /= [x_steps, y_steps, z_steps]
         tensor_positions = np.array(tensor_positions, dtype=int)
     sorted_folder = ns.natsorted(folder_path.glob("*.spx"))
-    worth_fit = []
-    ds["counts"] = xr.DataArray(np.zeros(len(sorted_folder)),
-                                dims=("spec_nr"),
-                                coords={"spec_nr": np.arange(len(sorted_folder))},
-                                attrs={"units": "counts per second"})
     ds["parameters"] = xr.DataArray(np.zeros((len(sorted_folder), 8)),
                                     dims=("spec_nr", "parameter"),
                                     coords={"parameter": ["a0", "a1", "Fano", "FWHM",
@@ -270,12 +273,6 @@ def many_spx2spec_para(folder_path,
             spectrum = np.r_[spectrum, np.zeros(4096-channels)]
         elif channels > 4096:
             spectrum = spectrum[:4096]
-        sum_spec_tmp = sum(spectrum)
-        ds["counts"][file_nr] = sum_spec_tmp
-        if sum_spec_tmp > worth_fit_threshold:
-            worth_fit.append(True)
-        else:
-            worth_fit.append(False)
         # now we try to rebuild specfit load in routine to support array spectra
         if save_spec_as_dict:
             if file_nr == 0:
@@ -290,8 +287,7 @@ def many_spx2spec_para(folder_path,
             signal_progress.emit(file_nr)
 
     # reshape the spectra to the shape of the measurement
-    spectra = spectra.reshape([x, y, z, channels])
-    ds["spectra"] = xr.DataArray(data=spectra,
+    ds["spectra"] = xr.DataArray(data=spectra.reshape([x, y, z, channels]),
                                  dims=("X", "Y", "Z", "energy"),
                                  coords={"energy": np.arange(ds["parameters"][file_nr][0],
                                                              ds["parameters"][file_nr][5]+ds["parameters"][file_nr][1],
@@ -300,14 +296,14 @@ def many_spx2spec_para(folder_path,
                                          "Y": np.arange(y),
                                          "Z": np.arange(z),},
                                  attrs={"units": "counts per second"})
+    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
+                                dims=("spec_nr"),
+                                coords={"spec_nr": np.arange(len(sorted_folder))},
+                                attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
-    # set units to coordinates
-    ds.coords["spec_nr"].attrs["units"] = "#"
-    ds.coords["energy"].attrs["units"] = "keV"
-    # set units to DataArrays
-    ds["max pixel spec"].attrs["units"] = "counts per second"
-    ds["sum spec"].attrs["units"] = "counts per second"
+    # set units to xarray Dataset
+    utils.set_xarray_units(dataset=ds)
     # save the hdf5
     ds.to_netcdf(
         path=folder_path/"data/data.h5",
@@ -529,5 +525,8 @@ def calc_sum_spec(spectrum):
     return sum_spec
 
 if __name__ == "__main__":
-    folder = "C:\\Doktorarbeit\\development\\specfit\\example_measurements\\spx\\"
+    folder = Path("C:\\Doktorarbeit\\development\\specfit\\example_measurements\\spx\\")
     many_spx2spec_para(folder_path=folder)
+    for file in folder.glob("*.spx"):
+        spx2spec_para(file_path=file,
+                      return_values=False)
