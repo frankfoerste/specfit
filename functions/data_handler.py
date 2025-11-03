@@ -1,5 +1,6 @@
 import h5py
-from dask import dataframe
+# from dask import dataframe
+import dask.array as da
 import time
 from pathlib import Path
 import numpy as np
@@ -143,11 +144,11 @@ class DataHandler():
         self.bg_zero = False  # do not calculate background
         self.strip_cycles = 15
         self.strip_width = 60
-        self.smooth_cycles = 0
-        self.smooth_width = 1
+        self.smooth_cycles = 1
+        self.smooth_width = 2
         self.roi_start = 0.1  # investigated region start in keV
         self.roi_end = 15.  # investigated region end in keV
-        self.calc_minima = True  # prior smoothing calc of minima in spectrum
+        self.calc_minima = False  # prior smoothing calc of minima in spectrum
         self.calc_minima_order = 15  # order of minima algorithm
         self.plot_style = "lin"  # lin or log
         # stores tensor positions [[x1,y1,z1],[x2,y1,z1],[x3,y1,z1], ..., [xn,yn,zn]]
@@ -275,13 +276,14 @@ class DataHandler():
             else:
                 file_key=f"{self.file_name}/"
             self.tensor_positions = f[f"{file_key}tensor positions"][()]
+            self.counts = f[f"{file_key}counts"][()]
             self.positions = f[f"{file_key}positions"][()]
             self.position_dimension = f[f"{file_key}position dimension"][()]
             self.sum_spec = f[f"{file_key}sum spec"][()]
             self.parameters = f[f"{file_key}parameters"][()]
             self.max_pixel_spec = f[f"{file_key}max pixel spec"][()]
             self.len_spectrum = len(self.sum_spec)
-            self.spectra = f[f"{file_key}spectra"][()]
+            self.spectra = da.asarray(f[f"{file_key}spectra"][()])
             # flatten the spectra
             self.spectra = self.spectra.reshape(-1, self.spectra.shape[-1])
         if self.parameters.ndim == 1:

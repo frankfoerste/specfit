@@ -114,9 +114,8 @@ def spx2spec_para(file_path,
                                          "Y": np.arange(Y0, Y0+0.1),
                                          "Z": np.arange(Z0, Z0+0.1),},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
-                                dims=("spec_nr"),
-                                coords={"spec_nr": np.arange(1)},
+    ds["counts"] = xr.DataArray(ds["spectra"].sum(axis=-1),
+                                dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
@@ -296,9 +295,8 @@ def many_spx2spec_para(folder_path,
                                          "Y": np.arange(y),
                                          "Z": np.arange(z),},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
-                                dims=("spec_nr"),
-                                coords={"spec_nr": np.arange(len(sorted_folder))},
+    ds["counts"] = xr.DataArray(ds["spectra"].sum(axis=-1),
+                                dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))

@@ -123,7 +123,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         # initalize main window
         super(SpecFitGUIMain, self).__init__(parent)
-        self.__version__ = u"SpecFit - 1.0.1"
+        self.__version__ = u"SpecFit - 1.1.1"
         self.working_directory = Path.cwd()
         self.start_logger()
         self.bg_color = "black"
@@ -566,7 +566,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         elif spectrum_nr < -1:
             self.selected_spectrum = self.data.sum_spec
         else:
-            self.selected_spectrum = self.data.spectra[f"{spectrum_nr}"]
+            self.selected_spectrum = self.data.spectra[spectrum_nr]
 
     def hide_calc_min(self, ):
         """

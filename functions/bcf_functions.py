@@ -95,9 +95,8 @@ def bcf2spec_para(file_path, return_values=False, verbose=False):
                                          "Y": np.arange(Y0, Y0+dy*data.data.shape[1]-dy, dy),
                                          "Z": np.array([Z0])},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(data=np.ravel(ds["spectra"].sum(axis=-1)),
-                                dims=("spec_nr"),
-                                coords={"spec_nr": np.arange(len(data))},
+    ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),
+                                dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
@@ -322,8 +321,8 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
                                          "Y": np.arange(Y0, Y0+dy*ds["position dimension"][1]-dy, dy),
                                          "Z": np.arange(Z0, Z0+dz*nr_bcf_files, dz),},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(data=np.ravel(ds["spectra"].sum(axis=-1)),
-                                dims=("spec_nr"),
+    ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),
+                                dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))

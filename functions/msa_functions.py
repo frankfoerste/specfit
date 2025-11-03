@@ -134,9 +134,8 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
                                          "Y": np.arange(y_pos),
                                          "Z": np.arange(z_pos),},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(np.ravel(ds["spectra"].sum(axis=-1)),
-                                dims=("spec_nr"),
-                                coords={"spec_nr": np.arange(x_pos*y_pos*z_pos)},
+    ds["counts"] = xr.DataArray(ds["spectra"].sum(axis=-1),
+                                dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
     ds["positions"] = xr.DataArray(data=build_positions(position_dimension, origin, steps),
                                    dims=("spec_nr", "dimension"),

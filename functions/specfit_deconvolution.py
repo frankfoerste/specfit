@@ -41,8 +41,8 @@ class SpecFit(object):
         self.gating_time = 8e-3 #: used for pileuplines
         self.strip_cycles = 30
         self.strip_width = 60
-        self.smooth_cycles =  2
-        self.smooth_width = 3
+        self.smooth_cycles =  1
+        self.smooth_width = 2
         self.minchange = 1e-3  #: threshold for non-linear fit
         self.order = 15  #: test parameter for linear deconvolution
         self.minima = []  #: list containing all minima. If only minima on sum_spec, self.minima becomes np.ndarray
