@@ -317,10 +317,7 @@ class DataHandler():
                     assert self.load_stored_spec_and_param(
                     ), "something is wrong with .MSA worker, parameters are not stored correctly"
             else:
-                self.spectra, self.sum_spec, self.parameters = msa.msa2spec_sum_para(
-                    self.file_path)
-                if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0)
+                msa.msa2spec_sum_para(file_path=self.file_path)
                 assert self.load_stored_spec_and_param(
                 ), "something is wrong with .MSA worker, parameters are not stored correctly"
 
@@ -384,11 +381,6 @@ class DataHandler():
         else:
             if self.file_type == ".spx":
                 spx.spx2spec_para(file_path=self.file_path)
-                if self.parameters.ndim == 1:
-                    self.parameters = np.expand_dims(self.parameters, axis=0)
-                self.tensor_positions = np.array([1, 1, 1])
-                self.position_dimension = [1, 1, 1]
-                self.sum_spec = self.spectra["0"]
                 self.roi_start = 0.5
                 self.roi_end = 15
 

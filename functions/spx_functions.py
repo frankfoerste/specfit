@@ -421,6 +421,7 @@ def spx_tensor_position(file_path):
     It determines whether it is a line scan or a 3D-Scan.
     """
     file_path = Path(file_path)
+    data = None
     if file_path.suffix == ".spx":
         with open(file_path, "r", encoding="ISO-8859-1") as infile:
             for line in infile:
@@ -433,6 +434,11 @@ def spx_tensor_position(file_path):
                             return np.frombuffer(data[1:], dtype=np.float64)[15:18]
                         else:
                             return np.frombuffer(data[1:], dtype=np.float64)[15:18]
+        # for older .spx files no <Data for stage position is stored,
+        # falling back on position retrieval from data naming
+        if data is None:
+            position = file_path.name.replace(file_path.suffix, '').split('(')[-1].replace(')', '')
+            return [float(pos) for pos in position.split(",")]
 
 def spx_tensor_positions(folder_path, file_type=".spx"):
     """

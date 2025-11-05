@@ -5,7 +5,9 @@ import xarray as xr
 import utils
 
 
-def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
+def msa2spec_sum_para(file_path, 
+                      return_values=False,
+                      signal_progress=None, signal_sum_spec=None):
     """
     This function reads out the spectrum of a .msa-file and reads out the
     detector parameters given in the .msa-file. It returns an dict containing
@@ -30,8 +32,6 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
     write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
                                                    file_name=file_name)
     ds = xr.Dataset()
-    # worth_fit = []
-    # counts = []
     if signal_sum_spec is not None:
         signal_sum_spec.emit("None")
     with open(file_path, "rb") as infile:
@@ -61,30 +61,29 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
         elif "#ENDOFDATA" in line:
             end = counter
         elif "#NXPOS" in line:
-            x_pos = int(line.split()[2])
+            z_pos = int(line.split()[2])
         elif "#NYPOS" in line:
             y_pos = int(line.split()[2])
         elif "#NZPOS" in line:
-            z_pos = int(line.split()[2])
+            x_pos = int(line.split()[2])
         elif "#XSTEP" in line:
-            x_step = int(line.split()[2])*1e-3
+            z_step = int(line.split()[2])*1e-3
         elif "#YSTEP" in line:
             y_step = int(line.split()[2])*1e-3
         elif "#ZSTEP" in line:
-            z_step = int(line.split()[2])*1e-3
+            x_step = int(line.split()[2])*1e-3
         elif "#XNULL" in line:
-            x0 = int(line.split()[2])*1e-3
+            z0 = int(line.split()[2])*1e-3
         elif "#YNULL" in line:
             y0 = int(line.split()[2])*1e-3
         elif "#ZNULL" in line:
-            z0 = int(line.split()[2])*1e-3
+            x0 = int(line.split()[2])*1e-3
     gating_time = 600e-9                                                          ### has to be determined
     position_dimension = np.array([x_pos, y_pos, z_pos])
     steps = np.array([x_step, y_step, z_step])
     steps[steps==0] = 1
     origin = [x0, y0, z0]
-    # positions = build_positions(position_dimension, origin, steps)
-    # tensor_positions = build_tensor_position(position_dimension)
+
     max_energy =  a0 + a1*channels
     if signal_sum_spec is not None:
         signal_sum_spec.emit("progress spectra")
@@ -110,14 +109,7 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
             int(np.ceil(len(spectra_tmp) / channels)), channels))  # reshapes intensity to channels*spectra
     if signal_sum_spec is not None:
         signal_sum_spec.emit("spectra done")
-    # spectra = {}
-    # for i, _ in enumerate(spectra_tmp):
-    #     spectra["%d"%i] = spectra_tmp[i]
-    #     counts.append(sum(spectra_tmp[i]))
-    #     if sum(spectra_tmp[i]) > 1000:
-    #         worth_fit.append(True)
-    #     else:
-    #         worth_fit.append(False)
+
     ds["parameters"] = xr.DataArray(data=[a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time],
                                     dims=("parameter"),
                                     coords={"parameter": ["a0", "a1", "Fano", "FWHM",
@@ -134,9 +126,12 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
                                          "Y": np.arange(y_pos),
                                          "Z": np.arange(z_pos),},
                                  attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(ds["spectra"].sum(axis=-1),
+    ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),
                                 dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
+    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
+    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
+
     ds["positions"] = xr.DataArray(data=build_positions(position_dimension, origin, steps),
                                    dims=("spec_nr", "dimension"),
                                    coords={"dimension": ["x", "y", "z"]},
@@ -147,15 +142,14 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
                                    attrs={"units": ["mm", "mm", "mm"]})
     ds["position dimension"] = xr.DataArray([x_pos, y_pos, z_pos],
                                             dims=("dimension"))
-    ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
-    ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
-    # set units to coordinates
-    ds.coords["spec_nr"].attrs["units"] = "#"
-    ds.coords["energy"].attrs["units"] = "keV"
-    # set units to DataArrays
-    ds["max pixel spec"].attrs["units"] = "counts per second"
-    ds["sum spec"].attrs["units"] = "counts per second"
-
+    
+    # now save everything to a data h5 file
+    if (folder_path/"data/data.h5").exists():
+        with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
+            if file_name in tofile.keys():
+                del tofile[file_name]
+    utils.set_xarray_units(ds)
+    
     # save the hdf5
     ds.to_netcdf(
         path=folder_path/"data/data.h5",
@@ -164,25 +158,8 @@ def msa2spec_sum_para(file_path, signal_progress=None, signal_sum_spec=None):
         engine="h5netcdf",
         encoding=utils.create_hdf5_encoding(dataset=ds),
     )
-    
-    # with h5py.File(folder_path/"data/data.h5", "w") as tofile:
-    #     tofile.create_dataset(f"{file_name}/spectra", data=np.array(list(spectra.values())),
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/counts", data=counts,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/position dimension", data=position_dimension,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/positions", data=positions,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
-    #                           compression="gzip")
-    #     tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-    #                           compression="gzip")
-    return ds["spectra"], ds["sum spec"], ds["parameters"]
+    if return_values:
+        return ds["spectra"], ds["sum spec"], ds["parameters"]
 
 def msa2positions(file_path):
     """

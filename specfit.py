@@ -151,9 +151,12 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.check_line_labels = []  #: list of check_line_labels
         self.check_elements = database.check_elements  #: list to determine the selected elements
         # set default stylesheets
-        self.setStyleSheet("QWidget { color: black; background-color:white;}"\
-                           +"color:black;"\
-                           +"background-color:white;"\
+        self.setStyleSheet("QWidget { "\
+                        #    +"color: black;"\
+                        #    +"background-color:white;"\
+                           +"}"\
+                        #    +"color:black;"\
+                        #    +"background-color:white;"\
                            +"border-width: 10px;"\
                            +"QLabel {font-size: 11px;} "\
                            +"QLineEdit {font-size: 11px; max-height: 18px;} "\
