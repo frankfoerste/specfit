@@ -156,7 +156,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         #    +"background-color:white;"\
                            +"}"\
                         #    +"color:black;"\
-                        #    +"background-color:white;"\
+                        #    +"background-color:white;"\<
                            +"border-width: 10px;"\
                            +"QLabel {font-size: 11px;} "\
                            +"QLineEdit {font-size: 11px; max-height: 18px;} "\
@@ -1772,7 +1772,7 @@ def main():
     specFit_GUI = SpecFitGUIMain()
     splash.finish(specFit_GUI)
     specFit_GUI.show()
-    app.exec_()
+    app.exec()
     # now close all hdf5 files, which are still open
     import tables
     tables.file._open_files.close_all()

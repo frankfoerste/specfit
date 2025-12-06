@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SpecFit"
+version = "1.1.0"
+authors = [
+    {name = "Frank Förste", email = "ffoerste@physik.tu-berlin.de"}
+]
+maintainers = [
+    {name = "Frank Förste", email = "ffoerste@physik.tu-berlin.de"}
+]
+description = "X-ray fluorescence evaluation and deconvolution software for 3D"
+readme = "README.md"
+dependencies = [
+    "dask >= 2025", 
+    "h5py>=3.12", 
+    "hyperspy>=2.3", 
+    "matplotlib>=3.9", 
+    "natsort>=8", 
+    "numba", 
+    "numpy>=2.1", 
+    "Pillow>=11", 
+    "psutil>=7", 
+    "PyQt6>=6.8", 
+    "pyqt6_sip>=13", 
+    "qtconsole==5.6.1", 
+    "scipy>=1.14", 
+    "scikit-image>=0.20", 
+    "tables>=3.10", 
+    "xraylib>=4.0", 
+    "pandas", 
+    "h5netcdf", 
+    "exspy"
+]
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["."]

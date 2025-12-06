@@ -81,8 +81,10 @@ class ShowROI(QtWidgets.QWidget):
         for i, _ in enumerate(self.lines):
             self.lines[i] = self.lines[i][0]
         self.layout_show_ROI = QtWidgets.QGridLayout()
-        self.setStyleSheet("QWidget { color: black; background-color:white;}"\
-                           +"background-color:white;"\
+        self.setStyleSheet("QWidget { " \
+                        #    +"color: black; background-color:white;" \
+                           +"}"\
+                        #    +"background-color:white;"\
                            +"QLabel {font-size: 10px; max-width: 60px} "\
                            +"QLineEdit {font-size: 10px; max-height: 18px; max-width: 60px} "\
                            +"QCheckBox {font-size: 10px; max-height: 18px; max-width: 60px} "\
@@ -311,8 +313,8 @@ class ShowROI(QtWidgets.QWidget):
         self.button_save_ROI.hide()
         self.button_save_selection.hide()
         self.button_reset_ROI.hide()
-        self.ROI_image.remove()
-        self.ROI_image = False
+        # self.ROI_image.remove()
+        # self.ROI_image = False
         self.plot_results()
 
     def get_line_energy(self):
@@ -378,27 +380,21 @@ class ShowROI(QtWidgets.QWidget):
         elif axis == 'yz':  # layer in x-axis
             return array[layer, :, :]
             # return np.rot90(array[layer, :, :], k=-1)
-
         
     def remove_rectangle(self, ):
         """
         Function to remove the rectangle shape in the ROI plot
         """
-        artists = self.ax_canvas_roi.get_children()
-        rectangle_type = type(patches.Rectangle((1, 1), 1, 1))
-        for artist in artists[:4]:
-            if isinstance(artist, rectangle_type):
-                artist.remove()
+        self.rect.remove()
+        del self.rect
+        del self.rect_data
 
     def remove_image(self, ):
         """
         Function to remove the previously drawn image from the ROI plot
         """
-        print(len(self.ax_canvas_roi.images))
-        # if len(self.ax_canvas_roi.images) > 1:
-        #     self.ax_canvas_roi.images[-1].remove()
-            
-        
+        self.ROI_image.remove()
+
     def plot_sum_spec(self):
         if not self.first_time_loaded:
             self.ax_canvas_spectrum.clear()
@@ -427,7 +423,6 @@ class ShowROI(QtWidgets.QWidget):
     def plot_results(self):
         self.entry_position.setText("")
         # clear ax_canvas from drawn images
-        # self.remove_image()
         layer = self.slider_layer.value()
         aspect = "auto"
         line = self.line.replace("Ka", u"K\u03B1").replace("Kb", u"K\u03b2")
@@ -440,38 +435,31 @@ class ShowROI(QtWidgets.QWidget):
         extent = [ax1[-1] + step_ax1 / 2, ax1[0] - step_ax1 / 2,
                   ax2[-1] + step_ax2 / 2, ax2[0] - step_ax2 / 2]
         # if counts are displayed
-        if not self.ROI_image:
-            if self.roi_plotted is True:
-                data = self.results
-            else:
-                data = self.counts
-            maximum = np.percentile(data, self.slider_percentile.value())
-            data_layer = self.slice_array(array=data,
-                                        axis=self.rotation,
-                                        layer=layer)
-            self.ROI_image = self.ax_canvas_roi.imshow(data_layer,
-                                                        vmin=0,
-                                                        vmax=maximum,
-                                                        aspect=aspect,
-                                                        extent=extent,
-                                                        origin="lower")
-        # if elemental ROIs are displayed
+        if self.roi_plotted is True:
+            data = self.results
         else:
-            if self.roi_plotted is True:
-                data = self.results
-            else:
-                data = self.counts
-            maximum = np.percentile(data, self.slider_percentile.value())
-            data_layer = self.slice_array(array=data,
-                                          axis=self.rotation,
-                                          layer=layer)
+            data = self.counts
+        maximum = np.percentile(data, self.slider_percentile.value())
+        data_layer = self.slice_array(array=data,
+                                    axis=self.rotation,
+                                    layer=layer)
+        if not self.ROI_image:
+            self.ROI_image = self.ax_canvas_roi.imshow(data_layer,
+                                                    vmin=0,
+                                                    vmax=maximum,
+                                                    aspect=aspect,
+                                                    extent=extent,
+                                                    origin="lower")
+        else:
             self.ROI_image.set_data(data_layer)
-                
+
+            self.ROI_image.set_extent(extent)
         self.ROI_image.set_clim(0, maximum)
-        try: self.colorbar.remove()
-        except: pass
-        self.colorbar = self.figure_ROI.colorbar(self.ROI_image,
-                                                 ax=self.ax_canvas_roi)
+        try: 
+            self.colorbar.update_ticks()
+        except AttributeError: 
+            self.colorbar = self.figure_ROI.colorbar(self.ROI_image,
+                                                    ax=self.ax_canvas_roi)
         layer = ax3[layer]
         if self.roi_plotted is True:
             self.ax_canvas_roi.set_title(f"ROI Counts {self.element_str} {line} | {dim3} position : {layer}")                                                                  
@@ -479,7 +467,7 @@ class ShowROI(QtWidgets.QWidget):
             self.ax_canvas_roi.set_title(f"Counts | {dim3} position : {layer}")
         self.ax_canvas_roi.set_xlabel(dim1)
         self.ax_canvas_roi.set_ylabel(dim2)
-        self.figure_ROI.tight_layout()
+        
         self.canvas_roi.draw_idle()
 
     def rotate_results(self, rotation):
@@ -489,17 +477,27 @@ class ShowROI(QtWidgets.QWidget):
         dim1, dim2 = self.rotation
         dim3 = 'xyz'.replace(dim1, '').replace(dim2, '')
         idx = ["x", "y", "z"].index(dim3)
+        if hasattr(self, "rect_data"):
+            self.rotate_rectangle(new_idx=[dim1, dim2, dim3])
         if self.roi_plotted is not False:
             data = self.results
         else:
             data = self.counts
         self.slider_layer.setMaximum(data.shape[idx]-1)
-        self.ROI_image.remove()
-        self.ROI_image = False
         if self.slider_layer.value() != 0:
             self.slider_layer.setValue(0)
         else:
             self.plot_results()
+        
+    def rotate_rectangle(self, new_idx):
+        """
+        Rotate the selection rectangle
+        """
+        old_idx = [self.rect_data[idx] for idx in [f"dim{i}" for i in range(1,4)]]
+        idx_transform = [old_idx.index(idx)+1 for idx in new_idx]
+        self.rect.set_width(self.rect_data[f"dim{idx_transform[0]}_size"]*getattr(self, f"step_{new_idx[0]}"))
+        self.rect.set_height(self.rect_data[f"dim{idx_transform[1]}_size"]*getattr(self, f"step_{new_idx[1]}"))
+        self.rect.set_xy((self.rect_data[f"dim{idx_transform[0]}_pos"], self.rect_data[f"dim{idx_transform[1]}_pos"]))
 
     def spectra_array(self):
         """
@@ -624,7 +622,10 @@ class ShowROI(QtWidgets.QWidget):
                 self.plot_style = self.parent.ax_canvas_spectrum.plot
             elif self.plot_style_str == "log":
                 self.plot_style = self.parent.ax_canvas_spectrum.semilogy
-            self.remove_rectangle()
+            try:
+                self.remove_rectangle()
+            except NotImplementedError:
+                pass
             low_index = int((float(self.roi_low.text())-self.parameters[0])/self.parameters[1])
             high_index = int((float(self.roi_high.text())-self.parameters[0])/self.parameters[1])
             
@@ -632,7 +633,6 @@ class ShowROI(QtWidgets.QWidget):
             self.parent.check_fit()
             self.parent.ax_canvas_spectrum.set_xlim(low_index*self.parameters[1]+self.parameters[0], high_index*self.parameters[1]+self.parameters[0])
             self.parent.ax_canvas_spectrum.set_ylim(1e-5, np.max(self.rect_sum_spec[low_index:high_index])*1.1)
-            print("self.rect", self.rect.get_bbox())
             self.ax_canvas_roi.add_patch(self.rect)
             self.canvas_roi.draw_idle()
             self.entry_position.setText(f"{self.spec_nr:.0f}")
@@ -664,10 +664,13 @@ class ShowROI(QtWidgets.QWidget):
                 dim2_rect = np.resize(dim2_rect, dim3_rect.shape)
         else:
             dim1_rect, dim2_rect, dim3_rect = pos1, pos2, pos3
-        self.rect = patches.Rectangle(xy=(pos1-size_hor/2, pos2-size_ver/2),
+        self.rect = patches.Rectangle(xy=(pos1-size_ver/2, pos2-size_hor/2),
                                         width=size_ver, height=size_hor,
                                         linewidth=1, edgecolor="r",
                                         facecolor="None")
+        self.rect_data = {"dim1": dim1, "dim2": dim2, "dim3": dim3, 
+                          "dim1_pos": pos1, "dim2_pos": pos2, "dim3_pos": pos3,
+                          "dim1_size": size_hor, "dim2_size": size_ver, "dim3_size": getattr(self, f"step_{dim3}") }
         positions_rect = np.asarray([dim1_rect.flatten(), dim2_rect.flatten(), dim3_rect.flatten()]).T
         # find the position indices for the selected rectangle 
         indices = np.zeros(shape=len(positions_rect))
@@ -715,6 +718,9 @@ class ShowROI(QtWidgets.QWidget):
                                         width=float(np.diff(ax1)), height=float(np.diff(ax2)),
                                         linewidth=1, edgecolor="r",
                                         facecolor="None")
+        self.rect_data = {"dim1": dim1, "dim2": dim2, "dim3": dim3, 
+                          "dim1_pos": pos1, "dim2_pos": pos2, "dim3_pos": pos3,
+                          "dim1_size": size_hor, "dim2_size": size_ver, "dim3_size": getattr(self, f"step_{dim3}") }
         
         positions_rect = np.asarray([dim1_rect.flatten(), dim2_rect.flatten(), dim3_rect.flatten()]).T
         # find the position indices for the selected rectangle 
