@@ -16,6 +16,7 @@ from matplotlib import figure
 import matplotlib.image as mpimg
 import xraylib as xrl
 import logging
+import json
 from pathlib import Path
 script_dir = Path.cwd()
 sys.path.append(str(script_dir/"functions"))
@@ -30,7 +31,6 @@ from plot3d import Plot3D
 from display_meas_points import DisplayMeasPoints as dmp
 from periodic_table import PeriodicTable as PSE
 import specfit_fit_settings as sfs
-from split_h5 import split_h5
 from export_functions import h5_to_tiff
 from ipython_console import IPythonConsole # ipython console implementation for SpecFit
 
@@ -150,6 +150,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.check_lines_list = []  #: list of checkable lines
         self.check_line_labels = []  #: list of check_line_labels
         self.check_elements = database.check_elements  #: list to determine the selected elements
+        self.config_file_path = self.working_directory / "Data" / "config" / "config.json"
         # set default stylesheets
         self.setStyleSheet("QWidget { "\
                         #    +"color: black;"\
@@ -268,7 +269,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_fit = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/fit-and-save.png")), "fit and save", self)
         self.action_fit.setShortcut("F1")
         self.action_fit.setStatusTip("fit and save")
-        self.action_fit.triggered.connect(self.fit_folder)
+        self.action_fit.triggered.connect(self.prepare_fit)
         # npy to bin conversion action
         self.action_npy_2_bin = QtGui.QAction("convert .npy to .bin", self)
         self.action_npy_2_bin.setStatusTip("display measurement points 3D")
@@ -277,10 +278,6 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_export_2_npz = QtGui.QAction("export .npy", self)
         self.action_export_2_npz.setStatusTip("export measurement to .npy")
         self.action_export_2_npz.triggered.connect(self.export_2_npz)
-        # split data.h5 for batch fitting action
-        self.action_split_datah5 = QtGui.QAction("split data.h5", self)
-        self.action_split_datah5.setStatusTip("split the data.h5 to fit in batches")
-        self.action_split_datah5.triggered.connect(self.split_h5)
         # results.h5 to tiff action
         self.action_h5_2_tiff = QtGui.QAction("results.h5 to .tiff", self)
         self.action_h5_2_tiff.setStatusTip("transform results.h5 to tiff images")
@@ -298,14 +295,20 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_exit.setShortcut("Ctrl+Q")
         self.action_exit.setStatusTip("Exit application with Ctrl+Q")
         self.action_exit.triggered.connect(QtWidgets.QApplication.quit)
-        # set StatusBar
+        # set statusBar
         self.statusBar()
         # set Menubar and add actions
-        # File menu
         self.menu_file = self.menubar.addMenu("&File")
+        # Recent files submenu
+        self.recent_folder_menu = QtWidgets.QMenu("Recent Folders", self)
+        self.recent_files_menu = QtWidgets.QMenu("Recent Files", self)
+        self.update_recent_menus()
+        # File menu
         self.menu_file.addAction(self.action_load_folder)
         self.menu_file.addAction(self.action_load_file)
         self.menu_file.addAction(self.action_load_angle)
+        self.menu_file.addMenu(self.recent_folder_menu)
+        self.menu_file.addMenu(self.recent_files_menu)
         self.menu_file.addAction(self.action_exit)
         # Settings menu
         self.menu_settings = self.menubar.addMenu("&Settings")
@@ -329,7 +332,6 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.menu_export = self.menubar.addMenu("&Export")
         self.menu_export.addAction(self.action_export_2_npz)
         self.menu_export.addAction(self.action_npy_2_bin)
-        self.menu_export.addAction(self.action_split_datah5)
         self.menu_export.addAction(self.action_h5_2_tiff)
         # edit menu
         self.menu_edit = self.menubar.addMenu("&Edit")
@@ -403,10 +405,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.roi_widget.para_a1 = self.entry_a1 # inherit this entry to the show_ROI widget to be able to read the energy calibration into show_ROI
         self.entry_fano = QtWidgets.QLineEdit("0", self)
         self.entry_FWHM = QtWidgets.QLineEdit("0", self)
-        self.entry_strip_cycles = QtWidgets.QLineEdit("5", self)
+        self.entry_strip_cycles = QtWidgets.QLineEdit("10", self)
         self.entry_strip_width = QtWidgets.QLineEdit("60", self)
         self.entry_smooth_cycles = QtWidgets.QLineEdit("1", self)
-        self.entry_smooth_width = QtWidgets.QLineEdit("2", self)
+        self.entry_smooth_width = QtWidgets.QLineEdit("10", self)
         self.entry_roi_start = QtWidgets.QLineEdit("1", self)
         self.roi_widget.roi_low = self.entry_roi_start # inherit this entry to the show_ROI widget to be able to read the energy range into show_ROI
         self.entry_roi_end = QtWidgets.QLineEdit("15", self)
@@ -437,15 +439,21 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.button_check_fit = QtWidgets.QPushButton("Check-Fit", self)
         self.button_clear_check_fit = QtWidgets.QPushButton("clear Check-Fit", self)
         self.button_fit_and_save = QtWidgets.QPushButton("fit and save", self)
+        self.button_stop_fit = QtWidgets.QPushButton("STOP", self)
+        # hide buttons
+        self.button_stop_fit.hide()
         # set functions to buttons
         self.button_check_fit.clicked.connect(self.check_fit)
         self.button_clear_check_fit.clicked.connect(self.clear_plot)
-        self.button_fit_and_save.clicked.connect(self.fit_folder)
+        self.button_fit_and_save.clicked.connect(self.prepare_fit)
+        self.button_stop_fit.clicked.connect(self.set_stop_flag)
         # set position of buttons
         self.fit_widget_layout.addWidget(self.button_check_fit, 1, 0)
         self.fit_widget_layout.addWidget(self.button_clear_check_fit, 1, 1)
         self.fit_widget_layout.addWidget(self.button_fit_and_save, 2, 0)
+        self.fit_widget_layout.addWidget(self.button_stop_fit, 2, 2)
         self.button_fit_and_save.setStyleSheet("QWidget {background-color:lightblue}")
+        self.button_stop_fit.setStyleSheet("QWidget {background-color:red}")
         # define dropdown
         self.combo_lib = QtWidgets.QComboBox(self)
         self.fit_widget_layout.addWidget(self.combo_lib, 1, 2)
@@ -558,6 +566,13 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                             # filemode="w",
                             )
         self.logger.setLevel(logging.DEBUG)
+    
+    def set_stop_flag(self, ):
+        """
+        Setting the stop_flag to True in order to stop a running fit routine
+
+        """
+        self.stop_flag = 1
 
     def set_spectrum_nr(self, spectrum_nr):
         """
@@ -571,6 +586,34 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         else:
             self.selected_spectrum = self.data.spectra[spectrum_nr]
 
+    def load_config(self, ):
+        with open(self.config_file_path, "r") as f:
+            settings = json.load(f)
+        return settings
+    
+    def save_config(self, settings):
+        print("settings", settings)
+        with open(self.config_file_path, "w") as f:
+            json.dump(settings, f, indent=2)
+        self.update_recent_menus()
+
+    def update_recent_menus(self):
+        self.recent_folder_menu.clear()
+        self.recent_files_menu.clear()
+        settings = self.load_config()
+        if settings["recent folder"]:
+            for folder_path in settings["recent folder"]:
+                action = QtGui.QAction(folder_path, self)
+                action.triggered.connect(lambda: self.load_folder(Path(folder_path)))
+                # action.triggered.connect(lambda checked, path=Path(folder_path): self.load_folder(path))
+                self.recent_folder_menu.addAction(action)
+        if settings["recent files"]:
+            for file_path in settings["recent files"]:
+                action = QtGui.QAction(file_path, self)
+                action.triggered.connect(lambda: self.load_file(angle_file=False,
+                                                                file_path=Path(file_path)))
+                self.recent_files_menu.addAction(action)
+            
     def hide_calc_min(self, ):
         """
         hide or show min_order entry
@@ -582,12 +625,12 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.entry_calc_minima_order.hide()
             self.label_calc_minima_order.hide()
 
-    def load_folder(self):
+    def load_folder(self, folder_path=None):
         try:
             self.reset_2_default()
             self.data.elements = self.elements
             self.data.label_loading_progress = self.statusBar()
-            self.data.open_data_folder()
+            self.data.open_data_folder(folder_path=folder_path)
             self.threshold_handler = FitThresholdPopup(self.data.folder_path)
             self.popup_properties.data_path = self.data.save_folder_path
             self.right_splitter.addWidget(self.popup_properties)
@@ -603,6 +646,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.show_sum_spec()
             self.roi_widget.file_type = self.data.file_type
             self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
+            # update recent folders
+            settings = self.load_config()
+            if str(self.data.folder_path) not in settings["recent folder"]:
+                settings["recent folder"].insert(0, str(self.data.folder_path))
+                self.save_config(settings=settings)
             self.statusBar().showMessage("Loading done.")
         except Exception as e:
             self.logger.debug("data folder could not be loaded with error code %s"%e)
@@ -610,12 +658,13 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.reset_2_default()
         gc.collect()
 
-    def load_file(self, angle_file=False):
-        # try:
+    def load_file(self,
+                  angle_file=False,
+                  file_path=None):
         self.reset_2_default()
         self.data.elements = self.elements
         self.data.label_loading_progress = self.statusBar()
-        self.data.open_data_file(angle_file)
+        self.data.open_data_file(angle_file, file_path=file_path)
         self.threshold_handler = FitThresholdPopup(self.data.folder_path)
         self.load_parameter_in_specfit_deconvolution()
         self.statusBar().showMessage("loading done")
@@ -626,23 +675,17 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.check_use_parameters.setChecked(False)
         self.show_sum_spec()
         self.roi_widget.file_type = self.data.file_type
+        # update recent files
+        settings = self.load_config()
+        if str(self.data.file_path) not in settings["recent files"]:
+            settings["recent files"].insert(0, str(self.data.file_path))
+            self.save_config(settings=settings)
         self.statusBar().showMessage("Loading done.")
         self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
-        # except Exception as e:
-        #     self.logger.debug("data folder could not be loaded with error code %s"%e)
-        #     self.reset_2_default()
         gc.collect()
 
     def npy_2_bin(self):
         self.data.npy_2_bin()
-
-    def split_h5(self, ):
-        """
-        Function to split the selected data.h5 file in order to fit the loaded
-        data in batches
-        """
-        split_h5()
-        self.statusBar().showMessage("### splitting done ###")
 
     def h5_2_tiff(self, ):
         """
@@ -685,9 +728,6 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.s.fit_in_progress = False
         self.ax_canvas_spectrum.set_xlabel("Energy / keV")
         self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
-        self.batch_fitting = False
-        self.sfs.check_batch_fitting.setChecked(False)
-        self.data_batch_fitting = False
         self.spectrum_nr = None
         self.canvas_spectrum.draw()
 
@@ -1222,14 +1262,133 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.ax_canvas_spectrum.legend(loc="best")
             self.canvas_spectrum.draw()
 
-    def fit_folder(self):
+    def create_empty_results(
+            self,
+            load_type="folder",
+            selected_elements=["Fe"],
+            selected_lines=[["K"]],
+            dimension=[1, 1, 1],
+            verbose=False):
         """
-        This function fits the recorded spectrum of the given folder the specfit1.py
-        program in he specific order:
-        1st it adds the choosed lines
-        3rd it fits the lines with specfit1.py and plots it in the same figure
-        4th if "clear plot" is pressed it will clear the plot and redraw
-        the measurement and the underground.
+        This function builds a dict with every chosen
+        element-line-combination and returns an np.zeros with len of
+        positions.
+
+        Parameters
+        ----------
+        load_type : str, optional
+            one of the following
+            ['file', 'angle_file', 'folder', 'msa_file', 'hdf5_file', 'bcf_file'].
+            The default is 'folder'.
+        selected_elements : list, optional
+            list of ZString of selected elements to deconvolve.
+            The default is ['Fe'].
+        selected_lines : TYPE, optional
+            concatenated list of lines corresponding to the elements which
+            have to be deconvolved. The default is [['K']].
+        dimension : list, optional
+            list of the number of measurements per dimension.
+            The default is [1, 1, 1].
+        verbose : bool, optional
+            wether to print or not, the default is False
+        Returns
+        -------
+        results : dictionary
+            In this dictionary every key [{element}_{line}_scan_{nr}] gets
+            a np.zeros in the shape of the measurement dimension. While
+            fitting this array is filled
+        """
+        assert load_type in ["file", "angle_file", "folder", "msa_file", "hdf5_file", "bcf_file",
+                                "csv_file"]
+        results = {}
+        if load_type in ["file", "angle_file"]:
+            for element, linelist in zip(selected_elements, selected_lines):
+                for line in linelist:
+                    results[f"{element}_{line}"] = np.zeros(dimension[2])
+            for label in self.pse_widget.tab_udl.get_label_list():
+                results[f"{label}"] = np.zeros(dimension[2])
+        elif load_type in ["folder", "msa_file", "hdf5_file", "bcf_file", "csv_file"]:
+            for element, linelist in zip(selected_elements, selected_lines):
+                for line in linelist:
+                    if not isinstance(dimension[0], np.ndarray):
+                        results[f"{element}_{line}"] = np.zeros(dimension)
+                    else:
+                        for scan, _ in enumerate(dimension):
+                            results[f"{element}_{line}_scan_{scan}"] = np.zeros(dimension[scan])
+
+            for label in self.pse_widget.tab_udl.get_label_list():
+                if not isinstance(dimension[0], np.ndarray):
+                    results[f"{label}"] = np.zeros(dimension)
+                else:
+                    for scan, _ in enumerate(dimension):
+                        results[f"{label}_scan_{scan}"] = np.zeros(dimension[scan])
+        return results
+
+    def save_results(
+            self, 
+            results,
+            save_path="results",
+            file_type=".spx",
+            dimension=[1, 1, 1],
+            background=False,
+            fitted_spectra=False,
+            verbose=False,
+            ):
+        for key in results.keys():
+            results_key = f"{self.data.file_name}/{key}"
+            with h5py.File(f"{save_path}/results.h5", "a") as tofile:
+                # read out stored results of h5 file as list
+                content = []
+                for meas in tofile.keys():
+                    for res in tofile[meas].keys():
+                        content.append(f"{meas}/{res}")
+                if file_type in [".MSA", ".msa"]:
+                    results[key] = results[key].reshape(np.flip(dimension))
+                if results_key in content:
+                    tofile[results_key][()] = results[key]  # replace the results already in results.h5
+                else:
+                    tofile.create_dataset(results_key,
+                                        data=results[key])
+        if background:
+            background_key = f"{self.data.file_name}/background"
+            with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
+                if background_key in list(tofile.keys()):
+                    tofile[background_key][()] = background
+                else:
+                    tofile.create_dataset(background_key, data=background)
+        if fitted_spectra:
+            fitted_spectra_key = "fitted spectra"
+            with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
+                if fitted_spectra_key in list(tofile.keys()):
+                    tofile[fitted_spectra_key][()] = fitted_spectra
+                else:
+                    tofile.create_dataset(fitted_spectra_key, data=fitted_spectra)
+           
+    def show_fit_prop_in_popup(self):
+        """
+        Function to write fit-lines to properties-popup
+        """
+        self.popup_properties.fill_text("fitted elements:\n")
+        for element, lines in zip(self.pse_widget.selected_elements, self.pse_widget.selected_lines):
+            self.popup_properties.fill_text(f"{element}: {lines}\n")
+        self.popup_properties.fill_text(f"strip cycles: {self.data.strip_cycles}\n")
+        self.popup_properties.fill_text(f"strip width: {self.data.strip_width}\n")
+        self.popup_properties.fill_text(f"life time: {self.s.life_time:f}\n")
+        self.popup_properties.fill_text(f"real time: {self.s.real_time:f}\n")
+        self.popup_properties.fill_text(f"ROI: [{self.data.roi_start:.2f} - {self.data.roi_end:.2f}] keV\n")
+        self.popup_properties.fill_text(f"used lib: {self.data.use_lib}\n")
+        if self.data.use_parameters is True:
+            self.popup_properties.fill_text(f"a0: {self.data.parameters_user[0]:f}\n")
+            self.popup_properties.fill_text(f"a1: {self.data.parameters_user[1]:f}\n")
+            self.popup_properties.fill_text(f"Fano: {self.data.parameters_user[2]:f}\n")
+            self.popup_properties.fill_text(f"FWHM: {self.data.parameters_user[3]:f}\n")
+        else:
+            self.popup_properties.fill_text("Used parameters stored in Data files")
+        self.popup_properties.show()
+
+    def prepare_fit(self,):
+        """
+        Prepare all containers for the final fit which is either file or folder
         """
         self.popup_properties.clear_popup()
         self.popup_properties.fill_text(self.popup_properties.backup_text)
@@ -1242,133 +1401,9 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                                     "csv_file"]:
             self.save_folder_path = Path(QtWidgets.QFileDialog().getExistingDirectory(self,
                                                                                  "select save folder",
-                                                                                 str(self.data.folder_path)))
-
-        def create_empty_results(load_type="folder",
-                                 selected_elements=["Fe"],
-                                 selected_lines=[["K"]],
-                                 batch_fitting=True,
-                                 dimension=[1, 1, 1],
-                                 verbose=False):
-            """
-            This function builds a dict with every chosen
-            element-line-combination and returns an np.zeros with len of
-            positions.
-
-            Parameters
-            ----------
-            load_type : str, optional
-                one of the following
-                ['file', 'angle_file', 'folder', 'msa_file', 'hdf5_file', 'bcf_file'].
-                The default is 'folder'.
-            selected_elements : list, optional
-                list of ZString of selected elements to deconvolve.
-                The default is ['Fe'].
-            selected_lines : TYPE, optional
-                concatenated list of lines corresponding to the elements which
-                have to be deconvolved. The default is [['K']].
-            batch_fitting : Bool, optional
-                if batch_fitting True the value of the first dimension is set to 1
-                The default is True.
-            dimension : list, optional
-                list of the number of measurements per dimension.
-                The default is [1, 1, 1].
-            verbose : bool, optional
-                wether to print or not, the default is False
-            Returns
-            -------
-            results : dictionary
-                In this dictionary every key [{element}_{line}_scan_{nr}] gets
-                a np.zeros in the shape of the measurement dimension. While
-                fitting this array is filled
-            """
-            assert load_type in ["file", "angle_file", "folder", "msa_file", "hdf5_file", "bcf_file",
-                                 "csv_file"]
-            if batch_fitting:
-                dimension[0] = 1
-            results = {}
-            if load_type in ["file", "angle_file"]:
-                for element, linelist in zip(selected_elements, selected_lines):
-                    for line in linelist:
-                        results[f"{element}_{line}"] = np.zeros(dimension[2])
-                for label in self.pse_widget.tab_udl.get_label_list():
-                   results[f"{label}"] = np.zeros(dimension[2])
-            elif load_type in ["folder", "msa_file", "hdf5_file", "bcf_file", "csv_file"]:
-                for element, linelist in zip(selected_elements, selected_lines):
-                    for line in linelist:
-                        if not isinstance(dimension[0], np.ndarray):
-                            results[f"{element}_{line}"] = np.zeros(dimension)
-                        else:
-                            for scan, _ in enumerate(dimension):
-                                results[f"{element}_{line}_scan_{scan}"] = np.zeros(dimension[scan])
-
-                for label in self.pse_widget.tab_udl.get_label_list():
-                    if not isinstance(dimension[0], np.ndarray):
-                        results[f"{label}"] = np.zeros(dimension)
-                    else:
-                        for scan, _ in enumerate(dimension):
-                            results[f"{label}_scan_{scan}"] = np.zeros(dimension[scan])
-            return results
-
-        def save_results(results,
-                         save_path="results",
-                         batch_fitting=True,
-                         batch_iterator=0,
-                         file_type=".spx",
-                         dimension=[1, 1, 1],
-                         save_storage=".h5",
-                         verbose=False,
-                         ):
-            if batch_fitting:
-                dimension[0] = 1
-            for key in results.keys():
-                if batch_fitting:
-                    results_key = f"{self.data.file_name}/{key}_{batch_iterator}"
-                else:
-                    results_key = f"{self.data.file_name}/{key}"
-                if save_storage == ".h5":
-                    with h5py.File(f"{save_path}/results.h5", "a") as tofile:
-                        # read out stored results of h5 file as list
-                        content = []
-                        for meas in tofile.keys():
-                            for res in tofile[meas].keys():
-                                content.append(f"{meas}/{res}")
-                        if file_type in [".MSA", ".msa"]:
-                            results[key] = results[key].reshape(np.flip(dimension))
-                        if results_key in content:
-                            tofile[results_key][()] = results[key]  # replace the results already in results.h5
-                        else:
-                            tofile.create_dataset(results_key,
-                                                  data=results[key])
-                elif save_storage == ".npy":
-                    if file_type in [".MSA", ".msa"]:
-                        results[key] = results[key].reshape(np.flip(dimension))
-                    np.save(f"{save_path}/{results_key}.npy", results[key])
-
-        def show_fit_prop_in_popup():
-            """
-            Function to write fit-lines to properties-popup
-            """
-            self.popup_properties.fill_text("fitted elements:\n")
-            for element, lines in zip(self.pse_widget.selected_elements, self.pse_widget.selected_lines):
-                self.popup_properties.fill_text(f"{element}: {lines}\n")
-            self.popup_properties.fill_text(f"strip cycles: {self.data.strip_cycles}\n")
-            self.popup_properties.fill_text(f"strip width: {self.data.strip_width}\n")
-            self.popup_properties.fill_text(f"life time: {self.s.life_time:f}\n")
-            self.popup_properties.fill_text(f"real time: {self.s.real_time:f}\n")
-            self.popup_properties.fill_text(f"ROI: [{self.data.roi_start:.2f} - {self.data.roi_end:.2f}] keV\n")
-            self.popup_properties.fill_text(f"used lib: {self.data.use_lib}\n")
-            if self.data.use_parameters is True:
-                self.popup_properties.fill_text(f"a0: {self.data.parameters_user[0]:f}\n")
-                self.popup_properties.fill_text(f"a1: {self.data.parameters_user[1]:f}\n")
-                self.popup_properties.fill_text(f"Fano: {self.data.parameters_user[2]:f}\n")
-                self.popup_properties.fill_text(f"FWHM: {self.data.parameters_user[3]:f}\n")
-            else:
-                self.popup_properties.fill_text("Used parameters stored in Data files")
-            self.popup_properties.show()
-
+                                                                                 str(self.data.folder_path)))       
         self.roi_widget.spec_nr = -1
-        roi_min, roi_max = self.data.get_roi_indicees()
+        self.roi_min, self.roi_max = self.data.get_roi_indicees()
         self.s.fit_in_progress = False
         self.store_gui_values()
         self.load_parameter_in_specfit_deconvolution()
@@ -1383,363 +1418,236 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.progress_bar.setMaximumSize(100, 18)
         self.fit_widget_layout.addWidget(self.progress_bar, 2, 1)
         self.progress_bar.show()
-        # fit every spectrum
+        self.check_nl_fit.setChecked(False)
+        self.stop_flag = 0  #: signal to stop a process. Is changed by button
+        self.button_stop_fit.show()
+        self.show_fit_prop_in_popup()   # write fit-lines to properties-popup
         if self.data.loadtype == "file":  # means only one spectrum
-            self.check_nl_fit.setChecked(False)
-            show_fit_prop_in_popup()   # write fit-lines to properties-popup
-            results = create_empty_results(load_type=self.data.loadtype,
-                                           selected_elements=self.pse_widget.selected_elements,
-                                           selected_lines=self.pse_widget.selected_lines,
-                                           batch_fitting=False,
-                                           dimension=np.copy(self.data.position_dimension)
-                                                )
-            self.check_fit(params_user=self.data.use_parameters)
-            self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
-            self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
-            # if self.check_calc_minima.isChecked():
-            #     self.s.strip()
-            # else:
-            #     self.s.strip(calc_minima=False)
-            self.s.linfit()
-            # get the results from specfit deconvolution
-            getResults = self.s.get_result()
-            # save the fitted intensities to a txt file
-            with open(self.save_file_path, "a") as infile:
-                for key in getResults.keys():
-                    try:
-                        infile.write("{}I: {}, Edge: {}, Z: {}{}\n".format("{", getResults[key]["I"], getResults[key]["Edge"], getResults[key]["Z"], "}"))
-                    except:
-                        infile.write("{}I: {}, custom line: {}{}\n".format("{", getResults[key]["I"], key, "}"))
-            if self.sfs.check_save_background.isChecked():
-                np.savetxt(self.save_folder_path / "background.txt",
-                           np.column_stack([self.data.energies, self.s.Strip]),
-                           delimiter="\t")
-            if self.sfs.check_save_fitted_spectrum.isChecked():
-                np.savetxt(self.save_folder_path / "fitted_spectrum.txt",
-                           np.column_stack([self.data.energies, self.s.calc_spec()]),
-                           delimiter="\t")
+            self.fit_file()
         elif self.data.loadtype == "angle_file":
-            time_file_start = time.time()
-            results = create_empty_results(load_type=self.data.loadtype,
-                                           selected_elements=self.pse_widget.selected_elements,
-                                           selected_lines=self.pse_widget.selected_lines,
-                                           batch_fitting=False,
-                                           dimension=np.copy(self.data.position_dimension))
-            self.check_use_parameters.setChecked(True)
-            show_fit_prop_in_popup()
-            partitions = len(self.data.spectra)
-            # if the background should be save, an empty container will be created here
-            if self.sfs.check_save_background.isChecked():
-                background = np.zeros((partitions, len(self.data.energies)))
-            if self.sfs.check_save_fitted_spectrum.isChecked():
-                fitted_spectra = np.zeros((partitions, len(self.data.energies)))
-            for angle in range(partitions):
-                if np.sum(self.data.spectra[angle][roi_min:roi_max])> self.data.mincount:
-                    self.roi_widget.spec_nr = angle
-                    self.load_spec_in_specfit_deconvolution()
-                    if self.data.bg_zero is True:
-                        self.s.Strip = np.zeros(len(self.s.meas_load))
-                    else :
-                        self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
-                        # if self.check_calc_minima.isChecked():
-                        #     self.s.strip()
-                        # else:
-                        #     self.s.strip(calc_minima=False)
-                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)),
-                                                      self.data.parameters_user[0],
-                                                      self.data.parameters_user[1],
-                                                      str(angle))
-                    self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
-                    self.s.linfit()
-                    self.plot_canvas(spectrum=self.s.meas_load,
-                                     energy=self.data.energies,
-                                     background=self.s.Strip,
-                                     calc_spec=self.s.calc_spec(),
-                                     initialize=False)
-
-                    sp_results = self.s.get_result()
-                    for result_key in sp_results.keys():  # result_key for example: CR_K
-                        results[result_key][angle] = sp_results[result_key]["I"]
-                else:
-                    result_keys = self.s.get_result_keys()
-                    for rk in result_keys:  # result_key for example: CR_K
-                        results[rk][angle] = 0
-                # if the background should be saved, store the estimated
-                # background s.Strip to the background array
-                if self.sfs.check_save_background.isChecked():
-                    background[angle] = self.s.Strip
-                if self.sfs.check_save_fitted_spectrum.isChecked():
-                    fitted_spectra[angle] = self.s.calc_spec()
-                if angle % 1 == 0:
-                    time_file_end = time.time()
-                    time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(angle+1))/(angle+1))
-                    self.progress_bar.setValue(int((angle+1)/float(len(self.data.spectra))*100.0))
-                    self.statusBar().showMessage("progress : {:.0f}/{:.0f} - {:.2f} %% - time to go: {}".format(angle+1,
-                                                                                                len(self.data.spectra),
-                                                                                                (angle+1)/float(len(self.data.spectra))*100.0,
-                                                                                                time.strftime("%H:%M:%S",
-                                                                                                              time2go)))
-                    QtWidgets.QApplication.processEvents()
-                self.s.fit_in_progress = True
-            for key in results.keys():
-                print("here is the key as follows: ", key)
-                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
-                    if key in list(tofile.keys()):
-                        tofile[key][()] = results[key]
-                    else:
-                        tofile.create_dataset(key,
-                                              data=results[key])
-            if self.sfs.check_save_background.isChecked():
-                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
-                    if "background" in list(tofile.keys()):
-                        tofile["background"][()] = background
-                    else:
-                        tofile.create_dataset(f"{self.data.file_name}/background", data=background)
-            if self.sfs.check_save_fitted_spectrum.isChecked():
-                with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
-                    if "fitted spectra" in list(tofile.keys()):
-                        tofile["fitted spectra"][()] = fitted_spectra
-                    else:
-                        tofile.create_dataset(f"{self.data.file_name}/fitted spectra", data=fitted_spectra)
-            self.popup_properties.save_props()
+            self.fit_angle_file()
         elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "csv_file"]:
-            show_fit_prop_in_popup()
-            # check if the data file was splitted
-            datah5_files = ns.natsorted(self.data.folder_path.glob("data/data_*.h5"))
-            if len(datah5_files) != 0:
-                # if splitted files are detected, ask if batch fitting should
-                # be performed or data.h5
-                self.data_batch_fitting = QtWidgets.QMessageBox.question(self, "?",
-                                                                    "Splitted data.h5 detected. Do you want to batch fit or use data.h5?",
-                                                                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                                    QtWidgets.QMessageBox.No)
-                if self.data_batch_fitting:
-                    data_batches = len(datah5_files)
-                    self.sfs.check_batch_fitting.setChecked(False)
-            else:
-                data_batches = 1
-            # now iterate over all data_batches
-            for data_batch in range(data_batches):
-                # now load into specfit.data the data from
-                if self.data_batch_fitting:
-                    self.data.update_data_from_h5file(datah5_files[data_batch])
-                # get the number of spectra
-                partitions = len(self.data.spectra)
-                # check if batch fitting is activated and create a batch_iterator
-                self.batch_fitting = self.sfs.check_batch_fitting.checkState().value
-                # check the type of save_storage
-                if self.sfs.check_save_storage.checkState().value:
-                    save_storage = ".npy"
-                else:
-                    save_storage = ".h5"
-                if self.batch_fitting:
-                    batch_iterator = -1
-                else:
-                    batch_iterator = 0
-                # here the partitions of the loaded spectra are stored in a sorted order
-                if not self.batch_fitting:
-                    results = create_empty_results(load_type=self.data.loadtype,
-                                                   selected_elements=self.pse_widget.selected_elements,
-                                                   selected_lines=self.pse_widget.selected_lines,
-                                                   batch_fitting=False,
-                                                   dimension=np.copy(self.data.position_dimension))
-                # if the background should be save, an empty container will be created here
-                if self.sfs.check_save_background.isChecked():
-                    background = np.zeros((partitions, len(self.data.energies)))
-                if self.sfs.check_save_fitted_spectrum.isChecked():
-                    fitted_spectra = np.zeros((partitions, len(self.data.energies)))
-                # start the clock for calculation time
-                time_file_start = time.time()
-                # now sort the tensor_positions to be compatible with the
-                # sorted spectra dict
-                if not isinstance(self.data.position_dimension[0], np.ndarray):
-                    self.data.tensor_positions = np.asarray(ns.natsorted(self.data.tensor_positions))
-                # start the deconvolution for every measurement point
-                for i in range(partitions):
-                    # set the fit in progress to True if first deconvolution was
-                    # succesfully performed
-                    if i == 1:
-                        self.s.fit_in_progress = True
-                    # if batch fitting is activated create a new results for every
-                    # row in the measured map
-                    if self.batch_fitting:
-                        if i % self.data.position_dimension[1] == 0:
-                            # if already on row was deconvolved, save it in the results h5
-                            if batch_iterator > -1:
-                                save_results(results=results,
-                                             save_path=self.save_folder_path,
-                                             batch_fitting=self.batch_fitting,
-                                             batch_iterator=batch_iterator,
-                                             file_type=self.data.file_type,
-                                             save_storage=save_storage,
-                                             dimension=np.copy(self.data.position_dimension))
-                            # create an empty list
-                            results = create_empty_results(load_type=self.data.loadtype,
-                                                           selected_elements=self.pse_widget.selected_elements,
-                                                           selected_lines=self.pse_widget.selected_lines,
-                                                           batch_fitting=True,
-                                                           dimension=np.copy(self.data.position_dimension))
-                            batch_iterator += 1
-                    # try retrieving spectrum data, or load spectrum from
-                    # single_spectra folder
-                    try:
-                        cur_spectra = self.data.spectra[i]
-                    except IndexError:
-                        cur_spectra = np.load(self.folder_path / "single_spectra/spectrum_{i}.npy")
-                    # if the set minimal count rate per spectrum is exceeded
-                    # perform the deconvolution
-                    if self.data.mincount == 0 or np.sum(cur_spectra[roi_min:roi_max])> self.data.mincount:# TODO geht nicht mit einzelspektren
-                        self.roi_widget.spec_nr = i
-                        # load the parameters of the spectrum into specfit deconvolution
-                        self.load_parameter_in_specfit_deconvolution()
-                        self.load_spec_in_specfit_deconvolution(spectrum_nr=i)
-                        # if the background is to be set to 0 (low scattering),
-                        # set the background s.Strip to zero
-                        if self.data.bg_zero is True:
-                            self.s.Strip = np.zeros(len(self.s.meas_load))
-                        else:
-                            self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
-                            # if self.check_calc_minima.isChecked():
-                            #     self.s.strip()
-                            # else:
-                            #     self.s.strip(calc_minima=False)
-                        # if the background should be saved, store the estimated
-                        # background s.Strip to the background array
-                        if self.sfs.check_save_background.isChecked():
-                            background[i] = self.s.Strip
-                        if self.pse_widget.tab_udl.number_lines > 0:
-                            parameters = self.get_selected_parameters()
-                            self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), parameters[0], parameters[1], str(i) )
-                            self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
-                        self.s.linfit()
-                        if self.sfs.check_save_fitted_spectrum.isChecked():
-                            fitted_spectra[i] = self.s.calc_spec()
-                        self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
-                                         initialize=False)
-                        # now get all fit-results
-                        getResults = self.s.get_result()
-                        # and now fill them into the results array on the corresponding
-                        # position
-                        for k, key in enumerate(results.keys()):
-                            if not isinstance(self.data.position_dimension[0], np.ndarray):
-                                if self.batch_fitting:
-                                    results[key][0][self.data.tensor_positions[i, 1]][self.data.tensor_positions[i, 2]] = getResults[key]["I"]
-                                else:
-                                    results[key][self.data.tensor_positions[i, 0]][self.data.tensor_positions[i, 1]][self.data.tensor_positions[i, 2]] = getResults[key]["I"]
-                            else:
-                                for scan, sum_len_scan in enumerate(self.data.sum_len_scans):
-                                    if i in sum_len_scan:
-                                        element_key = "_".join(key.split("_")[:-1])+f"{scan:d}"
-                                        if len(self.data.len_scans) > 1:
-                                            index_0 = self.data.tensor_positions[scan][0][
-                                                i - np.sum(self.data.len_scans[:scan]), 0]
-                                            index_1 = self.data.tensor_positions[scan][0][
-                                                i - np.sum(self.data.len_scans[:scan]), 1]
-                                            index_2 = self.data.tensor_positions[scan][0][
-                                                i - np.sum(self.data.len_scans[:scan]), 2]
-                                        else:
-                                            index_0 = self.data.tensor_positions[scan][i][0]
-                                            index_1 = self.data.tensor_positions[scan][i][1]
-                                            index_2 = self.data.tensor_positions[scan][i][2]
-                                        results[element_key][index_0][index_1][index_2] = \
-                                            getResults["_".join(key.split("_")[:-2])]["I"]
-                                        continue
-                    else:
-                        for key in self.s.get_result_keys():
-                            results[key][self.data.tensor_positions[i][0]][self.data.tensor_positions[i][1]][
-                                self.data.tensor_positions[i][2]] = 0
-                        continue
-                    # here the progress of the fitting will be calculated and displayed
-                    if i % 1 == 0:
-                        time_file_end = time.time()
-                        time2go = time.gmtime((time_file_end-time_file_start)*(partitions-(i+1))/(i+1))
-                    self.progress_bar.setValue(int(((i+1)//len(self.data.spectra))*100))
-                    self.statusBar().showMessage(f"progress : batch {data_batch+1}/{len(datah5_files)} - {i+1}/{partitions} - {(i+1)/float(partitions)*100:.2f}% - time to go: {time.strftime('%H:%M:%S', time2go)} s")
-                    QtWidgets.QApplication.processEvents()
-                # save the fluorescence intensities to the results.h5 file
-                # if the data file is splitted in batches, save each batch
-                # as new results in results.h5
-                if self.data_batch_fitting:
-                    save_results(results=results,
-                                 save_path=self.save_folder_path,
-                                 batch_fitting=True,
-                                 batch_iterator=data_batch,
-                                 file_type=self.data.file_type,
-                                 save_storage=save_storage,
-                                 dimension=np.copy(self.data.position_dimension))
-                else:
-                    save_results(results=results,
-                                 save_path=self.save_folder_path,
-                                 batch_fitting=self.batch_fitting,
-                                 batch_iterator=batch_iterator,
-                                 file_type=self.data.file_type,
-                                 save_storage=save_storage,
-                                 dimension=np.copy(self.data.position_dimension))
-                # if the background should be saved, store the background to the
-                # results.h5 file
-                if self.sfs.check_save_background.isChecked():
-                    if self.data_batch_fitting:
-                        background_key = f"{self.data.file_name}/background_{data_batch}"
-                    else:
-                        background_key = f"{self.data.file_name}/background"
-                    with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
-                        if background_key in list(tofile.keys()):
-                            tofile[background_key][()] = background
-                        else:
-                            tofile.create_dataset(background_key, data=background)
-                # the fitted spectra should be saved, store them into results.h5
-                if self.sfs.check_save_fitted_spectrum.isChecked():
-                    if self.data_batch_fitting:
-                        fitted_spectra_key = f"fitted spectra_{data_batch}"
-                    else:
-                        fitted_spectra_key = "fitted spectra"
-                    with h5py.File(self.save_folder_path / "results.h5", "a") as tofile:
-                        if fitted_spectra_key in list(tofile.keys()):
-                            tofile[fitted_spectra_key][()] = fitted_spectra
-                        else:
-                            tofile.create_dataset(fitted_spectra_key, data=fitted_spectra)
-        # if batch fitting all the single batches are concatenated to one
-        # result in the results.h5
-        if self.batch_fitting or self.data_batch_fitting:
-            if save_storage == ".h5":
-                with h5py.File(self.save_folder_path / "results.h5", "r+") as tofile:
-                    unique_keys = np.unique(["_".join(key.split("_")[:2]) for key in tofile.keys()])
-                    if self.batch_fitting:
-                        rows = self.data.position_dimension[0]
-                    elif self.data_batch_fitting:
-                        rows = data_batch+1
-                    for results_key in unique_keys:
-                        print("the results key here is noted as ", results_key)
-                        results_key = f"{self.data.file_name}/{results_key}"
-                        if results_key+"_0" in tofile:
-                            results = tofile[results_key+"_0"][()]
-                            del tofile[results_key+"_0"]
-                            for batch in range(rows-1):
-                                results = np.concatenate((results, tofile[results_key+f"_{batch+1}"]), axis=0)
-                                del tofile[results_key+f"_{batch+1}"]
-                            if results_key in tofile:
-                                tofile[results_key][()] = results
-                            else:
-                                tofile.create_dataset(results_key,
-                                                      data=results)
-            else:
-                files = self.save_folder_path.glob("*.npy")
-                unique_keys = np.unique(["_".join(key.split("/")[-1].split("_")[:2]) for key in files])
-                files = [key.split("/")[-1].replace(".npy", "") for key in files]
-                rows = self.data.position_dimension[0]
-                for results_key in unique_keys:
-                    if results_key + "_0" in files:
-                        results = np.load(self.save_folder_path / f"{results_key}_0.npy")
-                        (self.save_folder_path / f"{results_key}_0.npy").unlink()
-                    for batch in range(rows-1):
-                        results = np.concatenate((results, np.load(self.save_folder_path / f"{results_key}_{batch+1}.npy")), axis=0)
-                        (self.save_folder_path / f"{results_key}_{batch+1}.npy").unlink()
-                    np.save(self.save_folder_path / f"{results_key}.npy", results)
+            self.fit_folder()
+        self.button_stop_fit.hide()
         self.popup_properties.save_props()
         compute_time_end = time.time()
         self.pse_widget.tab_udl.print_gaussian_fit_error_results()
         self.progress_bar.hide()
-        self.statusBar().showMessage(f"saving done - time : {time.strftime('%H:%M:%S', time.gmtime(compute_time_end-compute_time_start))} s")
+        self.statusBar().showMessage(f"time : {time.strftime('%H:%M:%S', time.gmtime(compute_time_end-compute_time_start))} s")
+        gc.collect()
+
+    def fit_file(self, ):
+        """
+        Fit the file loaded
+        """
+        results = self.create_empty_results(load_type=self.data.loadtype,
+                                        selected_elements=self.pse_widget.selected_elements,
+                                        selected_lines=self.pse_widget.selected_lines,
+                                        dimension=np.copy(self.data.position_dimension)
+                                            )
+        self.check_fit(params_user=self.data.use_parameters)
+        self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
+        self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+        self.s.linfit()
+        # get the results from specfit deconvolution
+        getResults = self.s.get_result()
+        # save the fitted intensities to a txt file
+        with open(self.save_file_path, "a") as infile:
+            for key in getResults.keys():
+                try:
+                    infile.write("{}I: {}, Edge: {}, Z: {}{}\n".format("{", getResults[key]["I"], getResults[key]["Edge"], getResults[key]["Z"], "}"))
+                except:
+                    infile.write("{}I: {}, custom line: {}{}\n".format("{", getResults[key]["I"], key, "}"))
+        if self.sfs.check_save_background.isChecked():
+            np.savetxt(self.save_folder_path / "background.txt",
+                        np.column_stack([self.data.energies, self.s.Strip]),
+                        delimiter="\t")
+        if self.sfs.check_save_fitted_spectrum.isChecked():
+            np.savetxt(self.save_folder_path / "fitted_spectrum.txt",
+                        np.column_stack([self.data.energies, self.s.calc_spec()]),
+                        delimiter="\t")
+    
+    def fit_angle_file(self, ):
+        """
+        Fit an angle resolved file
+        """
+        time_file_start = time.time()
+        results = self.create_empty_results(load_type=self.data.loadtype,
+                                        selected_elements=self.pse_widget.selected_elements,
+                                        selected_lines=self.pse_widget.selected_lines,
+                                        dimension=np.copy(self.data.position_dimension))
+        self.check_use_parameters.setChecked(True)
+        # if the background should be save, an empty container will be created here
+        if self.sfs.check_save_background.isChecked():
+            background = np.zeros((len(self.data.spectra), len(self.data.energies)))
+        if self.sfs.check_save_fitted_spectrum.isChecked():
+            fitted_spectra = np.zeros((len(self.data.spectra), len(self.data.energies)))
+        for angle in range(len(self.data.spectra)):
+            if np.sum(self.data.spectra[angle][self.roi_min:self.roi_max])> self.data.mincount:
+                self.roi_widget.spec_nr = angle
+                self.load_spec_in_specfit_deconvolution()
+                if self.data.bg_zero is True:
+                    self.s.Strip = np.zeros(len(self.s.meas_load))
+                else :
+                    self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+                self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)),
+                                                    self.data.parameters_user[0],
+                                                    self.data.parameters_user[1],
+                                                    str(angle))
+                self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
+                self.s.linfit()
+                self.plot_canvas(spectrum=self.s.meas_load,
+                                    energy=self.data.energies,
+                                    background=self.s.Strip,
+                                    calc_spec=self.s.calc_spec(),
+                                    initialize=False)
+
+                sp_results = self.s.get_result()
+                for result_key in sp_results.keys():  # result_key for example: CR_K
+                    results[result_key][angle] = sp_results[result_key]["I"]
+            else:
+                result_keys = self.s.get_result_keys()
+                for rk in result_keys:  # result_key for example: CR_K
+                    results[rk][angle] = 0
+            # if the background should be saved, store the estimated
+            # background s.Strip to the background array
+            if self.sfs.check_save_background.isChecked():
+                background[angle] = self.s.Strip
+            if self.sfs.check_save_fitted_spectrum.isChecked():
+                fitted_spectra[angle] = self.s.calc_spec()
+            if angle % 1 == 0:
+                time_file_end = time.time()
+                time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(angle+1))/(angle+1))
+                self.progress_bar.setValue(int((angle+1)/float(len(self.data.spectra))*100.0))
+                self.statusBar().showMessage("progress : {:.0f}/{:.0f} - {:.2f} %% - time to go: {}".format(angle+1,
+                                                                                            len(self.data.spectra),
+                                                                                            (angle+1)/float(len(self.data.spectra))*100.0,
+                                                                                            time.strftime("%H:%M:%S",
+                                                                                                            time2go)))
+                QtWidgets.QApplication.processEvents()
+            self.s.fit_in_progress = True
+        if not self.sfs.check_save_background.isChecked():
+            background = False
+        if not self.sfs.check_save_fitted_spectrum.isChecked():
+            fitted_spectra = False
+        self.save_results(
+            results=results,
+            save_path=self.save_folder_path,
+            file_type=self.data.file_type,
+            dimension=np.copy(self.data.position_dimension),
+            background=background,
+            fitted_spectra=fitted_spectra,
+            verbose=False
+        )
+        self.popup_properties.save_props()
+
+    def fit_folder(self):
+        """
+        Fit all loaded spectra 
+        """
+        results = self.create_empty_results(
+                load_type=self.data.loadtype,
+                selected_elements=self.pse_widget.selected_elements,
+                selected_lines=self.pse_widget.selected_lines,
+                dimension=np.copy(self.data.position_dimension))
+        # if the background should be save, an empty container will be created here
+        if self.sfs.check_save_background.isChecked():
+            background = np.zeros((len(self.data.spectra), len(self.data.energies)))
+        if self.sfs.check_save_fitted_spectrum.isChecked():
+            fitted_spectra = np.zeros((len(self.data.spectra), len(self.data.energies)))
+        # start the clock for calculation time
+        time_file_start = time.time()
+        # now sort the tensor_positions to be compatible with the
+        # sorted spectra dict
+        if not isinstance(self.data.position_dimension[0], np.ndarray):
+            self.data.tensor_positions = np.asarray(ns.natsorted(self.data.tensor_positions))
+        # start the deconvolution for every measurement point
+        for i in range(len(self.data.spectra)):
+            # set the fit in progress to True if first deconvolution was
+            # succesfully performed
+            if self.stop_flag == 1:
+                self.statusBar().showMessage(f"fit stopped.")
+                return None
+            if i == 1:
+                self.s.fit_in_progress = True
+            cur_spectra = self.data.spectra[i]
+            # if the set minimal count rate per spectrum is exceeded
+            # perform the deconvolution
+            if self.data.mincount == 0 or np.sum(cur_spectra[self.roi_min:self.roi_max])> self.data.mincount:# TODO geht nicht mit einzelspektren
+                self.roi_widget.spec_nr = i
+                # load the parameters of the spectrum into specfit deconvolution
+                self.load_parameter_in_specfit_deconvolution()
+                self.load_spec_in_specfit_deconvolution(spectrum_nr=i)
+                # if the background is to be set to 0 (low scattering),
+                # set the background s.Strip to zero
+                if self.data.bg_zero is True:
+                    self.s.Strip = np.zeros(len(self.s.meas_load))
+                else:
+                    self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
+                # if the background should be saved, store the estimated
+                # background s.Strip to the background array
+                if self.sfs.check_save_background.isChecked():
+                    background[i] = self.s.Strip
+                if self.pse_widget.tab_udl.number_lines > 0:
+                    parameters = self.get_selected_parameters()
+                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), parameters[0], parameters[1], str(i) )
+                    self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
+                self.s.linfit()
+                if self.sfs.check_save_fitted_spectrum.isChecked():
+                    fitted_spectra[i] = self.s.calc_spec()
+                self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
+                                    initialize=False)
+                # now get all fit-results
+                getResults = self.s.get_result()
+                # and now fill them into the results array on the corresponding
+                # position
+                for k, key in enumerate(results.keys()):
+                    if not isinstance(self.data.position_dimension[0], np.ndarray):
+                        results[key][self.data.tensor_positions[i, 0]][self.data.tensor_positions[i, 1]][self.data.tensor_positions[i, 2]] = getResults[key]["I"]
+                    else:
+                        for scan, sum_len_scan in enumerate(self.data.sum_len_scans):
+                            if i in sum_len_scan:
+                                element_key = "_".join(key.split("_")[:-1])+f"{scan:d}"
+                                if len(self.data.len_scans) > 1:
+                                    index_0 = self.data.tensor_positions[scan][0][
+                                        i - np.sum(self.data.len_scans[:scan]), 0]
+                                    index_1 = self.data.tensor_positions[scan][0][
+                                        i - np.sum(self.data.len_scans[:scan]), 1]
+                                    index_2 = self.data.tensor_positions[scan][0][
+                                        i - np.sum(self.data.len_scans[:scan]), 2]
+                                else:
+                                    index_0 = self.data.tensor_positions[scan][i][0]
+                                    index_1 = self.data.tensor_positions[scan][i][1]
+                                    index_2 = self.data.tensor_positions[scan][i][2]
+                                results[element_key][index_0][index_1][index_2] = \
+                                    getResults["_".join(key.split("_")[:-2])]["I"]
+                                continue
+            else:
+                for key in self.s.get_result_keys():
+                    results[key][self.data.tensor_positions[i][0]][self.data.tensor_positions[i][1]][
+                        self.data.tensor_positions[i][2]] = 0
+                continue
+            # here the progress of the fitting will be calculated and displayed
+            if i % 1 == 0:
+                time_file_end = time.time()
+                time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(i+1))/(i+1))
+            self.progress_bar.setValue(int(((i+1)/len(self.data.spectra))*100))
+            self.statusBar().showMessage(f"progress : {i+1}/{len(self.data.spectra)} - {(i+1)/float(len(self.data.spectra))*100:.2f}% - time to go: {time.strftime('%H:%M:%S', time2go)} s")
+            QtWidgets.QApplication.processEvents()
+            # save the fluorescence intensities to the results.h5 file
+            if not self.sfs.check_save_background.isChecked():
+                background = False
+            if not self.sfs.check_save_fitted_spectrum.isChecked():
+                fitted_spectra = False
+            self.save_results(
+                results=results,
+                save_path=self.save_folder_path,
+                file_type=self.data.file_type,
+                dimension=np.copy(self.data.position_dimension),
+                background=background,
+                fitted_spectra=fitted_spectra,
+                verbose=False
+                )
 
     # define functions used by plot interaction
     def _on_button_press(self, event):

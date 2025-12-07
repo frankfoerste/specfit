@@ -47,7 +47,7 @@ class PeriodicTable(QtWidgets.QWidget):
         self.selected_lines = []
         self.user_defined_lines = []
         self.setStyleSheet("QWidget { "\
-                        #    +"color: black; background-color:white;" \
+                           +"color: black; background-color:white;" \
                            +"}"\
                            +"QLabel {font-size: 11px;} "\
                            +"QLineEdit {font-size: 11px} "\

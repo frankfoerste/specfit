@@ -142,10 +142,10 @@ class DataHandler():
             self.parameters_user = np.zeros(8)
         self.use_parameters = False  # if True use parameters_user else parameter_data
         self.bg_zero = False  # do not calculate background
-        self.strip_cycles = 15
+        self.strip_cycles = 10
         self.strip_width = 60
         self.smooth_cycles = 1
-        self.smooth_width = 2
+        self.smooth_width = 10
         self.roi_start = 0.1  # investigated region start in keV
         self.roi_end = 15.  # investigated region end in keV
         self.calc_minima = False  # prior smoothing calc of minima in spectrum
@@ -174,7 +174,9 @@ class DataHandler():
         self.label_loading_progress = None
         self.use_lib = "xraylib"
 
-    def _get_file_path(self, angle_file):
+    def _get_file_path(self, 
+                       angle_file,
+                       file_path):
         """
         read out file_path utilizing a QFileDialog and determine the loadtype
         as either angle_file or file
@@ -183,15 +185,18 @@ class DataHandler():
             loadtype = "angle_file"
         else:
             loadtype = "file"
-        try:
-            file_path = self.file_dialog.getOpenFileName(
-                filter="(*.spx *.MSA *.txt *.spe *.mca *.dat *.hdf5 *.h5 *.bcf *.csv *.msa)")[0]
+        if not file_path:
+            try:
+                file_path = self.file_dialog.getOpenFileName(
+                    filter="(*.spx *.MSA *.txt *.spe *.mca *.dat *.hdf5 *.h5 *.bcf *.csv *.msa)")[0]
+                self.file_path = Path(file_path)
+                self.label_loading_progress.showMessage(str(self.file_path))
+                assert self.file_path.exists()
+            except:
+                self.label_loading_progress.showMessage("file does not exist")
+                self.file_path = "not_found"
+        else:
             self.file_path = Path(file_path)
-            self.label_loading_progress.showMessage(str(self.file_path))
-            assert self.file_path.exists()
-        except:
-            self.label_loading_progress.showMessage("file does not exist")
-            self.file_path = "not_found"
         return self.file_path, loadtype
 
     def _get_folder_path(self):
@@ -212,7 +217,7 @@ class DataHandler():
         """
         return the file name
         """
-        return file_path.name
+        return Path(file_path).name
 
     def check_h5(self, ):
         """
@@ -297,8 +302,11 @@ class DataHandler():
         idx_max = (np.abs(np.subtract(self.energies, self.roi_end))).argmin()
         return idx_min, idx_max
 
-    def open_data_file(self, angle_file=False):
-        self.file_path, self.loadtype = self._get_file_path(angle_file)
+    def open_data_file(self,
+                       angle_file=False,
+                       file_path=None):
+        self.file_path, self.loadtype = self._get_file_path(angle_file=angle_file,
+                                                            file_path=file_path)
         self.file_name = self._get_file_name(self.file_path)
         self.folder_path = self.get_folder_of_path()
         self.save_data_folder_path = self.folder_path / "data"
@@ -429,8 +437,10 @@ class DataHandler():
                     self.spectra, self.parameters, self.tensor_positions, \
                     self.position_dimension, self.sum_spec = angles.txt2spec_para(self.file_path)
         
-        print("I am now updating from the h5file")
-        self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
+        try:
+            self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
+        except FileNotFoundError:
+            return 
         self.parameters = np.array(self.parameters)
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
@@ -450,13 +460,17 @@ class DataHandler():
         self.parent.entry_fano.setText(f"{self.parameters[0][2]}")
         self.parent.entry_FWHM.setText(f"{self.parameters[0][3]}")
 
-    def open_data_folder(self):
+    def open_data_folder(self,
+                         folder_path=None):
         """
         This function reads out the given folder, decides wether its .spx, or .txt
         and loads the spectra, and parameters.
         """
         self.loadtype = "folder"
-        self.folder_path = self._get_folder_path()
+        if not folder_path:
+            self.folder_path = self._get_folder_path()
+        else:
+            self.folder_path = folder_path
         self.file_name = self._get_file_name(self.folder_path)
         if self.folder_path != "not_found":
             self.save_data_folder_path = self.folder_path / "data"
@@ -517,9 +531,7 @@ class DataHandler():
                             tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
                     if f"{self.file_name}/position dimension" not in tofile:
                         tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
-
         assert self.load_stored_spec_and_param(folder=True)
-        print("I am now updating from the h5file")
         self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
         self.life_time = self.parameters[0][4]
         self.real_time = self.parameters[0][7]
@@ -719,11 +731,6 @@ class DataHandler():
                     self.parent.sfs.entry_Escape_threshold.setText(value)
                 elif key == "Escape_factor":
                     self.parent.sfs.entry_Escape_factor.setText(value)
-                elif key == "fit_in_batches":
-                    if eval(value):
-                        self.parent.sfs.check_batch_fitting.setCheckState(QtCore.Qt.CheckState.Checked)
-                    else:
-                        self.parent.sfs.check_batch_fitting.setCheckState(QtCore.Qt.CheckState.Unchecked)
                 elif key == "save_background":
                     if eval(value):
                         self.parent.sfs.check_save_background.setCheckState(QtCore.Qt.CheckState.Checked)
@@ -734,11 +741,6 @@ class DataHandler():
                         self.parent.sfs.check_save_fitted_spectrum.setCheckState(QtCore.Qt.CheckState.Checked)
                     else:
                         self.parent.sfs.check_save_fitted_spectrum.setCheckState(QtCore.Qt.CheckState.Unchecked)
-                elif key == "save_storage":
-                    if eval(value):
-                        self.parent.sfs.check_save_storage.setCheckState(QtCore.Qt.CheckState.Checked)
-                    else:
-                        self.parent.sfs.check_save_storage.setCheckState(QtCore.Qt.CheckState.Unchecked)
         else:
             if self.loadtype == "folder" and type(self.parameters[0] == list):
                 self.parameters_user = self.parameters[0]
@@ -757,11 +759,6 @@ class DataHandler():
         if Path(filename).suffix not in [".txt", ".dat"]:
             filename += ".dat"
         # determine check state
-        batch_fitting = self.parent.sfs.check_batch_fitting.checkState().value
-        if batch_fitting == 0:
-            batch_fitting = False
-        else:
-            batch_fitting = True
         save_background = self.parent.sfs.check_save_background.checkState().value
         if save_background == 0:
             save_background = False
@@ -772,11 +769,6 @@ class DataHandler():
             save_fitted_spectrum = False
         else:
             save_fitted_spectrum = True
-        save_storage = self.parent.sfs.check_save_storage.checkState().value
-        if save_storage == 0:
-            save_storage = False
-        else:
-            save_storage = True
         # save parameter to file
         try:
             with open(filename, "w") as f:
@@ -788,7 +780,6 @@ class DataHandler():
                 f.write(f"background=0:{self.bg_zero}\n")
                 f.write(f"save_background:{save_background}\n")
                 f.write(f"save_fitted_spectrum:{save_fitted_spectrum}\n")
-                f.write(f"save_storage:{save_storage}\n")
                 f.write(f"strip_cycles:{self.strip_cycles}\n")
                 f.write(f"strip_width:{self.strip_width}\n")
                 f.write(f"smooth_cycles:{self.smooth_cycles}\n")
@@ -801,7 +792,6 @@ class DataHandler():
                 f.write(f"calc_minima_order:{self.calc_minima_order}\n")
                 f.write(f"threshold:{self.threshold}\n")
                 f.write(f"use_lib:{self.use_lib}\n")
-                f.write(f"fit_in_batches:{batch_fitting}\n")
                 f.write(f"calc_PU:{self.parent.s.calc_PU}\n")
                 f.write(f"PU_threshold:{self.parent.s.PU_threshold}\n")
                 f.write(f"PU_factor:{self.parent.s.PU_factor}\n")
