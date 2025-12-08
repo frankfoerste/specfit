@@ -91,8 +91,8 @@ def bcf2spec_para(file_path, return_values=False, verbose=False):
     ds["spectra"] = xr.DataArray(spectra,
                                  dims=("X", "Y", "Z", "energy"),
                                  coords={"energy": np.arange(a0, a0 + a1*(channels), a1),
-                                         "X": np.arange(X0, X0+dx*data.data.shape[0]-dx, dx),
-                                         "Y": np.arange(Y0, Y0+dy*data.data.shape[1]-dy, dy),
+                                         "X": np.linspace(start=X0, stop=X0+dx*data.data.shape[0]-dx, num=data.data.shape[0]),
+                                         "Y": np.linspace(start=Y0, stop=Y0+dy*data.data.shape[1]-dy, num=data.data.shape[1]),
                                          "Z": np.array([Z0])},
                                  attrs={"units": "counts per second"})
     ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),

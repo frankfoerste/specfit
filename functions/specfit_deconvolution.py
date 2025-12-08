@@ -5,6 +5,7 @@ import numpy as np
 from scipy.optimize import least_squares, lsq_linear
 from scipy.signal import argrelextrema, convolve
 import xraylib as xrl
+from numba import jit
 
 class HiddenPrints:
     def __enter__(self):
@@ -546,17 +547,7 @@ class SpecFit(object):
                striped spectrum (NetSpec)
             4) store the fitted intensities in the Lines dict (Lines) as results
         """
-        def residual_calibration(params, NetSpec, M):
-                """
-                This function calculates the residual (the difference of fit and data)
-                for the complete calibration
-                """
-                M_shape = M.shape
-                resid = np.zeros(NetSpec.shape)
-                for i in range(M_shape[-1]):
-                    resid = np.sum(NetSpec - np.sum(M*params.reshape(M.shape[:3]+(1, M.shape[4])), axis = -1), axis = -1)
-                resid = np.nan_to_num(resid)
-                return resid.flatten().astype(np.float64)
+        
         if self.fit_in_progress is False:
             self.nl_det()
             self.calc_M()
@@ -566,7 +557,7 @@ class SpecFit(object):
         else:
             self.NetSpec = self.meas_load[..., self.Bins[0]:self.Bins[-1]+1] - self.Strip[..., self.Bins[0]:self.Bins[-1]+1]
             self.M = np.broadcast_to(self.M, self.NetSpec.shape[:-1]+self.M.shape)
-            lsq_linear_result = least_squares(residual_calibration,
+            lsq_linear_result = least_squares(self.residual_linfit,
                                    np.ones(self.M.shape[:3]+(self.M.shape[4], )).flatten().astype(np.float64),
                                    jac = "3-point",
                                    method = "dogbox",
@@ -578,6 +569,18 @@ class SpecFit(object):
         for i, _ in enumerate(self.user_defined_lines):
             self.result_udl.append(np.sum(self.M[:, len(self.Lines)+i])/I[len(self.Lines)+i])
         return resid
+
+    def residual_linfit(params, NetSpec, M):
+            """
+            This function calculates the residual (the difference of fit and data)
+            for the complete calibration
+            """
+            M_shape = M.shape
+            resid = np.zeros(NetSpec.shape)
+            for i in range(M_shape[-1]):
+                resid = np.sum(NetSpec - np.sum(M*params.reshape(M.shape[:3]+(1, M.shape[4])), axis = -1), axis = -1)
+            resid = np.nan_to_num(resid)
+            return resid.flatten().astype(np.float64)
 
     def fit(self, minchange=None , full=True):
         """

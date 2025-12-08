@@ -17,6 +17,7 @@ import matplotlib.image as mpimg
 import xraylib as xrl
 import logging
 import json
+from numba import jit
 from pathlib import Path
 script_dir = Path.cwd()
 sys.path.append(str(script_dir/"functions"))
@@ -151,6 +152,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.check_line_labels = []  #: list of check_line_labels
         self.check_elements = database.check_elements  #: list to determine the selected elements
         self.config_file_path = self.working_directory / "Data" / "config" / "config.json"
+        self.batch_fitting = False
         # set default stylesheets
         self.setStyleSheet("QWidget { "\
                         #    +"color: black;"\
@@ -209,12 +211,17 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_load_file = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/file-open.png")), "load file", self)
         self.action_load_file.setShortcut("Ctrl+Shift+O")
         self.action_load_file.setStatusTip("load measurement file")
-        self.action_load_file.triggered.connect(lambda: self.load_file(angle_file=False) )
+        self.action_load_file.triggered.connect(lambda: self.load_file(angle_file=False))
         # load angle file action
         self.action_load_angle = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/angle-open.png")), "load angle-file", self)
         self.action_load_angle.setShortcut("Ctrl+Shift+A")
         self.action_load_angle.setStatusTip("load angle file (for GI or GE measurements)")
-        self.action_load_angle.triggered.connect(lambda: self.load_file(angle_file=True) )
+        self.action_load_angle.triggered.connect(lambda: self.load_file(angle_file=True))
+        # batch fitting action
+        self.action_load_batch_fitting = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/batch_fitting.png")), "batch fit", self)
+        self.action_load_batch_fitting.setShortcut("Ctrl+Shift+B")
+        self.action_load_batch_fitting.setStatusTip("batch fit files in folder")
+        self.action_load_batch_fitting.triggered.connect(lambda: self.load_batch_fitting())
         # load settings action
         self.action_load_settings = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/settings-open.png")), "load setting-file", self)
         self.action_load_settings.setShortcut("Ctrl+Shift+S")
@@ -243,7 +250,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # plot maximum pixel spectrum action
         self.action_max_pixel_spec = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/video-display.png")), "maximum pixel spectrum", self)
         self.action_max_pixel_spec.setStatusTip("plot maximum pixel spec")
-        self.action_max_pixel_spec.triggered.connect(lambda: self.plot_canvas(self.data.max_pixel_spec, self.data.energies, None, None ))
+        self.action_max_pixel_spec.triggered.connect(lambda: self.plot_canvas(self.data.max_pixel_spec, self.data.energies, None, None))
         self.action_max_pixel_spec.triggered.connect(lambda: self.set_spectrum_nr(-2))
         # show 3d plot action
         self.action_show_plot3d = QtGui.QAction(QtGui.QIcon(str(self.working_directory/"Data/icons/plot-3d.png")), "plot 3D", self)
@@ -307,6 +314,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.menu_file.addAction(self.action_load_folder)
         self.menu_file.addAction(self.action_load_file)
         self.menu_file.addAction(self.action_load_angle)
+        self.menu_file.addAction(self.action_load_batch_fitting)
         self.menu_file.addMenu(self.recent_folder_menu)
         self.menu_file.addMenu(self.recent_files_menu)
         self.menu_file.addAction(self.action_exit)
@@ -340,6 +348,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.win_toolbar.addAction(self.action_load_folder)
         self.win_toolbar.addAction(self.action_load_file)
         self.win_toolbar.addAction(self.action_load_angle)
+        self.win_toolbar.addAction(self.action_load_batch_fitting)
         self.win_toolbar.addAction(self.action_load_settings)
         self.win_toolbar.addAction(self.action_save_settings)
         self.win_toolbar.addAction(self.action_check_fit)
@@ -541,7 +550,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # set SpecFit Splitter as Main Widget
         self.setCentralWidget(self.specfit_gui_splitter)
 
-    def __init_connections(self, ):
+    def __init_connections(self,):
         self.entry_a0.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_a0))
         self.entry_a1.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_a1))
         self.entry_fano.textChanged.connect(partial(self.sfs.update_entries, self.sfs.entry_fano))
@@ -562,12 +571,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         logging.basicConfig(filename=self.working_directory/"Data/Log/specfit.log",
                             format="%(asctime)s %(name)-12s %(levelname)-8s %(message)s",
                             datefmt="%Y%m%d-%H%M%S",
-                            encoding="utf-8",
-                            # filemode="w",
-                            )
+                            encoding="utf-8")
         self.logger.setLevel(logging.DEBUG)
     
-    def set_stop_flag(self, ):
+    def set_stop_flag(self,):
         """
         Setting the stop_flag to True in order to stop a running fit routine
 
@@ -586,35 +593,38 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         else:
             self.selected_spectrum = self.data.spectra[spectrum_nr]
 
-    def load_config(self, ):
+    def load_config(self,):
         with open(self.config_file_path, "r") as f:
             settings = json.load(f)
         return settings
     
     def save_config(self, settings):
-        print("settings", settings)
         with open(self.config_file_path, "w") as f:
             json.dump(settings, f, indent=2)
-        self.update_recent_menus()
+        self.update_recent_menus(settings=settings)
 
-    def update_recent_menus(self):
+    def update_recent_menus(self, settings=None):
         self.recent_folder_menu.clear()
         self.recent_files_menu.clear()
-        settings = self.load_config()
+        if not settings:
+            settings = self.load_config()
         if settings["recent folder"]:
             for folder_path in settings["recent folder"]:
                 action = QtGui.QAction(folder_path, self)
-                action.triggered.connect(lambda: self.load_folder(Path(folder_path)))
-                # action.triggered.connect(lambda checked, path=Path(folder_path): self.load_folder(path))
+                action.triggered.connect(
+                    lambda checked,
+                    path=folder_path: self.load_folder(Path(path)))
                 self.recent_folder_menu.addAction(action)
         if settings["recent files"]:
             for file_path in settings["recent files"]:
                 action = QtGui.QAction(file_path, self)
-                action.triggered.connect(lambda: self.load_file(angle_file=False,
-                                                                file_path=Path(file_path)))
+                action.triggered.connect(
+                    lambda checked, 
+                    path=file_path: self.load_file(angle_file=False,
+                                                   file_path=Path(path)))
                 self.recent_files_menu.addAction(action)
             
-    def hide_calc_min(self, ):
+    def hide_calc_min(self,):
         """
         hide or show min_order entry
         """
@@ -624,6 +634,48 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         else:
             self.entry_calc_minima_order.hide()
             self.label_calc_minima_order.hide()
+
+    def npy_2_bin(self):
+        self.data.npy_2_bin()
+
+    def h5_2_tiff(self,):
+        """
+        Function create tiff images from results.h5 file
+        """
+        h5_to_tiff()
+        self.statusBar().showMessage("### tiff image creation done ###")
+
+    def load_file(self,
+                  angle_file=False,
+                  file_path=None,
+                  _reload=False,
+                  _reset=True):
+        if _reset:
+            self.reset_2_default()
+        self.data.elements = self.elements
+        self.data.label_loading_progress = self.statusBar()
+        self.data.open_data_file(angle_file, 
+                                 file_path=file_path,
+                                 _reload=_reload)
+        self.threshold_handler = FitThresholdPopup(self.data.folder_path)
+        self.load_parameter_in_specfit_deconvolution()
+        self.statusBar().showMessage("loading done")
+        self.popup_properties.data_path = self.data.save_folder_path
+        self.popup_properties.fill_text(f"file path:\n {self.data.file_path}\n")
+        self.display_values_in_gui()
+        if angle_file:
+            self.check_use_parameters.setChecked(False)
+        self.show_sum_spec()
+        self.roi_widget.file_type = self.data.file_type
+        # update recent files
+        settings = self.load_config()
+        if str(self.data.file_path) in settings["recent files"]:
+            settings["recent files"].remove(str(self.data.file_path))
+        settings["recent files"].insert(0, str(self.data.file_path))
+        self.save_config(settings=settings)
+        self.statusBar().showMessage("Loading done.")
+        self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
+        gc.collect()
 
     def load_folder(self, folder_path=None):
         try:
@@ -648,9 +700,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
             # update recent folders
             settings = self.load_config()
-            if str(self.data.folder_path) not in settings["recent folder"]:
-                settings["recent folder"].insert(0, str(self.data.folder_path))
-                self.save_config(settings=settings)
+            if str(self.data.folder_path) in settings["recent folder"]:
+                settings["recent folder"].remove(str(self.data.folder_path))
+            settings["recent folder"].insert(0, str(self.data.folder_path))
+            self.save_config(settings=settings)
             self.statusBar().showMessage("Loading done.")
         except Exception as e:
             self.logger.debug("data folder could not be loaded with error code %s"%e)
@@ -658,41 +711,19 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.reset_2_default()
         gc.collect()
 
-    def load_file(self,
-                  angle_file=False,
-                  file_path=None):
-        self.reset_2_default()
-        self.data.elements = self.elements
-        self.data.label_loading_progress = self.statusBar()
-        self.data.open_data_file(angle_file, file_path=file_path)
-        self.threshold_handler = FitThresholdPopup(self.data.folder_path)
-        self.load_parameter_in_specfit_deconvolution()
-        self.statusBar().showMessage("loading done")
-        self.popup_properties.data_path = self.data.save_folder_path
-        self.popup_properties.fill_text(f"file path:\n {self.data.file_path}\n")
-        self.display_values_in_gui()
-        if angle_file:
-            self.check_use_parameters.setChecked(False)
-        self.show_sum_spec()
-        self.roi_widget.file_type = self.data.file_type
-        # update recent files
-        settings = self.load_config()
-        if str(self.data.file_path) not in settings["recent files"]:
-            settings["recent files"].insert(0, str(self.data.file_path))
-            self.save_config(settings=settings)
-        self.statusBar().showMessage("Loading done.")
+    def load_batch_fitting(self,):
+        """
+        Function to retrieve the list of files to fit
+        !OBS currently only bcf files are supported
+        """
+        self.batch_fitting = True
+        self.data.folder_path = self.data._get_folder_path()
+        self.batch_files = list(self.data.folder_path.glob("*.bcf"))
+        # load first file and display as usual in SpecFit
+        self.load_file(angle_file=False,
+                       file_path=self.batch_files[0])
+        self.popup_properties.fill_text(f"files:\n{[path.name for path in self.batch_files]}\n")
         self.popup_properties.backup_text = str(self.popup_properties.measurement_properties.toPlainText())
-        gc.collect()
-
-    def npy_2_bin(self):
-        self.data.npy_2_bin()
-
-    def h5_2_tiff(self, ):
-        """
-        Function create tiff images from results.h5 file
-        """
-        h5_to_tiff()
-        self.statusBar().showMessage("### tiff image creation done ###")
 
     def show_plot3d(self):
         self.plot3d.show_plot3d()
@@ -704,7 +735,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
     def show_specfit_fit_settings(self):
         self.sfs.show_sfs(_parent=self)
 
-    def ipython_console(self, ):
+    def ipython_console(self,):
         # Create an IPython console widget
         self.ipython_widget = IPythonConsole(self)
         # Pass the MyGUI instance to the IPython console's user namespace
@@ -1035,7 +1066,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         self.s.load_spec(self.data.spectra[spectrum_nr])
         self.s.set_ROI(self.data.get_roi_indicees())
 
-    def export_2_npz(self, ):
+    def export_2_npz(self,):
         """
         This function exports the loaded spectra to a compressed numpy
         array with the same shape as the measurement. The compression used
@@ -1195,7 +1226,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 if self.plot_style == "lin":
                     self.ax_canvas_spectrum.set_ylim(0, np.max(spectrum[plot_start:plot_end]) * 1.1)
                 else:
-                    self.ax_canvas_spectrum.set_ylim(np.min(spectrum[plot_start:plot_end]) * 0.9,
+                    try: 
+                        ymin = np.unique(spectrum[plot_start:plot_end])[1]*0.9
+                    except IndexError:
+                        ymin = 1e-2
+                    self.ax_canvas_spectrum.set_ylim(ymin,
                                                      np.max(spectrum[plot_start:plot_end]) * 1.1)
             else:
                 xmin, xmax = self.ax_canvas_spectrum.get_xlim()
@@ -1332,8 +1367,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             dimension=[1, 1, 1],
             background=False,
             fitted_spectra=False,
-            verbose=False,
-            ):
+            verbose=False):
         for key in results.keys():
             results_key = f"{self.data.file_name}/{key}"
             with h5py.File(f"{save_path}/results.h5", "a") as tofile:
@@ -1427,7 +1461,18 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         elif self.data.loadtype == "angle_file":
             self.fit_angle_file()
         elif self.data.loadtype in ["folder", "msa_file", "hdf5_file", "bcf_file", "csv_file"]:
-            self.fit_folder()
+            if self.batch_fitting:
+                for file_path in self.batch_files:
+                    if self.stop_flag == 1:
+                        self.statusBar().showMessage(f"fit stopped.")
+                        break
+                    self.load_file(angle_file=False,
+                                   file_path=file_path,
+                                   _reload=False,
+                                   _reset=False)
+                    self.fit_folder()
+            else:
+                self.fit_folder()
         self.button_stop_fit.hide()
         self.popup_properties.save_props()
         compute_time_end = time.time()
@@ -1436,15 +1481,15 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.statusBar().showMessage(f"time : {time.strftime('%H:%M:%S', time.gmtime(compute_time_end-compute_time_start))} s")
         gc.collect()
 
-    def fit_file(self, ):
+    def fit_file(self,):
         """
         Fit the file loaded
         """
-        results = self.create_empty_results(load_type=self.data.loadtype,
-                                        selected_elements=self.pse_widget.selected_elements,
-                                        selected_lines=self.pse_widget.selected_lines,
-                                        dimension=np.copy(self.data.position_dimension)
-                                            )
+        results = self.create_empty_results(
+            load_type=self.data.loadtype,
+            selected_elements=self.pse_widget.selected_elements,
+            selected_lines=self.pse_widget.selected_lines,
+            dimension=np.copy(self.data.position_dimension))
         self.check_fit(params_user=self.data.use_parameters)
         self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
         self.s.strip(calc_minima=self.check_calc_minima.checkState().value)
@@ -1467,7 +1512,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                         np.column_stack([self.data.energies, self.s.calc_spec()]),
                         delimiter="\t")
     
-    def fit_angle_file(self, ):
+    def fit_angle_file(self,):
         """
         Fit an angle resolved file
         """
@@ -1537,8 +1582,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             dimension=np.copy(self.data.position_dimension),
             background=background,
             fitted_spectra=fitted_spectra,
-            verbose=False
-        )
+            verbose=False)
         self.popup_properties.save_props()
 
     def fit_folder(self):
@@ -1590,7 +1634,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     background[i] = self.s.Strip
                 if self.pse_widget.tab_udl.number_lines > 0:
                     parameters = self.get_selected_parameters()
-                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), parameters[0], parameters[1], str(i) )
+                    self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), parameters[0], parameters[1], str(i))
                     self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
                 self.s.linfit()
                 if self.sfs.check_save_fitted_spectrum.isChecked():
@@ -1646,8 +1690,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 dimension=np.copy(self.data.position_dimension),
                 background=background,
                 fitted_spectra=fitted_spectra,
-                verbose=False
-                )
+                verbose=False)
 
     # define functions used by plot interaction
     def _on_button_press(self, event):

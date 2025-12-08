@@ -304,7 +304,21 @@ class DataHandler():
 
     def open_data_file(self,
                        angle_file=False,
-                       file_path=None):
+                       file_path=None,
+                       _reload=True):
+        """
+        Open the selected file and read out the spectrum and parameters
+
+        Parameters
+        ----------
+        angle_file : bool, optional
+            Is the file a GI or GE experiment? By default False
+        file_path : pathlib.Path, optional
+            absolute path to the file, by default None
+        _reload : bool, optional
+            If True the user can deceide if he/she wants to reload the file,
+            by default True
+        """
         self.file_path, self.loadtype = self._get_file_path(angle_file=angle_file,
                                                             file_path=file_path)
         self.file_name = self._get_file_name(self.file_path)
@@ -319,11 +333,12 @@ class DataHandler():
                 np.sort(glob(f"{self.folder_path}/*{self.file_type}")))
             self.life_time = msa.msa2life_time(f"{self.file_path}")
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
-                reload = self.get_reload()
-                if reload == QtWidgets.QMessageBox.Yes:
-                    self.run_file_worker()
-                    assert self.load_stored_spec_and_param(
-                    ), "something is wrong with .MSA worker, parameters are not stored correctly"
+                if _reload:
+                    reload = self.get_reload()
+                    if reload == QtWidgets.QMessageBox.Yes:
+                        self.run_file_worker()
+                        assert self.load_stored_spec_and_param(
+                        ), "something is wrong with .MSA worker, parameters are not stored correctly"
             else:
                 msa.msa2spec_sum_para(file_path=self.file_path)
                 assert self.load_stored_spec_and_param(
@@ -332,25 +347,27 @@ class DataHandler():
         elif self.file_type == ".bcf":
             self.loadtype = "bcf_file"
             if (self.save_data_folder_path / "data.h5").is_file() and self.check_h5():
-                reload = self.get_reload()
-                if reload == QtWidgets.QMessageBox.Yes:
-                    bcf.bcf2spec_para(file_path=self.file_path)
+                if _reload:
+                    reload = self.get_reload()
+                    if reload == QtWidgets.QMessageBox.Yes:
+                        bcf.bcf2spec_para(file_path=self.file_path)
             else:
                 bcf.bcf2spec_para(file_path=self.file_path)
                 
         elif self.file_type == ".csv":
             self.loadtype = "csv_file"
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
-                reload = self.get_reload()
-                if reload == QtWidgets.QMessageBox.Yes:
-                    self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
-                    if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0)
-                    self.tensor_positions = csv.csv_tensor_positions(self.file_path)
-                    self.positions = self.tensor_positions
-                    self.position_dimension = csv.csv_position_dimension(self.file_path)
-                    self.sum_spec = np.sum(self.spectra, axis=0)
-                    self.parameters_user = np.copy(self.parameters[0])
+                if _reload:
+                    reload = self.get_reload()
+                    if reload == QtWidgets.QMessageBox.Yes:
+                        self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
+                        if self.parameters.ndim == 1:
+                            self.parameters = np.expand_dims(self.parameters, axis=0)
+                        self.tensor_positions = csv.csv_tensor_positions(self.file_path)
+                        self.positions = self.tensor_positions
+                        self.position_dimension = csv.csv_position_dimension(self.file_path)
+                        self.sum_spec = np.sum(self.spectra, axis=0)
+                        self.parameters_user = np.copy(self.parameters[0])
             else:
                 self.spectra, self.parameters = csv.csv2spec_para(self.file_path)
                 if self.parameters.ndim == 1:
@@ -364,14 +381,15 @@ class DataHandler():
         elif self.file_type == ".hdf5" or self.file_type == ".h5":
             self.loadtype = "hdf5_file"
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
-                reload = self.get_reload()
-                if reload == QtWidgets.QMessageBox.Yes:
-                    self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
-                        self.file_path)
-                    if self.parameters.ndim == 1:
-                        self.parameters = np.expand_dims(self.parameters, axis=0)
-                    self.position_dimension, self.tensor_positions = hdf.hdf_tensor_positions(
-                        self.file_path)
+                if _reload:
+                    reload = self.get_reload()
+                    if reload == QtWidgets.QMessageBox.Yes:
+                        self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
+                            self.file_path)
+                        if self.parameters.ndim == 1:
+                            self.parameters = np.expand_dims(self.parameters, axis=0)
+                        self.position_dimension, self.tensor_positions = hdf.hdf_tensor_positions(
+                            self.file_path)
             else:
                 self.spectra, self.parameters, self.sum_spec, self.len_spectrum = hdf.hdf2spec_para(
                     self.file_path)
