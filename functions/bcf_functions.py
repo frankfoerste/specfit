@@ -253,11 +253,6 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
                        select_type="spectrum_image",
                        signal_type="EDS_SEM")   # loads one .bcf-file
         if file_nr == 0:                                         # initialization step to predefine shape of variables
-            channels = data.original_metadata["Spectrum"]["ChannelCount"]  # number of channels
-            nr_spectra = np.prod(data.data.shape[:-1])
-            spectra = np.zeros(shape=data.data.shape[:-1]+(nr_bcf_files,)+(data.data.shape[-1],))
-            overall_life_time = 0
-            parameters = np.zeros(shape=(8,))
             X0 = np.round(data.original_metadata.Stage.X, 3)
             Y0 = np.round(data.original_metadata.Stage.Y, 3)
             Z0 = np.round(data.original_metadata.Stage.Z, 3)
@@ -266,6 +261,22 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
             dz = 1
         if file_nr == 1:
             dz = Z0 - np.round(data.original_metadata.Stage.Z, 3)
+            break
+    for file_nr, file_path in enumerate(bcf_file_list):          # iteration over all .bcf-files
+        data = hs.load(file_path, lazy=True,
+                       select_type="spectrum_image",
+                       signal_type="EDS_SEM")   # loads one .bcf-file
+        if file_nr == 0:                                         # initialization step to predefine shape of variables
+            channels = data.original_metadata["Spectrum"]["ChannelCount"]  # number of channels
+            nr_spectra = np.prod(data.data.shape[:-1])
+            if dz != 0:
+                spectra = np.zeros(shape=data.data.shape[:-1]+(nr_bcf_files,)+(data.data.shape[-1],))
+                shape = spectra.shape
+            else:
+                spectra = np.zeros(shape=data.data.shape[:-1]+(1,)+(data.data.shape[-1],))
+                shape = spectra.shape
+            overall_life_time = 0
+            parameters = np.zeros(shape=(8,))
         a0 = data.original_metadata["Spectrum"]["CalibAbs"]  # "Zero"energy in keV
         a1 = data.original_metadata["Spectrum"]["CalibLin"]  # Channel width in keV
         fwhm = 2*np.sqrt(2*np.log(2))*np.sqrt(data.original_metadata["Spectrum"]["SigmaAbs"])
@@ -275,11 +286,14 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
         if verbose:
             print(f"real_time from bcf - {real_time} s")
         real_time /= nr_spectra
-        # deletes unused variables and clears up some memory space
-        gc.collect()
+        
         if file_nr == 0:
-            ds["position dimension"] = xr.DataArray(data=[data.data.shape[0], data.data.shape[1], nr_bcf_files],
-                                                    dims=("dimension"))
+            if dz != 0:
+                ds["position dimension"] = xr.DataArray(data=[data.data.shape[0], data.data.shape[1], nr_bcf_files],
+                                                        dims=("dimension"))
+            else:
+                ds["position dimension"] = xr.DataArray(data=[data.data.shape[0], data.data.shape[1], 1],
+                                                        dims=("dimension"))
             ds["tensor positions"] = xr.DataArray(data=np.asarray(list(itertools.product(np.arange(ds["position dimension"][0]),
                                                                  np.arange(ds["position dimension"][1]),
                                                                  np.arange(ds["position dimension"][2]))),dtype=np.uint),
@@ -287,11 +301,17 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
                                                   coords={"spec_nr": np.arange(np.prod(ds["position dimension"]))})
         life_times = data.data[...,75:116].sum(axis=-1)*1e-4
         life_time_sum = life_times.mean()
-        spectra[...,file_nr,:] = data.data/life_times[..., np.newaxis]
+        # some maps do not contain spectra, this leads to a life-time of 0, skip them
+        if life_time_sum == 0:
+            continue 
+        if dz != 0:
+            spectra[...,file_nr,:] = data.data/life_times[..., np.newaxis]
+        else:
+            spectra += (data.data/life_times[..., np.newaxis]).reshape(shape).compute()
+            if file_nr != 0:
+                spectra /= 2                
+            
         parameters_temporary = np.array([a0, a1, fano, fwhm, life_time_sum, a0 + a1*(channels), gating_time, real_time])
-        del a0, a1, fwhm, fano, channels, gating_time, data
-        
-        gc.collect()
         # summation over all .bcf-files
         if file_nr == 0:
             overall_real_time = real_time
@@ -303,7 +323,7 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
             parameters += parameters_temporary
     # deletes unused variables and clears up some memory space
         del parameters_temporary, life_time_sum, real_time
-        gc.collect()
+        
     # normalization over the number of bcf-files
     ds["parameters"] = xr.DataArray(data=parameters/len(bcf_file_list),
                                     dims=("parameter"),
@@ -312,15 +332,29 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
                                                      "gating_time", "real_time"]},
                                     attrs={"units": ["keV", "keV", "a.u.", "keV",
                                                      "s", "keV", "s", "s"]})
-    ds["spectra"] = xr.DataArray(data=spectra,
-                                 dims=("X", "Y", "Z", "energy"),
-                                 coords={"energy": np.arange(ds["parameters"][0],
-                                                             ds["parameters"][5],
-                                                             ds["parameters"][1]),
-                                         "X": np.arange(X0, X0+dx*ds["position dimension"][0]-dx, dx),
-                                         "Y": np.arange(Y0, Y0+dy*ds["position dimension"][1]-dy, dy),
-                                         "Z": np.arange(Z0, Z0+dz*nr_bcf_files, dz),},
-                                 attrs={"units": "counts per second"})
+    if dz != 0:
+        ds["spectra"] = xr.DataArray(
+            data=spectra,
+            dims=("X", "Y", "Z", "energy"),
+            coords={"energy": np.arange(ds["parameters"][0],
+                                        ds["parameters"][5],
+                                        ds["parameters"][1]),
+                    "X": np.linspace(start=X0, stop=X0+dx*ds["position dimension"][0]-dx, num=data.data.shape[0]),
+                    "Y": np.linspace(start=Y0, stop=Y0+dy*ds["position dimension"][1]-dy, num=data.data.shape[1]),
+                    "Z": np.linspace(start=Z0, stop=Z0+dz*ds["position dimension"][2]-dy, num=data.data.shape[1]),},
+                    # "X": np.arange(X0, X0+dx*ds["position dimension"][0]-dx, dx),
+                    # "Y": np.arange(Y0, Y0+dy*ds["position dimension"][1]-dy, dy),
+                    # "Z": np.arange(Z0, Z0+dz*ds["position dimension"][2]-dz, dz)},
+            attrs={"units": "counts per second"})
+    else:
+        ds["spectra"] = xr.DataArray(
+            spectra,
+            dims=("X", "Y", "Z", "energy"),
+            coords={"energy": np.arange(a0, a0 + a1*(channels), a1),
+                    "X": np.linspace(start=X0, stop=X0+dx*data.data.shape[0]-dx, num=data.data.shape[0]),
+                    "Y": np.linspace(start=Y0, stop=Y0+dy*data.data.shape[1]-dy, num=data.data.shape[1]),
+                    "Z": np.array([Z0])},
+            attrs={"units": "counts per second"})
     ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),
                                 dims=("X", "Y", "Z"),
                                 attrs={"units": "counts per second"})
@@ -346,6 +380,8 @@ def many_bcf2spec_para(folder_path, return_values=False, verbose=False):
         engine="h5netcdf",
         encoding=utils.create_hdf5_encoding(dataset=ds),
     )
+    # deletes unused variables and clears up some memory space
+    gc.collect()
     if return_values:
         return ds["spectra"], ds["parameters"], ds["position dimension"], ds["tensor positions"], ds["sum spec"]
 
@@ -416,6 +452,6 @@ def bcf_tensor_position(file_path):
     return tensor_position, position_dim
 
 if __name__ == "__main__":
-    folder = "C:\\Doktorarbeit\\development\\specfit\\example_measurements\\bcf\\"
-    bcf2spec_para(file_path=folder+"spider.bcf")
+    folder = Path("/home/frank/Documents/Measurement Data/µRFA/Spinat/202511_Fe+/skript/biofortifiziert/Blatt8KTR/")
+    many_bcf2spec_para(folder_path=folder)
     # many_bcf2spec_para(folder_path=folder)
