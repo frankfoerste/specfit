@@ -45,8 +45,8 @@ class LineFinder(QtWidgets.QWidget):
         ### clear the QLlistWidget in order to fill it with the possible lines
         ### and to avoid pilling up and pilling up
         self.table_lines.clear()
-        energy_low = round(energy,1) - 0.1
-        energy_high = round(energy,1) + 0.15
+        energy_low = np.round(energy,1) - 0.1
+        energy_high = np.round(energy,1) + 0.15
         self.pos_lines = []
         for key, value in self.lineE.items():
             if (key >= energy_low) and (key <= energy_high):

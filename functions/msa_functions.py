@@ -245,9 +245,9 @@ def build_positions(positions, origin, steps):
     """
     ends, pos = [], []
     for i in range(3):
-        ends.append(np.around(origin[i]+steps[i]*positions[i],3))
+        ends.append(np.round(origin[i]+steps[i]*positions[i],3))
         pos.append(np.arange(origin[i], origin[i]+steps[i]*positions[i], steps[i]))
-        if np.around(pos[i][-1], 3) == ends[i]:
+        if np.round(pos[i][-1], 3) == ends[i]:
             pos[i] = np.delete(pos[i], len(pos[i])-1)
     positions = np.array(np.meshgrid(pos[0], pos[1], pos[2])).T.reshape(-1,3)
     return sorted(positions, key=lambda x:x[1])

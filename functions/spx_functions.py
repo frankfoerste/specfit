@@ -493,7 +493,7 @@ def Louvre_log_file_content(log_file):
                     break
         for i in range(3):
             width_start_end.append([axes_parameters[j][parameters[i]] for j in range(3)])
-        width_start_end.append([int(round(abs((width_start_end[2][i]-width_start_end[1][i])/width_start_end[0][i])+1))for i in range(3)])
+        width_start_end.append([int(np.round(abs((width_start_end[2][i]-width_start_end[1][i])/width_start_end[0][i])+1))for i in range(3)])
     return width_start_end
 
 def Louvre_tensor_position(log_file):

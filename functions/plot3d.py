@@ -330,7 +330,7 @@ class Plot3D(QtWidgets.QWidget):
         threshold = float(self.thresholds[nr][2].text())
         if threshold > np.max(array):
             threshold = 0.8*np.max(array)
-            self.thresholds[nr][2].setText(str(round(threshold, 3)))
+            self.thresholds[nr][2].setText(str(np.round(threshold, 3)))
         face_color = self.face_colors[nr]
         self.thresholds[nr][1].setStyleSheet("QPushButton {background-color : %s}"%(face_color))
         try:

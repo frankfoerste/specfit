@@ -750,6 +750,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # remove all text instances in plot
         for text in self.ax_canvas_spectrum.texts:
             text.remove()
+        self.roi_widget.spec_nr = 0
         self.pse_widget.clear_line_list()
         self.popup_properties.clear_popup()
         self.data.reset_2_default()
@@ -1606,22 +1607,22 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         if not isinstance(self.data.position_dimension[0], np.ndarray):
             self.data.tensor_positions = np.asarray(ns.natsorted(self.data.tensor_positions))
         # start the deconvolution for every measurement point
-        for i in range(len(self.data.spectra)):
+        for nr_spec, spec in enumerate(self.data.spectra):
             # set the fit in progress to True if first deconvolution was
             # succesfully performed
             if self.stop_flag == 1:
                 self.statusBar().showMessage(f"fit stopped.")
                 return None
-            if i == 1:
+            if nr_spec == 1:
                 self.s.fit_in_progress = True
-            cur_spectra = self.data.spectra[i]
+            cur_spectra = spec
             # if the set minimal count rate per spectrum is exceeded
             # perform the deconvolution
             if self.data.mincount == 0 or np.sum(cur_spectra[self.roi_min:self.roi_max])> self.data.mincount:# TODO geht nicht mit einzelspektren
-                self.roi_widget.spec_nr = i
+                self.roi_widget.spec_nr = nr_spec
                 # load the parameters of the spectrum into specfit deconvolution
                 self.load_parameter_in_specfit_deconvolution()
-                self.load_spec_in_specfit_deconvolution(spectrum_nr=i)
+                self.load_spec_in_specfit_deconvolution(spectrum_nr=nr_spec)
                 # if the background is to be set to 0 (low scattering),
                 # set the background s.Strip to zero
                 if self.data.bg_zero is True:
@@ -1631,52 +1632,47 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 # if the background should be saved, store the estimated
                 # background s.Strip to the background array
                 if self.sfs.check_save_background.isChecked():
-                    background[i] = self.s.Strip
+                    background[nr_spec] = self.s.Strip
                 if self.pse_widget.tab_udl.number_lines > 0:
                     parameters = self.get_selected_parameters()
                     self.pse_widget.tab_udl.load_spec((np.subtract(self.s.meas_load, self.s.Strip)), parameters[0], parameters[1], str(i))
                     self.s.udl_label_list, self.s.user_defined_lines = self.pse_widget.tab_udl.get_user_defined_lines()
                 self.s.linfit()
                 if self.sfs.check_save_fitted_spectrum.isChecked():
-                    fitted_spectra[i] = self.s.calc_spec()
+                    fitted_spectra[nr_spec] = self.s.calc_spec()
                 self.plot_canvas(self.s.meas_load, self.data.energies, self.s.Strip, self.s.calc_spec(),
                                     initialize=False)
                 # now get all fit-results
                 getResults = self.s.get_result()
                 # and now fill them into the results array on the corresponding
                 # position
-                for k, key in enumerate(results.keys()):
+                for key in getResults.keys():
+                    # if only one scan is present
                     if not isinstance(self.data.position_dimension[0], np.ndarray):
-                        results[key][self.data.tensor_positions[i, 0]][self.data.tensor_positions[i, 1]][self.data.tensor_positions[i, 2]] = getResults[key]["I"]
+                        results[key][self.data.tensor_positions[nr_spec, 0]][self.data.tensor_positions[nr_spec, 1]][self.data.tensor_positions[nr_spec, 2]] = getResults[key]["I"]
                     else:
-                        for scan, sum_len_scan in enumerate(self.data.sum_len_scans):
-                            if i in sum_len_scan:
-                                element_key = "_".join(key.split("_")[:-1])+f"{scan:d}"
-                                if len(self.data.len_scans) > 1:
-                                    index_0 = self.data.tensor_positions[scan][0][
-                                        i - np.sum(self.data.len_scans[:scan]), 0]
-                                    index_1 = self.data.tensor_positions[scan][0][
-                                        i - np.sum(self.data.len_scans[:scan]), 1]
-                                    index_2 = self.data.tensor_positions[scan][0][
-                                        i - np.sum(self.data.len_scans[:scan]), 2]
-                                else:
-                                    index_0 = self.data.tensor_positions[scan][i][0]
-                                    index_1 = self.data.tensor_positions[scan][i][1]
-                                    index_2 = self.data.tensor_positions[scan][i][2]
-                                results[element_key][index_0][index_1][index_2] = \
-                                    getResults["_".join(key.split("_")[:-2])]["I"]
-                                continue
+                        scans = np.arange(len(self.data.len_scans))
+                        # find out to which scan the current spectrum belongs to
+                        scan = scans[np.where(np.less(nr_spec, np.cumsum(self.data.len_scans)) == True)[0][0]]
+                        scan_key = f"{key}_scan_{scan}"
+                        # read out the correct index positions
+                        index_0 = self.data.tensor_positions[scan][nr_spec -np.sum(self.data.len_scans[:scan])][0]
+                        index_1 = self.data.tensor_positions[scan][nr_spec -np.sum(self.data.len_scans[:scan])][1]
+                        index_2 = self.data.tensor_positions[scan][nr_spec -np.sum(self.data.len_scans[:scan])][2]
+                        # read out the fitted intensity and store it at the correct position
+                        results[scan_key][index_0][index_1][index_2] = getResults[key]["I"]
+
             else:
                 for key in self.s.get_result_keys():
-                    results[key][self.data.tensor_positions[i][0]][self.data.tensor_positions[i][1]][
-                        self.data.tensor_positions[i][2]] = 0
+                    results[key][self.data.tensor_positions[nr_spec][0]][self.data.tensor_positions[nr_spec][1]][
+                        self.data.tensor_positions[nr_spec][2]] = 0
                 continue
             # here the progress of the fitting will be calculated and displayed
-            if i % 1 == 0:
+            if nr_spec % 1 == 0:
                 time_file_end = time.time()
-                time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(i+1))/(i+1))
-            self.progress_bar.setValue(int(((i+1)/len(self.data.spectra))*100))
-            self.statusBar().showMessage(f"progress : {i+1}/{len(self.data.spectra)} - {(i+1)/float(len(self.data.spectra))*100:.2f}% - time to go: {time.strftime('%H:%M:%S', time2go)} s")
+                time2go = time.gmtime((time_file_end-time_file_start)*(len(self.data.spectra)-(nr_spec+1))/(nr_spec+1))
+            self.progress_bar.setValue(int(((nr_spec+1)/len(self.data.spectra))*100))
+            self.statusBar().showMessage(f"progress : {nr_spec+1}/{len(self.data.spectra)} - {(nr_spec+1)/float(len(self.data.spectra))*100:.2f}% - time to go: {time.strftime('%H:%M:%S', time2go)} s")
             QtWidgets.QApplication.processEvents()
             # save the fluorescence intensities to the results.h5 file
             if not self.sfs.check_save_background.isChecked():

@@ -174,7 +174,7 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
                 continue
             file_nr = point
             for i in np.arange(scan_0, scan - 1 - scan_offset):
-                file_nr += (len_scans["#S {}" % (i)] + 1)
+                file_nr += (len_scans[f"#S {i}"] + 1)
             spectrum = []
             data_start = False
             with open(mca_file, "r", encoding="ISO-8859-1") as infile:
@@ -259,8 +259,12 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
                 # sometimes the scan has no values stored, blind value
                 scan = " ".join(line.split()[:2])
             if "#L" in line:
-                try: where = line.split().index("AS_IC")
-                except: where = line.split().index("ionch1")
+                if "AS_IC" in line:
+                    where = line.split().index("AS_IC")
+                elif "ionch1" in line:
+                    where = line.split().index("ionch1")
+                else: 
+                    continue
                 nr_variables = len(line.split())-1
                 read_line = True
                 continue
@@ -271,13 +275,13 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
                 read_line = False
                 continue
             if read_line:
-                if len(line.split()) != nr_variables: continue
+                # if len(line.split()) != nr_variables: continue
                 if len_scans[scan] != 0:
                     ## edit: AS_IC is in units of 10e-10, nomalize here
                     ionization_current[str(int(scan.split()[-1])-1)].append(float(line.split()[where-1])/10E-10)
     for scan in ionization_current:
-        if scan == []:
-            ionization_current.remove([])
+        if ionization_current[scan] == []:
+            del ionization_current[scan]
             nr_scans -= 1
     return ionization_current #norm_ion_cur  ## edit: nicht auf 1 normieren, sondern auf 10e-10, s. Z 271
 
@@ -440,16 +444,16 @@ def mca_tensor_position(file_path, XANES=False):
                     # read out the mode of measurement and the coressponding motor and steps
                     mode = lines[2]
                     motors = lines[3:-1][::4]
-                    print(f"mode: {mode} motors: {motors}")
+                    # print(f"mode: {mode} motors: {motors}")
                     ## either #S 1  eigermesh  m1 61.8 64.44 33  mz 22.59 22.91 4  10
                     ## or #S 1 ascan m1 15 17 20 1
                     ## ascan can be dscan also, Motorname is the one after
                     if mode in ["eigermesh", "mesh"]:
-                        x = metadata[motors[0]]
-                        y = metadata[motors[1]]
+                        x = np.round(metadata[motors[0]], decimals=4)
+                        y = np.round(metadata[motors[1]], decimals=4)
                         z = 1
                     elif mode in ["ascan", "dscan"]:
-                        x = metadata[motors[0]]
+                        x = np.round(metadata[motors[0]], decimals=4)
                         y = 1
                         z = 1
                     elif mode in ["acquire"]:

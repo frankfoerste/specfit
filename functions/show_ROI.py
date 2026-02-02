@@ -511,10 +511,10 @@ class ShowROI(QtWidgets.QWidget):
         shows -only for angle-files- the spectra for every angle as a colormap
         """
         def x_axis(xticks, pos):
-            return  np.around(np.add(np.multiply(xticks, self.parameters[1]), self.parameters[0]), decimals =1 )
+            return  np.round(np.add(np.multiply(xticks, self.parameters[1]), self.parameters[0]), decimals =1 )
         def y_axis(yticks, pos):
             try:
-                new_yticks = np.around(self.angles[int(abs(yticks))], decimals =4)
+                new_yticks = np.round(self.angles[int(abs(yticks))], decimals =4)
             except:
                 new_yticks = yticks
             return new_yticks

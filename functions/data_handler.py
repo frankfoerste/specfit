@@ -293,6 +293,11 @@ class DataHandler():
             self.spectra = self.spectra.reshape(-1, self.spectra.shape[-1])
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
+        if self.position_dimension.ndim != 1:
+            # for mca measurements the tensor positions and positions need to be reshaped to a list with subarrays
+            lengths = np.prod(self.position_dimension, axis=1)
+            split_indices = np.cumsum(lengths)[:-1]
+            self.tensor_positions = np.split(self.tensor_positions, split_indices, axis=0)
 
     def get_roi_indicees(self):
         """
@@ -506,7 +511,7 @@ class DataHandler():
                         self.positions = np.copy(self.tensor_positions)
                     else:  # for all different data types
                         self.tensor_positions, self.position_dimension, self.positions = self.tensor_positions_log_file(
-                            self.file_list)
+                            file_list=self.file_list)
                     with h5py.File(self.save_data_folder_path / "data.h5", "a") as tofile:
                         if isinstance(self.tensor_positions, object):
                             if f"{self.file_name}/tensor positions" not in tofile:
@@ -533,7 +538,7 @@ class DataHandler():
                     self.positions = np.copy(self.tensor_positions)
                 else:  # for all different data types
                     self.tensor_positions, self.position_dimension, self.positions = self.tensor_positions_log_file(
-                        self.file_list)
+                        file_list=self.file_list)
                 with h5py.File(self.save_data_folder_path / "data.h5", "a") as tofile:
                     if isinstance(self.tensor_positions, object):
                         if f"{self.file_name}/tensor positions" not in tofile:
@@ -918,7 +923,7 @@ class DataHandler():
             self.specfit_addlines[f"{element}"] = (
                 True, lines, z_elements[element])
 
-    def tensor_positions_log_file(self, file_list):  # TODO
+    def tensor_positions_log_file(self, file_list, XANES=False):  # TODO
         """
         return tensor_positions and position_dim  depending on log file
         """
@@ -940,11 +945,11 @@ class DataHandler():
                     self.step_width[1] = y[1]-y[0]
                 if len(z) != 1:
                     self.step_width[2] = z[1]-z[0]
-                self.step_width = np.round(self.step_width, 3)
+                self.step_width = np.round(self.step_width, 4)
                 _mask = self.step_width != 0
                 tensor_position = positions-start_position
                 tensor_position[:, _mask] /= self.step_width[_mask]
-                tensor_position = np.around(tensor_position, 0).astype(int)
+                tensor_position = np.round(tensor_position, 0).astype(int)
             elif self.file_type == ".spe":
                 positions = spe.spe_tensor_position(file_list[0])
                 for i in range(len(file_list)-1):
@@ -962,14 +967,14 @@ class DataHandler():
                     self.step_width[1] = y[1]-y[0]
                 if len(z) != 1:
                     self.step_width[2] = z[1]-z[0]
-                self.step_width = np.round(self.step_width, 3)
+                self.step_width = np.round(self.step_width, 4)
                 _mask = self.step_width != 0
                 tensor_position = positions-start_position
                 tensor_position[:, _mask] /= self.step_width[_mask]
-                tensor_position = np.around(tensor_position, 0).astype(int)
+                tensor_position = np.round(tensor_position, 0).astype(int)
             elif self.file_type == ".mca":
                 positions_tmp, self.len_scans = mca.mca_tensor_positions(
-                    file_list, XANES=self.XANES)
+                    file_list, XANES=XANES)
                 nr_scans = len(self.len_scans)
                 self.sum_len_scans = []
                 for i, length in enumerate(self.len_scans):
@@ -986,12 +991,10 @@ class DataHandler():
                 empty_scans = []
                 for scan in range(nr_scans):
                     if scan == 0:
-                        positions[scan] = np.array(
-                            positions_tmp[:self.len_scans[scan]])
+                        positions[scan] = np.array(positions_tmp[:self.len_scans[scan]])
                     elif scan == (nr_scans-1):
-                        self.positions_tmp = positions_tmp
-                        positions[scan] = np.array(
-                            positions_tmp[sum(self.len_scans[:scan]):])
+                        #self.positions_tmp = positions_tmp
+                        positions[scan] = np.array(positions_tmp[sum(self.len_scans[:scan]):])
                     else:
                         positions[scan] = np.array(
                             positions_tmp[sum(self.len_scans[:scan]):sum(self.len_scans[:scan+1])])
@@ -1014,11 +1017,12 @@ class DataHandler():
                         if len(monoE[scan]) != 1:
                             self.step_width[scan][2] = monoE[scan][1] - \
                                 monoE[scan][0]
-                        self.step_width[scan] = self.step_width[scan]
+                        self.step_width[scan] = np.round(self.step_width[scan], 4)
                         _mask = self.step_width[scan] != 0
                         tensor_position[scan] = positions[scan]-start_position[scan]
-                        tensor_position[scan,:, _mask] /= self.step_width[scan,_mask]
-                        tensor_position[scan] = np.around(tensor_position[scan], 0).astype(int)
+                        tensor_position[scan][:, _mask] /= self.step_width[scan][_mask]
+                        tensor_position[scan] = np.round(tensor_position[scan], 0).astype(int)
+                        
                     else:
                         # if only one point in the measurement
                         x[scan] = np.unique(positions[scan][0])
@@ -1037,8 +1041,8 @@ class DataHandler():
                     self.len_scans = np.delete(self.len_scans, scan)
                     self.sum_len_scans.pop(scan)
                     positions.pop(scan)
-                self.len_scans = np.asarray(self.len_scans)
-                self.sum_len_scans = np.asarray(self.sum_len_scans)
+                # self.len_scans = np.asarray(self.len_scans)
+                # self.sum_len_scans = np.asarray(self.sum_len_scans)
             elif self.file_type == "txt":
                 positions = [1, 1, len(file_list)]
                 tensor_position = self.build_tensor_position(positions)
@@ -1076,7 +1080,7 @@ class DataHandler():
                 tensor_position[:, 2] /= self.step_width[2]
                 tensor_position = np.nan_to_num(tensor_position)
                 positions = np.nan_to_num(positions)
-                return np.around(tensor_position, 0).astype(np.int), position_dim, positions
+                return np.round(tensor_position, 0).astype(np.int), position_dim, positions
             elif self.log_file_type == "spx or MSA":  # for .spx files recorded with M4
                 tensor_position = np.empty((len(file_list), 3))
                 for i, _ in enumerate(file_list):
@@ -1091,7 +1095,7 @@ class DataHandler():
                 tensor_position = (
                     tensor_position-start_position)/self.step_width
                 tensor_position[tensor_position == np.inf] = 0
-                tensor_position = np.around(tensor_position, 0).astype(int)
+                tensor_position = np.round(tensor_position, 0).astype(int)
                 position_dim = self.log_content[3]
                 return tensor_position, position_dim
 

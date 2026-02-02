@@ -32,7 +32,8 @@ dependencies = [
     "xraylib>=4.0", 
     "pandas", 
     "h5netcdf", 
-    "exspy"
+    "exspy",
+    "xarray"
 ]
 requires-python = ">=3.10"
 
