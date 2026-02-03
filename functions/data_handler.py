@@ -294,6 +294,7 @@ class DataHandler():
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
         if self.position_dimension.ndim != 1:
+            print("self.position_dimension.ndim: ", self.position_dimension.ndim)
             # for mca measurements the tensor positions and positions need to be reshaped to a list with subarrays
             lengths = np.prod(self.position_dimension, axis=1)
             split_indices = np.cumsum(lengths)[:-1]
@@ -512,21 +513,41 @@ class DataHandler():
                     else:  # for all different data types
                         self.tensor_positions, self.position_dimension, self.positions = self.tensor_positions_log_file(
                             file_list=self.file_list)
-                    with h5py.File(self.save_data_folder_path / "data.h5", "a") as tofile:
-                        if isinstance(self.tensor_positions, object):
+                    
+                    with h5py.File(self.save_data_folder_path / "data.h5", "r+") as tofile:
+                        print("type(tensor_positions) ", type(self.tensor_positions))
+                        if isinstance(self.tensor_positions, list):
                             if f"{self.file_name}/tensor positions" not in tofile:
                                 tofile.create_dataset(f"{self.file_name}/tensor positions",
-                                                data=np.concatenate(self.tensor_positions, axis=0))
+                                                data=np.concatenate(self.tensor_positions, axis=0),
+                                                compression=None)
+                            else:
+                                data = tofile[f"{self.file_name}/tensor positions"]
+                                data[...] = np.concatenate(self.tensor_positions, axis=0)
                             if f"{self.file_name}/positions" not in tofile:
                                 tofile.create_dataset(f"{self.file_name}/positions",
                                                 data=np.concatenate(self.positions, axis=0))
+                            else:
+                                data = tofile[f"{self.file_name}/positions"]
+                                data[...] = np.concatenate(self.positions, axis=0)
                         else:
                             if f"{self.file_name}/tensor positions" not in tofile:
-                                tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
+                                tofile.create_dataset(f"{self.file_name}/tensor positions", 
+                                                      data=np.round(self.tensor_positions).astype(np.int32),
+                                                      compression=None)
+                            else:
+                                data = tofile[f"{self.file_name}/tensor positions"] 
+                                data[...] = np.round(self.tensor_positions).astype(np.int32)
                             if f"{self.file_name}/positions" not in tofile:
                                 tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
+                            else:
+                                data = tofile[f"{self.file_name}/positions"]
+                                data[...] = self.positions
                         if f"{self.file_name}/position dimension" not in tofile:
                             tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
+                        else:
+                            data = tofile[f"{self.file_name}/position dimension"]
+                            data[...] = self.position_dimension
 
                 elif reload == QtWidgets.QMessageBox.No:
                     if self.load_stored_spec_and_param(folder=True):
@@ -540,20 +561,38 @@ class DataHandler():
                     self.tensor_positions, self.position_dimension, self.positions = self.tensor_positions_log_file(
                         file_list=self.file_list)
                 with h5py.File(self.save_data_folder_path / "data.h5", "a") as tofile:
-                    if isinstance(self.tensor_positions, object):
+                    if isinstance(self.tensor_positions, list):
                         if f"{self.file_name}/tensor positions" not in tofile:
                             tofile.create_dataset(f"{self.file_name}/tensor positions",
                                                   data=np.concatenate(self.tensor_positions, axis=0))
+                        else:
+                            data = tofile[f"{self.file_name}/tensor positions"]
+                            data[...] = np.concatenate(self.tensor_positions, axis=0)
                         if f"{self.file_name}/positions" not in tofile:
                             tofile.create_dataset(f"{self.file_name}/positions",
                                                   data=np.concatenate(self.positions, axis=0))
+                        else:
+                            data = tofile[f"{self.file_name}/positions"]
+                            data[...] = np.concatenate(self.positions, axis=0)
                     else:
                         if f"{self.file_name}/tensor positions" not in tofile:
-                            tofile.create_dataset(f"{self.file_name}/tensor positions", data=self.tensor_positions)
+                            tofile.create_dataset(f"{self.file_name}/tensor positions", 
+                                                  data=np.round(self.tensor_positions).astype(np.int32),
+                                                  compression=None,
+                                                  dtype=np.int32)
+                        else:
+                            data = tofile[f"{self.file_name}/tensor positions"]
+                            data[...] = np.round(self.tensor_positions).astype(np.int32)
                         if f"{self.file_name}/positions" not in tofile:
                             tofile.create_dataset(f"{self.file_name}/positions", data=self.positions)
+                        else:
+                            data = tofile[f"{self.file_name}/positions"] 
+                            data[...] = self.positions
                     if f"{self.file_name}/position dimension" not in tofile:
                         tofile.create_dataset(f"{self.file_name}/position dimension", data=self.position_dimension)
+                    else:
+                        data = tofile[f"{self.file_name}/position dimension"]
+                        data[...] = self.position_dimension
         assert self.load_stored_spec_and_param(folder=True)
         self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
         self.life_time = self.parameters[0][4]
@@ -929,27 +968,28 @@ class DataHandler():
         """
         if self.log_file_type is None:
             if self.file_type == ".spx":
-                positions = spx.spx_tensor_position(file_list[0])
-                for i in range(len(file_list)-1):
-                    position = spx.spx_tensor_position(file_list[i+1])
-                    positions = np.vstack((positions, position))
-                x = np.sort(np.unique(positions[:, 0]))
-                y = np.sort(np.unique(positions[:, 1]))
-                z = np.sort(np.unique(positions[:, 2]))
-                start_position = [x[0], y[0], z[0]]
+                positions = []
+                for i, file in enumerate(file_list):
+                    positions.append(spx.spx_tensor_position(file))
+                positions = np.asarray(positions)
+                
+                x = np.unique(positions[:, 0])
+                y = np.unique(positions[:, 1])
+                z = np.unique(positions[:, 2])
                 position_dim = [len(x), len(y), len(z)]
                 self.step_width = [0., 0., 0.]
+                tensor_position = positions-positions[0]
                 if len(x) != 1:
-                    self.step_width[0] = x[1]-x[0]
+                    self.step_width[0] = np.round(np.diff(x).mean(), 3)
+                    tensor_position[:, 0] /= self.step_width[0]
                 if len(y) != 1:
-                    self.step_width[1] = y[1]-y[0]
+                    self.step_width[1] = np.round(np.diff(y).mean(), 3)
+                    tensor_position[:, 1] /= self.step_width[1]
                 if len(z) != 1:
-                    self.step_width[2] = z[1]-z[0]
-                self.step_width = np.round(self.step_width, 4)
-                _mask = self.step_width != 0
-                tensor_position = positions-start_position
-                tensor_position[:, _mask] /= self.step_width[_mask]
-                tensor_position = np.round(tensor_position, 0).astype(int)
+                    self.step_width[2] = np.round(np.diff(z).mean(), 3)
+                    tensor_position[:, 2] /= self.step_width[2]
+                # tensor_position = np.round(tensor_position).astype(int, casting="unsafe")
+                np.save("/home/axp_user/Desktop/test_tensor.npy", tensor_position)
             elif self.file_type == ".spe":
                 positions = spe.spe_tensor_position(file_list[0])
                 for i in range(len(file_list)-1):
