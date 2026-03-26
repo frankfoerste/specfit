@@ -131,6 +131,7 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
     start = t.time()
     # derive the position of the mca-file
     if save_spec_as_dict is False:
+        print(f"folder_path {folder_path}")
         positions, len_scans = mca_tensor_positions(folder_path, XANES=XANES)
         x = np.unique(positions[:, 0])
         z = np.unique(positions[:, 1])
@@ -162,18 +163,21 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
     folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
     spectra = {}
-    scan_tmp, scan_offset = 0, 0
+    scan_offset = 0
     iterator = 0
-    scans = []  #: check the number of scans in the mca path
+    scans = [int(i) for i in ionization_current.keys()]
     if (folder_size / machine_memory) < 0.7:  # for machines with big memory
         print("machine memory big enough. creating spectra dict")
         for file_nr, mca_file in enumerate(sorted_folder):
             # determine number of scan which the file belongs to
             scan, point = [int(tmp.replace(".mca", "")) for tmp in str(mca_file).split("/")[-1].split("_")[-2:]]
+            if str(scan) not in ionization_current.keys():
+                continue
             if len_scans[f"#S {scan}"] == 0:
                 continue
             file_nr = point
-            for i in np.arange(scan_0, scan - 1 - scan_offset):
+            # for i in np.arange(scan_0, scan - 1 - scan_offset):
+            for i in scans[:scans.index(scan)]:
                 file_nr += (len_scans[f"#S {i}"] + 1)
             spectrum = []
             data_start = False
@@ -194,18 +198,17 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
             if len(spectrum) == 0:
                 print(f"mca_file {mca_file} corrupted")
                 continue
-            if np.abs(np.subtract(scan, scan_tmp)) > 1:
-                scan_offset += 1
-                scan -= 1
-            scan_tmp = int(scan)
-            if scan not in scans:
-                scans.append(scan)
+            
             spectrum = np.asarray(spectrum)
             max_energy = a0 + a1 * (channels - 1)
             parameters.append([a0, a1, fano, fwhm, life_time, max_energy, gating_time, real_time])
             spectrum = np.divide(spectrum, life_time)
+            # remove nan values, set to 0
+            spectrum = np.nan_to_num(spectrum, nan=0, posinf=0, neginf=0)
             # norm spectrum to ionization current
-            spectrum = np.divide(spectrum, ionization_current[str(scan-1)][point])
+            spectrum = np.divide(spectrum, ionization_current[str(scan)][point])
+            spectrum = np.nan_to_num(spectrum, nan=0, posinf=0, neginf=0)
+            # spectrum = np.divide(spectrum, ionization_current[str(scan-1)][point])
             sum_spec_tmp = sum(spectrum)
             counts.append(sum_spec_tmp)
             if sum_spec_tmp > worth_fit_threshold:
@@ -241,6 +244,8 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
                               compression="gzip")
         tofile.create_dataset(f"{folder_name}/max pixel spec", data=max_pixel_spec,
                               compression="gzip")
+        tofile.create_dataset(f"{folder_name}/len scans", data=np.array(list(len_scans.values())),
+                              compression="gzip")
     print(f"mca loadingtime - {t.time() - start}")
     if return_values:
         if save_spec_as_dict is False:
@@ -250,8 +255,8 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
 
 def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
     ionization_current = {}
-    for la, _ in enumerate(len_scans):
-        ionization_current[str(la)]=[]
+    for la in len_scans.keys():
+        ionization_current[la.split()[-1]] = []
     read_line = False
     with open(spec_file_path, "r", encoding="ISO-8859-1") as infile:
         for line in infile:
@@ -275,12 +280,17 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
                 read_line = False
                 continue
             if read_line:
-                # if len(line.split()) != nr_variables: continue
-                if len_scans[scan] != 0:
-                    ## edit: AS_IC is in units of 10e-10, nomalize here
-                    ionization_current[str(int(scan.split()[-1])-1)].append(float(line.split()[where-1])/10E-10)
-    for scan in ionization_current:
-        if ionization_current[scan] == []:
+                if int(scan.split()[-1]) < scan_0:
+                    print(f"scan ionization current {scan}")
+                    continue
+                if scan in len_scans:
+                    if len_scans[scan] != 0:
+                        ## edit: AS_IC is in units of 10e-10, nomalize here
+                        ionization_current[str(scan.split()[-1])].append(float(line.split()[where])/10E-10)
+                
+    _ionization_current = ionization_current.copy()
+    for scan in _ionization_current:
+        if _ionization_current[scan] == []:
             del ionization_current[scan]
             nr_scans -= 1
     return ionization_current #norm_ion_cur  ## edit: nicht auf 1 normieren, sondern auf 10e-10, s. Z 271
@@ -289,24 +299,36 @@ def read_nr_len_scans_from_spec(spec_file_path):
     nr_scans = 0
     len_scans = {}
     current_scan_nr = ""
+    types_of_scan = []
     with open(spec_file_path, "r", encoding="ISO-8859-1") as infile:
         for line in infile:
             if "#S" in line:
                 line = line.split()
+                types_of_scan.append(line[2])
                 current_scan_nr = " ".join(line[:2])
-                if line[2] == "acquire":
+                if line[2] in ["acquire", "eigerloopscan"]:
                     len_scans[current_scan_nr]=1
-                if line[2] == "eigerloopscan":
-                    len_scans[current_scan_nr]=1
+                elif line[2] in ["ascan", "dscan", "a2scan"]:
+                    len_scans[current_scan_nr] = int(line[-2])+1
+                elif line[2] in ["mesh"]:
+                    len_scans[current_scan_nr] = (int(line[6])+1)*(int(line[-2])+1)
+                elif line[2] in ["timescan"]:
+                    len_scans[current_scan_nr] = 0
                 else:
-                    len_scans[current_scan_nr] = int(line[-2])
+                    len_scans[current_scan_nr] = int(line[-2])+1
                 nr_scans += 1
                 continue
             elif "aborted after" in line:
-                len_scan = int(line.split()[-2])
-                len_scans[current_scan_nr] = len_scan
-                if len_scan == 0:
+                if len_scans[current_scan_nr] == 0:
+                    len_scan = 0
+                else:
+                    len_scan = int(line.split()[-2])+1
+                if len_scan > 1:
+                    len_scans[current_scan_nr] = len_scan
+                else:
                    nr_scans -= 1
+                   del len_scans[current_scan_nr]
+    print(np.unique(types_of_scan))
     return nr_scans, len_scans
 
 def sum_from_single_files(folder_path, save_sum_spec=True):
@@ -452,7 +474,7 @@ def mca_tensor_position(file_path, XANES=False):
                         x = np.round(metadata[motors[0]], decimals=4)
                         y = np.round(metadata[motors[1]], decimals=4)
                         z = 1
-                    elif mode in ["ascan", "dscan"]:
+                    elif mode in ["ascan", "dscan", "a2scan"]:
                         x = np.round(metadata[motors[0]], decimals=4)
                         y = 1
                         z = 1
@@ -460,6 +482,9 @@ def mca_tensor_position(file_path, XANES=False):
                         x = 1
                         y = 1
                         z = 1
+                    elif mode in ["timescan"]:
+                        return None
+                    
                     return [x, y, z]
 
 def mca_tensor_positions(folder_path, file_type=".mca", XANES=False):
@@ -482,17 +507,24 @@ def mca_tensor_positions(folder_path, file_type=".mca", XANES=False):
     """
     if isinstance(folder_path, str):
         files = sorted(glob(folder_path + "*" + file_type))
+        spec_file_path = [file for file in Path(folder_path).parent.glob("*.spec")][0]
     elif isinstance(folder_path, list):
         files = folder_path
+        if isinstance(files[0], np.str_):
+            spec_file_path = [file for file in Path(folder_path[0]).parent.parent.glob("*.spec")][0]
+        else:
+            spec_file_path = [file for file in folder_path[0].parent.glob("*.spec")][0]
     elif isinstance(folder_path, Path):
         files = sorted(folder_path.glob(f"*{file_type}"))
-    nr_scans = np.unique([int(file.split("/")[-1].split("_")[-2]) for file in files])
-    len_scans = np.zeros(len(nr_scans), dtype = int)
-    for file in files:
-        len_scans[int(file.split("/")[-1].split("_")[-2])-nr_scans[0]] += 1
+        spec_file_path = [file for file in folder_path.parent.glob("*.spec")][0]
+    _, len_scans = read_nr_len_scans_from_spec(spec_file_path)
+    # adapt the len_scans keys
+    len_scans = {i: v for i, v in enumerate(len_scans.values())}
     positions = []
     for file in files:
-        positions.append(mca_tensor_position(file, XANES=XANES))
+        pos = mca_tensor_position(file, XANES=XANES)
+        if pos is not None:
+            positions.append(pos)
     return positions, len_scans
 
 def convert_string(string):
@@ -534,3 +566,12 @@ def check_mca_type(mca_file_path):
                 return "XPS-FP2"
             else:
                 return "measurement"
+            
+
+# testing
+
+if __name__ == "__main__":
+    folder = Path("/home/frank/Documents/Measurement Data/XANES/Spinat/2026-01-13-Spinat/2026-01-13_STD-07_01/mca/")
+    data = many_mca2spec_para(folder_path=folder)
+    pos, len_scans = mca_tensor_positions(folder_path=folder)
+    print(pos)

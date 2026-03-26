@@ -1,6 +1,7 @@
 import os
 from PyQt6 import QtGui, QtWidgets
 from pathlib import Path
+import numpy as np
 
 def read_lineE(path=None):
     if path is None:

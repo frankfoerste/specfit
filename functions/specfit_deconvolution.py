@@ -553,34 +553,51 @@ class SpecFit(object):
             self.calc_M()
         if onedim:
             self.NetSpec = self.meas_load[self.Bins[0]:self.Bins[-1]+1] - self.Strip[self.Bins[0]:self.Bins[-1]+1]
-            lsq_linear_result = lsq_linear(self.M, self.NetSpec, bounds = (0, float("inf")))
+            if self.NetSpec.max() < 1e-10:
+                self.factor = self.NetSpec.max()
+            else:
+                self.factor = 1
+            lsq_linear_result = least_squares(
+                fun=self.residual_linfit,
+                x0=np.ones(self.M.shape[-1],
+                           dtype=np.float64).flatten(),
+                bounds = (0, float("inf")),
+                jac="3-point",
+                method="dogbox",
+                args=(self.NetSpec/self.factor, self.M/self.factor)
+                )
         else:
-            self.NetSpec = self.meas_load[..., self.Bins[0]:self.Bins[-1]+1] - self.Strip[..., self.Bins[0]:self.Bins[-1]+1]
+            self.NetSpec = np.abs(self.meas_load[..., self.Bins[0]:self.Bins[-1]+1] - self.Strip[..., self.Bins[0]:self.Bins[-1]+1])
             self.M = np.broadcast_to(self.M, self.NetSpec.shape[:-1]+self.M.shape)
             lsq_linear_result = least_squares(self.residual_linfit,
-                                   np.ones(self.M.shape[:3]+(self.M.shape[4], )).flatten().astype(np.float64),
+                                   np.ones(self.M.shape[:3]+(self.M.shape[4],),
+                                           dtype=np.float64).flatten(),
                                    jac = "3-point",
                                    method = "dogbox",
-                                   args = (self.NetSpec, self.M))
+                                   args = (self.NetSpec, self.M),
+                                   )
         I, resid = lsq_linear_result.x, lsq_linear_result.fun
         for _s, _ in enumerate(self.Lines):
             self.Lines[_s]["I"] = I[_s]
         self.result_udl = []
         for i, _ in enumerate(self.user_defined_lines):
             self.result_udl.append(np.sum(self.M[:, len(self.Lines)+i])/I[len(self.Lines)+i])
+        # print(f"final residual: {lsq_linear_result}")
         return resid
 
-    def residual_linfit(params, NetSpec, M):
-            """
-            This function calculates the residual (the difference of fit and data)
-            for the complete calibration
-            """
-            M_shape = M.shape
-            resid = np.zeros(NetSpec.shape)
-            for i in range(M_shape[-1]):
-                resid = np.sum(NetSpec - np.sum(M*params.reshape(M.shape[:3]+(1, M.shape[4])), axis = -1), axis = -1)
-            resid = np.nan_to_num(resid)
-            return resid.flatten().astype(np.float64)
+    def residual_linfit(self, params, NetSpec, M):
+        """
+        This function calculates the residual (the difference of fit and data)
+        for the complete calibration
+        """
+        M_shape = M.shape
+        resid = np.zeros(M.shape[-1])
+        if M.ndim == 2:
+            return NetSpec - M@params
+        else:
+            resid = np.sum(NetSpec - np.sum(M*params.reshape(M.shape[:3]+(1, M.shape[4])), axis = -1), axis = -1)
+        resid = np.nan_to_num(resid)
+        return np.abs(np.sum(resid)).flatten()
 
     def fit(self, minchange=None , full=True):
         """

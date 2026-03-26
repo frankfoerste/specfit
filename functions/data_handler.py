@@ -291,13 +291,19 @@ class DataHandler():
             self.spectra = da.asarray(f[f"{file_key}spectra"][()])
             # flatten the spectra
             self.spectra = self.spectra.reshape(-1, self.spectra.shape[-1])
+            # if .mca folder load the lengths of the scans
+            if f"{file_key}len scans" in f:
+                self.len_scans = f[f"{file_key}len scans"][()]
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
         if self.position_dimension.ndim != 1:
             print("self.position_dimension.ndim: ", self.position_dimension.ndim)
             # for mca measurements the tensor positions and positions need to be reshaped to a list with subarrays
-            lengths = np.prod(self.position_dimension, axis=1)
-            split_indices = np.cumsum(lengths)[:-1]
+            if "len_scans" in dir(self):
+                split_indices = np.cumsum(self.len_scans[:-1])
+            else:
+                lengths = np.prod(self.position_dimension, axis=1)
+                split_indices = np.cumsum(lengths)[:-1]
             self.tensor_positions = np.split(self.tensor_positions, split_indices, axis=0)
 
     def get_roi_indicees(self):
@@ -630,11 +636,18 @@ class DataHandler():
                 self.max_pixel_spec = infile[f"{file_key}max pixel spec"][()]
                 self.len_spectrum = len(self.sum_spec)
                 self.spectra = infile[f"{file_key}spectra"][()]
+                if self.file_type == ".mca":
+                    try:
+                        self.len_scans = infile[f"{file_key}len scans"][()]
+                        self.sum_len_scans = np.cumsum(self.len_scans)
+                    except:
+                        self.len_scans = np.prod(self.position_dimension, axis = 1)
+                        self.sum_len_scans = [np.arange(0, self.len_scans[0])]
+                        for i, index in enumerate(self.len_scans[1:]):
+                            self.sum_len_scans.append(np.arange(self.len_scans[i], index))
+                        print("len scans not in data.h5! For best support reload measurement")
+                    
             if self.file_type == ".mca":  #TODO
-                self.len_scans = np.prod(self.position_dimension, axis = 1)
-                self.sum_len_scans = [np.arange(0, self.len_scans[0])]
-                for i, index in enumerate(self.len_scans[1:]):
-                    self.sum_len_scans.append(np.arange(self.len_scans[i], index))
                 if len(self.len_scans) > 1:
                     tensor_0 = np.array([self.tensor_positions[0:self.len_scans[0]]])
                     tensor = [self.tensor_positions[self.len_scans[i]:index+1] for i, index in
@@ -1016,28 +1029,27 @@ class DataHandler():
                 positions_tmp, self.len_scans = mca.mca_tensor_positions(
                     file_list, XANES=XANES)
                 nr_scans = len(self.len_scans)
-                self.sum_len_scans = []
-                for i, length in enumerate(self.len_scans):
-                    self.sum_len_scans.append(
-                        np.arange(sum(self.len_scans[:i]), sum(self.len_scans[:i+1])))
-                x = [[] for i in range(nr_scans)]
-                z = [[] for i in range(nr_scans)]
-                monoE = [[] for i in range(nr_scans)]
-                start_position = [[] for i in range(nr_scans)]
-                position_dim = [[] for i in range(nr_scans)]
-                self.step_width = [[] for i in range(nr_scans)]
-                tensor_position = [[] for i in range(nr_scans)]
-                positions = [[] for i in range(nr_scans)]
+                self.sum_len_scans = np.cumsum(list(self.len_scans.values()))
+                # for key, length in self.len_scans.items():
+                #     self.sum_len_scans.append(
+                #         np.arange(sum(self.len_scans[:i]), sum(self.len_scans[:i+1])))
+                x = [[] for _ in range(nr_scans)]
+                z = [[] for _ in range(nr_scans)]
+                monoE = [[] for _ in range(nr_scans)]
+                start_position = [[] for _ in range(nr_scans)]
+                position_dim = [[] for _ in range(nr_scans)]
+                self.step_width = [[] for _ in range(nr_scans)]
+                tensor_position = [[] for _ in range(nr_scans)]
+                positions = [[] for _ in range(nr_scans)]
                 empty_scans = []
                 for scan in range(nr_scans):
                     if scan == 0:
-                        positions[scan] = np.array(positions_tmp[:self.len_scans[scan]])
-                    elif scan == (nr_scans-1):
-                        #self.positions_tmp = positions_tmp
-                        positions[scan] = np.array(positions_tmp[sum(self.len_scans[:scan]):])
+                        positions[scan] = np.array(positions_tmp[:self.sum_len_scans[scan]])
+                    elif scan == nr_scans-1:
+                        positions[scan] = np.array(positions_tmp[self.sum_len_scans[scan-1]:])
                     else:
                         positions[scan] = np.array(
-                            positions_tmp[sum(self.len_scans[:scan]):sum(self.len_scans[:scan+1])])
+                            positions_tmp[self.sum_len_scans[scan-1]:self.sum_len_scans[scan]])
                     if positions[scan].size == 0:
                         empty_scans.append(scan)
                         continue
@@ -1062,7 +1074,6 @@ class DataHandler():
                         tensor_position[scan] = positions[scan]-start_position[scan]
                         tensor_position[scan][:, _mask] /= self.step_width[scan][_mask]
                         tensor_position[scan] = np.round(tensor_position[scan], 0).astype(int)
-                        
                     else:
                         # if only one point in the measurement
                         x[scan] = np.unique(positions[scan][0])
