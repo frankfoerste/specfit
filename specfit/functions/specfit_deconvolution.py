@@ -18,17 +18,15 @@ class HiddenPrints:
 
 class SpecFit(object):
     """
-    first self.load_spec(spectrum) for initialise self.meas_load, spectrum:=[[int, int, int, ..., ]]
-    then self.set_ROI(ROI) for initialise self.ROI and self.Bins and self.Meas
-    than you have to calculate the Background with self.strip()
-    PU_Lines not works yet
-    M-Lines dont work yet
-    escape is fitted but nt counted as intensity
+    The SpecFit class allows the deconvolution and fitting of X-ray 
+    fluorescence spectra.
     """
     def __init__(self):
-        # parameters without preset
-        self.xraylib = True  #: use xralib instead of True or False
-        self.xraylib_linesets = self.get_all_xrlib_linesets()  #: [Ka_Lines, Kb_Lines, K_Lines, L1_Lines, L2_Lines, L3_Lines] or list of empty lists
+        #: use xralib instead of True or False
+        self.xraylib = True  
+        #: [Ka_Lines, Kb_Lines, K_Lines, L1_Lines, L2_Lines, L3_Lines] 
+        # or list of empty lists
+        self.xraylib_linesets = self.get_all_xrlib_linesets()  
         self.Z = []  #: list of all added lines, [[29, ['K-L3', 'K-L2', 'K-L1'], K-linie], []]
         self.Lines = []  #: list of dicts [{'I':1, 'Z':29, 'edge':'K-line', 'g_sum':0.8, 'lines':[{'E':2.5, 'g':0.1}, {'E':2.6, 'g':0.2}, {}]}, {...}]
         self.user_defined_lines = []  #: for every user defined line a list with relative intensities per channel
