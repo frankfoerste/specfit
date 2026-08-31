@@ -228,10 +228,12 @@ def bcf2spec_para_dask(
     (folder_path / "data").mkdir(parents=True, exist_ok=True)
 
     # open the bruker bcf file
-    data = hs.load(file_path, lazy=True,
-                   select_type="spectrum_image",
-                   signal_type="EDS_SEM"
-                   )
+    data = hs.load(
+        file_path,
+        lazy=True,
+        select_type="spectrum_image",
+        signal_type="EDS_SEM"
+        )
 
     # the last entry contains the measurement data (the others images)
     # read out parameter

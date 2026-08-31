@@ -55,8 +55,19 @@ def txt2spec_para(file_path):
     spectra = collections.OrderedDict()
     for i, angle in enumerate(angles):
         spectra[angle] = np.array(spectra_tmp[i])
-    parameters = [0.04369487, 0.0090333623, 0.4927366167856802, 0.074025388749522497, 1, 0,280e-9, 1]
-    parameters[5] = np.add(np.multiply(len(spectra_tmp[i])-1,parameters[1]),parameters[0])
+    parameters = [
+        0.04369487,
+        0.0090333623,
+        0.4927366167856802,
+        0.074025388749522497,
+        1,
+        0,
+        280e-9,
+        1]
+    parameters[5] = np.add(np.multiply(
+        len(spectra_tmp[i])-1,
+        parameters[1]),
+        parameters[0])
     print(np.array(list(spectra.values())).shape)
     sum_spec = np.sum(np.array(list(spectra.values())), axis=0)
     positions = txt2positions(file_path=file_path)
@@ -76,23 +87,39 @@ def txt2spec_para(file_path):
     else:
         write_operator = "w"
     with h5py.File(f"{folder_path}/data/data.h5", write_operator) as tofile:
-        tofile.create_dataset(f"{file_name}/spectra",
-                                data=np.array(list(spectra.values())),
-                                compression="gzip", compression_opts=9)
-        tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/counts", data=[np.sum(np.array(list(spectra.values())), axis=-1)],
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/max pixel spec", data=np.max(np.array(list(spectra.values())), axis=0),
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=pos_dim,
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
-                                compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=positions,
-                                compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/spectra",
+            data=np.array(list(spectra.values())),
+            compression="gzip",
+            compression_opts=9)
+        tofile.create_dataset(
+            f"{file_name}/sum spec",
+            data=sum_spec,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/counts",
+            data=[np.sum(np.array(list(spectra.values())), axis=-1)],
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/parameters",
+            data=parameters,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/max pixel spec",
+            data=np.max(np.array(list(spectra.values())), axis=0),
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/position dimension",
+            data=pos_dim,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/tensor positions",
+            data=tensor_positions,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/positions",
+            data=positions,
+            compression="gzip")
     return spectra, parameters, tensor_positions, pos_dim, sum_spec
 
 def txt2channels(file_path):
@@ -123,7 +150,9 @@ def plot_spectra_for_angle(energy,spectra,bg,fit,angle,save_folder_path):
     """
     angle = _cast_to_float(angle)
     if not (save_folder_path +"/ang_images").exists():
-        Path(save_folder_path / "ang_images").mkdir(parents=True, exist_ok=True)
+        Path(save_folder_path / "ang_images").mkdir(
+            parents=True,
+            exist_ok=True)
     savepath = save_folder_path / f"/ang_images/fit_plot_{angle:0.4f}.png"
     fit_with_bg = np.add(fit,bg)
     fig,ax =plt.subplots()
@@ -147,7 +176,9 @@ def save_numpy_arrays(energy,spectra,bg,fit,angle,save_folder_path):
     fit_with_bg = np.add(fit,bg)
     if not (save_folder_path +"/ang_npz").exists():
         Path(save_folder_path / "ang_npz").mkdir(parents=True, exist_ok=True)
-    outfile = save_folder_path +"/ang_npz/en_sp_bg_fit_{0:0.4f}.png".format(angle)
+    outfile = (
+        save_folder_path+"/ang_npz/en_sp_bg_fit_{0:0.4f}.png".format(angle)
+    )
     np.savez(outfile,energy,spectra,bg,fit_with_bg)
 
 def plot_angle_line_intensities(results,angles,savepath,n=0):
@@ -162,7 +193,8 @@ def plot_angle_line_intensities(results,angles,savepath,n=0):
     """
     # do not cut more than you have
     if n >= len(angles)/2:
-        print(f"ERROR, you are cutting 2*{n} angles in the plot! Thats more than you have... n is set zu 0.")
+        print(f"ERROR, you are cutting 2*{n} angles in the plot! Thats more",
+              "than you have... n is set zu 0.")
         n = None
     else:
         # cut the first and the last

@@ -4,7 +4,8 @@ import h5py
 
 def norm2sec(spectrum, time):
     """
-    This function normalizes the given spectrum to seconds based on life or real time.
+    This function normalizes the given spectrum to seconds based on life or
+    real time.
 
     Parameters
     ----------
@@ -49,7 +50,7 @@ def open_dict_pickle(load_path):
     """
     with open(load_path, 'rb') as loadfrom:
         return pickle.load(loadfrom)
-    
+
 def get_hdf5_write_operator(hdf5_file, file_name):
     """
     This function checks the hdf5 file for its content and determines if
@@ -63,14 +64,14 @@ def get_hdf5_write_operator(hdf5_file, file_name):
     else:
         write_operator = "w"
     return write_operator
-    
+
 def create_hdf5_encoding(dataset):
     """
     This function creates a encoding dictionary for the compression
     of hdf5 files with xarray
     """
     # Encoding options for compression (same for all variables)
-    encoding = {var: {"compression": "gzip", 
+    encoding = {var: {"compression": "gzip",
                       "compression_opts": 5} for var in dataset.data_vars}
     return encoding
 
@@ -80,27 +81,27 @@ def set_xarray_units(dataset):
     the axes and variable of an xarray dataset utilised
     by SpecFit.
     The Dataset needs to have the coordinates
-    spec_nr  - ['']
-    dimension  - ['']
-    energy  - ['keV']
-    X  - ['mm']
-    Y  - ['mm']
-    Z  - ['mm']
+    spec_nr - ['']
+    dimension - ['']
+    energy - ['keV']
+    X - ['mm']
+    Y - ['mm']
+    Z - ['mm']
     parameters
     with the DataArrays:
     counts [spec_nr] - 'counts per second'
-    position dimension [dimension]  - ['x', 'y', 'z']
-    tensor positions [spec_nr, dimension]  - ['mm', 'mm', 'mm']
-    positions [spec_nr, dimension]  - ['mm', 'mm', 'mm']
-    spectra [X, Y, Z, energy]  - 'counts per second'
-    max pixel spec [energy]  - 'counts per second'
-    sum spec [energy]  - 'counts per second'
-    parameters [parameter]  - ['keV', 'keV', 'a.u.', 'keV', 's', 'keV', 's', 's']
- 
-    """    
+    position dimension [dimension] - ['x', 'y', 'z']
+    tensor positions [spec_nr, dimension] - ['mm', 'mm', 'mm']
+    positions [spec_nr, dimension] - ['mm', 'mm', 'mm']
+    spectra [X, Y, Z, energy] - 'counts per second'
+    max pixel spec [energy] - 'counts per second'
+    sum spec [energy] - 'counts per second'
+    parameters [parameter] -['keV', 'keV', 'a.u.', 'keV', 's', 'keV', 's', 's']
+
+    """
     dataset.coords["spec_nr"].attrs["units"] = ""
-    dataset.coords["parameter"].attrs["units"] = ["keV", "keV", "a.u.", 
-                                                  "keV", "s", "keV", 
+    dataset.coords["parameter"].attrs["units"] = ["keV", "keV", "a.u.",
+                                                  "keV", "s", "keV",
                                                   "s", "s"]
     dataset.coords["dimension"].attrs["units"] = ""
     dataset.coords["energy"].attrs["units"] = "keV"

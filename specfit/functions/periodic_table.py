@@ -9,14 +9,16 @@ from specfit.functions.user_defined_lines import LinesWidget
 import specfit.functions.line_finder as lf
 
 class PeriodicTable(QtWidgets.QWidget):
-    def __init__(self,
-                 parent = None,
-                 PSE = None,
-                 elements = None,
-                 lines = None,
-                 check_elements = None,
-                 characteristic_lines = None,
-                 lineE = None):
+    def __init__(
+            self,
+            parent=None,
+            PSE=None,
+            elements=None,
+            lines=None,
+            check_elements=None,
+            characteristic_lines=None,
+            lineE=None
+            ):
         # initalize main window
         super(PeriodicTable, self).__init__(parent)
         try:
@@ -25,16 +27,24 @@ class PeriodicTable(QtWidgets.QWidget):
             print(QtGui.QIcon.themeName())
         self.bg_color = "light grey"
         # implementing database
-        self.elements = elements  # list of elements
-        self.lines = lines  # list of lines for ex. K, Ka,..
-        self.PSE = PSE  # list with definitions of the PSE
-        self.characteristic_lines = characteristic_lines  # list of characteristic X-ray lines
-        self.check_lines_list = []  # list of checkable lines
-        self.check_line_labels = []  # list of check_line_labels
-        self.check_elements = check_elements  # list to determine the selected elements
+        # list of elements
+        self.elements = elements
+        # list of lines for ex. K, Ka,..
+        self.lines = lines
+        # list with definitions of the PSE
+        self.PSE = PSE
+        # list of characteristic X-ray lines
+        self.characteristic_lines = characteristic_lines
+        # list of checkable lines
+        self.check_lines_list = []
+        # list of check_line_labels
+        self.check_line_labels = []
+        # list to determine the selected elements
+        self.check_elements = check_elements
         self.lineE = lineE
         # define geometry and properties
-        self.screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.screen_properties = QtGui.QGuiApplication.primaryScreen(
+            ).availableGeometry()
         self.screen_width = self.screen_properties.width()
         self.screen_height = self.screen_properties.height()
         self.window_heigth = 320
@@ -46,16 +56,16 @@ class PeriodicTable(QtWidgets.QWidget):
         self.selected_elements = []
         self.selected_lines = []
         self.user_defined_lines = []
-        self.setStyleSheet("QWidget { "\
-                           +"color: black; background-color:white;" \
-                           +"}"\
-                           +"QLabel {font-size: 11px;} "\
-                           +"QLineEdit {font-size: 11px} "\
-                           +"QCheckBox {font-size: 10px} "\
-                           +"QPushButton {font-size: 11px;}"\
-                           +"QRadioButton {font-size: 11px} "\
-                           +"QTextEdit {font-size: 11px}"\
-                           +"QTabWidget {font-size: 11px}" )
+        self.setStyleSheet(
+            "QWidget { "\
+            + "color: black; background-color:white;}"
+            + "QLabel {font-size: 11px;} "
+            + "QLineEdit {font-size: 11px} "
+            + "QCheckBox {font-size: 10px} "
+            + "QPushButton {font-size: 11px;}"
+            + "QRadioButton {font-size: 11px} "
+            + "QTextEdit {font-size: 11px}"
+            + "QTabWidget {font-size: 11px}" )
         self.__init__UI()
 
     def __init__UI(self):
@@ -85,8 +95,11 @@ class PeriodicTable(QtWidgets.QWidget):
 
     def __init__line_finder_widget(self):
         module_path = os.path.dirname(lf.__file__)
-        self.tab_line_finder = lf.LineFinder(parent = None, module_path = module_path)
-        self.tab_line_finder.table_lines.doubleClicked.connect(self.select_line_on_double_click_line_finder)
+        self.tab_line_finder = lf.LineFinder(
+            parent=None,
+            module_path=module_path)
+        self.tab_line_finder.table_lines.doubleClicked.connect(
+            self.select_line_on_double_click_line_finder)
 
     def __init__PSE_widget(self):
         self.tab_PSE = QtWidgets.QWidget()
@@ -120,19 +133,28 @@ class PeriodicTable(QtWidgets.QWidget):
     def element_list(self):
         """
         This function creates checkbuttons for each element. You can select the
-        elements, which then will be saved in the list selected_elements in the form
+        elements, which then will be saved in the list selected_elements in the
+        form
         [[element_1,Z_1],[element_2,Z_2],...]
         """
         self.selected_elements = []
         for i, _ in enumerate(self.elements):
-            self.check_elements[i] = QtWidgets.QPushButton(self.elements[i][1],self.tab_PSE)
+            self.check_elements[i] = QtWidgets.QPushButton(
+                self.elements[i][1],self.tab_PSE)
             self.check_elements[i].setCheckable(True)
-            self.PSE_layout.addWidget(self.check_elements[i], self.PSE[i][3],self.PSE[i][2])
-            self.check_elements[i].setStyleSheet("QWidget {font-size: 11px; background-color : %s}"%self.PSE[i][5])
-            self.check_elements[i].pressed.connect(partial(self.read_element_choice,self.elements[i][1]))
+            self.PSE_layout.addWidget(
+                self.check_elements[i], self.PSE[i][3], self.PSE[i][2])
+            self.check_elements[i].setStyleSheet(
+                "QWidget {font-size: 11px; background-color : "
+                + f"{self.PSE[i][5]}" + "}")
+            self.check_elements[i].pressed.connect(
+                partial(self.read_element_choice,self.elements[i][1]))
             self.check_elements[i].setToolTip(self.create_tool_tip_element(i+1))
 
-    def create_tool_tip_element(self, element):
+    def create_tool_tip_element(
+            self,
+            element
+            ):
         element = str(element)
         tool_tip = ""
         for k, _ in enumerate(self.characteristic_lines[element]):
@@ -141,7 +163,8 @@ class PeriodicTable(QtWidgets.QWidget):
 
     def display_selected_lines(self):
        """
-       display lines that are stored in dataclass in GUI -necessary after loading a paramfile
+       display lines that are stored in dataclass in GUI -necessary after
+       loading a paramfile
        """
        # add element-lines
        for element,lines in zip(self.selected_elements, self.selected_lines):
@@ -162,17 +185,22 @@ class PeriodicTable(QtWidgets.QWidget):
         self.selected_elements = []
         self.selected_lines = []
         for lines in self.check_lines_list:
-            self.selected_elements.append(lines[0].text()) #TODO
+            self.selected_elements.append(lines[0].text()) # TODO
             line_list = []  # store for example ['Ka','Kb']
             for j in range(1,14):
                 if lines[j].checkState() == QtCore.Qt.CheckState.Checked:
                     line_list.append(linedict[j])
             self.selected_lines.append(line_list)
 
-    def read_element_choice(self, element_str, paramfile=False):
+    def read_element_choice(
+            self,
+            element_str,
+            paramfile=False
+            ):
         """
         This function determines wether the element-button was already pressed
-        or the element must be assigned to the selected_element list (appear in the GUI).
+        or the element must be assigned to the selected_element list (appear
+        in the GUI).
         """
         if paramfile or not (element_str in self.selected_elements):
             if not paramfile:
@@ -180,39 +208,71 @@ class PeriodicTable(QtWidgets.QWidget):
             self.line_list(element_str)
             element = xrl.SymbolToAtomicNumber(element_str)
             if element < 13:
-                Ka = [xrl.LineEnergy(element, xrl.KA1_LINE), xrl.RadRate(element, xrl.KA1_LINE)]
-                self.ax_canvas_spectrum.axvline(Ka[0],
-                                                linewidth=0.5, color="r",
-                                                ymax=Ka[1], label=element_str)
-                self.ax_canvas_spectrum.text(Ka[0] + 0.1,
-                                             0.3, f"{element_str} - K", rotation=90, color="green",
-                                             label=element_str)
+                Ka = [xrl.LineEnergy(element, xrl.KA1_LINE),
+                      xrl.RadRate(element, xrl.KA1_LINE)]
+                self.ax_canvas_spectrum.axvline(
+                    Ka[0],
+                    linewidth=0.5,
+                    color="r",
+                    ymax=Ka[1],
+                    label=element_str)
+                self.ax_canvas_spectrum.text(
+                    Ka[0] + 0.1,
+                    0.3,
+                    f"{element_str} - K",
+                    rotation=90,
+                    color="green",
+                    label=element_str)
             elif 13 <= element <= 39:
-                Ka = [xrl.LineEnergy(element, xrl.KA1_LINE), xrl.RadRate(element, xrl.KA1_LINE)]
-                Kb = [xrl.LineEnergy(element, xrl.KB1_LINE), xrl.RadRate(element, xrl.KB1_LINE)]
-                self.ax_canvas_spectrum.axvline(Ka[0],
-                                                linewidth=0.5, color="r", ymax=Ka[1],
-                                                label=element_str)
-                self.ax_canvas_spectrum.text(Ka[0] + 0.1,
-                                             0.3, f"{element_str} - K", rotation=90, color="green",
-                                             label=element_str)
-                self.ax_canvas_spectrum.axvline(Kb[0],
-                                                linewidth=0.5, color="r", ymax=Kb[1],
-                                                label=element_str)
+                Ka = [xrl.LineEnergy(element, xrl.KA1_LINE),
+                      xrl.RadRate(element, xrl.KA1_LINE)]
+                Kb = [xrl.LineEnergy(element, xrl.KB1_LINE),
+                      xrl.RadRate(element, xrl.KB1_LINE)]
+                self.ax_canvas_spectrum.axvline(
+                    Ka[0],
+                    linewidth=0.5,
+                    color="r",
+                    ymax=Ka[1],
+                    label=element_str)
+                self.ax_canvas_spectrum.text(
+                    Ka[0] + 0.1,
+                    0.3,
+                    f"{element_str} - K",
+                    rotation=90,
+                    color="green",
+                    label=element_str)
+                self.ax_canvas_spectrum.axvline(
+                    Kb[0],
+                    linewidth=0.5,
+                    color="r",
+                    ymax=Kb[1],
+                    label=element_str)
             elif 39 < element < 96:
-                self.ax_canvas_spectrum.axvline(xrl.LineEnergy(element, xrl.L3M5_LINE),
-                                                linewidth=0.5, color="r", ymax=0.5,
-                                                label=element_str)
-                self.ax_canvas_spectrum.text(xrl.LineEnergy(element, xrl.L3M5_LINE) + 0.1,
-                                             0.3, f"{element_str} - La", rotation=90,
-                                             label=element_str)
+                self.ax_canvas_spectrum.axvline(
+                    xrl.LineEnergy(element, xrl.L3M5_LINE),
+                    linewidth=0.5,
+                    color="r",
+                    ymax=0.5,
+                    label=element_str)
+                self.ax_canvas_spectrum.text(
+                    xrl.LineEnergy(element, xrl.L3M5_LINE) + 0.1,
+                    0.3,
+                    f"{element_str} - La",
+                    rotation=90,
+                    label=element_str)
             else:
-                self.ax_canvas_spectrum.axvline(xrl.LineEnergy(element, xrl.M5N7_LINE),
-                                                linewidth=0.5, color="r", ymax=0.5,
-                                                label=element_str)
-                self.ax_canvas_spectrum.text(xrl.LineEnergy(element, xrl.M5N7_LINE) + 0.1,
-                                             0.3, f"{element_str} - Ma", rotation=90,
-                                             label=element_str)
+                self.ax_canvas_spectrum.axvline(
+                    xrl.LineEnergy(element, xrl.M5N7_LINE),
+                    linewidth=0.5,
+                    color="r",
+                    ymax=0.5,
+                    label=element_str)
+                self.ax_canvas_spectrum.text(
+                    xrl.LineEnergy(element, xrl.M5N7_LINE) + 0.1,
+                    0.3,
+                    f"{element_str} - Ma",
+                    rotation=90,
+                    label=element_str)
             self.canvas_spectrum.draw()
         else:
             self.remove_line_list(element_str)
@@ -220,39 +280,58 @@ class PeriodicTable(QtWidgets.QWidget):
             self.selected_elements.pop(i)
         self.update_element_widget()
 
-    def line_list(self, element_str):
+    def line_list(
+            self,
+            element_str
+            ):
         """
         This function creates checkbuttons for each line. You can select the
         lines, which then will be saved in the list selected_lines in the form
         [line_1,line_2,...]
         """
         if self.check_lines_list == []:
-            self.check_lines_list = [[element_str, xrl.SymbolToAtomicNumber(element_str), element_str,
-                                      0, 1, 2,
-                                      3, 4, 5, 6,
-                                      7, 8, 9, 10, 11, 12]]
+            self.check_lines_list = [[
+                element_str,
+                xrl.SymbolToAtomicNumber(element_str),
+                element_str,
+                0, 1, 2,  # K-Lines
+                3, 4, 5, 6,  # L-Lines
+                7, 8, 9, 10, 11, 12]]  # M-Lines
         else:
-            self.check_lines_list.append([element_str, xrl.SymbolToAtomicNumber(element_str), element_str,
-                                          0, 1, 2,
-                                          3, 4, 5, 6,
-                                          7, 8, 9, 10, 11, 12])
+            self.check_lines_list.append([
+                element_str,
+                xrl.SymbolToAtomicNumber(element_str),
+                element_str,
+                0, 1, 2,  # K-Lines
+                3, 4, 5, 6,  # L-Lines
+                7, 8, 9, 10, 11, 12])  # M-Lines
+
         len_list = len(self.check_lines_list)
-        self.check_lines_list[-1][0] = QtWidgets.QPushButton(element_str, self.element_widget)
-        self.check_lines_list[-1][0].setGeometry(0, 0 + 20*(len_list-1), 20, 20)
-        self.check_lines_list[-1][0].clicked.connect(partial(self.read_element_choice, element_str))
+        self.check_lines_list[-1][0] = QtWidgets.QPushButton(
+            element_str, self.element_widget)
+        self.check_lines_list[-1][0].setGeometry(
+            0, 0 + 20*(len_list-1), 20, 20)
+        self.check_lines_list[-1][0].clicked.connect(
+            partial(self.read_element_choice, element_str))
         self.check_lines_list[-1][0].show()
         for i in range(1, 14):
-            self.check_lines_list[-1][i] = QtWidgets.QCheckBox(f"{self.lines[i - 1][0]}", self.element_widget)
-            self.check_lines_list[-1][i].clicked.connect(partial(self.Lines_separate, i))
+            self.check_lines_list[-1][i] = QtWidgets.QCheckBox(
+                f"{self.lines[i - 1][0]}", self.element_widget)
+            self.check_lines_list[-1][i].clicked.connect(
+                partial(self.Lines_separate, i))
             if i == 1 and xrl.SymbolToAtomicNumber(element_str) <= 39:
                 self.check_lines_list[-1][i].setChecked(True)
             elif 4 == i and 39 < xrl.SymbolToAtomicNumber(element_str):
                 self.check_lines_list[-1][i].setChecked(True)
-            self.check_lines_list[-1][i].setGeometry(25+ 36*(i-1), 0 + 20*(len_list-1), 33, 20)
+            self.check_lines_list[-1][i].setGeometry(
+                25+ 36*(i-1), 0 + 20*(len_list-1), 33, 20)
             self.check_lines_list[-1][i].show()
         self.update_element_widget()
 
-    def Lines_separate(self, lineindex): #1:K 2:Ka 3:Kb
+    def Lines_separate(
+            self,
+            lineindex
+            ):
         """
         prohibits that
         K and Ka, Kb
@@ -290,32 +369,47 @@ class PeriodicTable(QtWidgets.QWidget):
                 if self.check_lines_list[i][lineindex].checkState().value != 0:
                     self.check_lines_list[i][8].setChecked(False)
 
-    def select_lines_in_list(self,linelist):
-       """
-       selects the lines in linelist in a previousy created line_list of latest added element
-       """
-       linedict = {"K": 1, "Ka": 2, "Kb": 3,
-                   "L": 4, "L1": 5, "L2": 6, "L3": 7,
-                   "M": 8, "M1": 9, "M2": 10, "M3":11,"M4": 12, "M5": 13}
-       for line in linedict.keys():
-           self.check_lines_list[-1][linedict[line]].setChecked(line in linelist)
+    def select_lines_in_list(
+            self,
+            linelist
+            ):
+        """
+        selects the lines in linelist in a previousy created line_list of
+        latest added element
+        """
+        linedict = {
+            "K": 1, "Ka": 2, "Kb": 3,
+            "L": 4, "L1": 5, "L2": 6, "L3": 7,
+            "M": 8, "M1": 9, "M2": 10, "M3":11,"M4": 12, "M5": 13}
 
-    def remove_line_list(self, element_str):
+        for line in linedict.keys():
+            self.check_lines_list[-1][linedict[line]].setChecked(
+                line in linelist)
+
+    def remove_line_list(
+            self,
+            element_str
+            ):
         """
         remove the line with element label from GUI
         """
         i = np.where(np.array(self.selected_elements) == element_str)[0][0]
+        # hide all the buttons for element_nr
         for j in range(14):
-            self.check_lines_list[i][j].hide()  # hide all the buttons for element_nr
-        self.check_lines_list.pop(i)  # remove this element of check_lines
+            self.check_lines_list[i][j].hide()
 
-        for k, _ in enumerate(self.check_lines_list):  # find the correct position for all other
+        # remove this element of check_lines
+        self.check_lines_list.pop(i)
+
+        # find the correct position for all other
+        for k, _ in enumerate(self.check_lines_list):
             for l in range(14):
                 if l == 0:
                     self.check_lines_list[k][0].move(0, 0 + 20*k)
                 if (l >= 1 and l <= 13):
                     self.check_lines_list[k][l].move(25+ 36*(l-1), 0+ 20*(k))
                 self.check_lines_list[k][l].show()
+
         # now remove the vertical lines from the specfit plot canvas
         tidy_lines = []
         tidy_texts = []
@@ -356,7 +450,10 @@ class PeriodicTable(QtWidgets.QWidget):
         # example: {'Cu': (True, ['K-line', 'L1'], 29)}
         self.specfit_addlines = {}
         for element, lines in zip(self.selected_elements, self.selected_lines):
-            self.specfit_addlines[f"{element}"] = (True, lines, xrl.SymbolToAtomicNumber(element))
+            self.specfit_addlines[f"{element}"] = (
+                True,
+                lines,
+                xrl.SymbolToAtomicNumber(element))
 
     def select_line_on_double_click_line_finder(self, ):
         selected_line = self.tab_line_finder.table_lines.currentItem().text()
@@ -370,13 +467,3 @@ class PeriodicTable(QtWidgets.QWidget):
                         self.check_lines_list[i][j+1].setChecked(True)
                     else:
                         self.check_lines_list[i][j+1].setChecked(False)
-
-def main():
-    app = QtWidgets.QApplication(sys.argv)
-    app.setStyle("GTK+")
-    pertab = PeriodicTable()
-    pertab.show()
-    app.exec_()
-
-if __name__ == "__main__":
-    main()

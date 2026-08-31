@@ -94,7 +94,7 @@ class RoDatabase(object):
 
                 if line[0] == "98":
                     break
-
+        
     def init_check_elements(self):
         """
         here a list to determine wether a element is choosen or not is created
@@ -131,7 +131,7 @@ class RoDatabase(object):
                     line[3],
                     int(line[4]),
                     float(line[5])]
-
+        
 
 database = RoDatabase()
 
@@ -442,7 +442,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # start debugging console action
         self.action_ipython_console = QtGui.QAction(
             QtGui.QIcon(str(
-                self.working_directory / "specfit" / "data" / "icons" / 
+                self.working_directory / "specfit" / "data" / "icons" /
                 "bug.png")),
             "start ipython console",
             self)
@@ -452,7 +452,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # exit action
         self.action_exit = QtGui.QAction(
             QtGui.QIcon(str(
-                self.working_directory / "specfit" / "data" / "icons" / 
+                self.working_directory / "specfit" / "data" / "icons" /
                 "exit.png")), "Exit", self)
         self.action_exit.setShortcut("Ctrl+Q")
         self.action_exit.setStatusTip("Exit application with Ctrl+Q")
@@ -894,7 +894,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 # only display the last 20 files
                 if i == 20:
                     break
-                                                
+
                 action = QtGui.QAction(file_path, self)
                 action.triggered.connect(
                     lambda checked,

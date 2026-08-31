@@ -4,7 +4,8 @@ class EnergyRangePopup(QtWidgets.QWidget):
     popup_energy = QtCore.pyqtSignal(int)
     def __init__(self):
         super(EnergyRangePopup, self).__init__()
-        self.screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.screen_properties = QtGui.QGuiApplication.primaryScreen(
+            ).availableGeometry()
         self.screen_width = self.screen_properties.width()
         self.screen_height = self.screen_properties.height()
         self.popup_heigth = 70
@@ -17,7 +18,8 @@ class EnergyRangePopup(QtWidgets.QWidget):
 
     def init_UI(self):
         # initialize widgets #
-        self.label_message = QtWidgets.QLabel("What energy range are you interested?", self)
+        self.label_message = QtWidgets.QLabel(
+            "What energy range are you interested?", self)
         self.label_energy_low = QtWidgets.QLabel("0 keV -", self)
         self.entry_high = QtWidgets.QLineEdit("",self)
         self.button_close = QtWidgets.QPushButton("Okay",self)

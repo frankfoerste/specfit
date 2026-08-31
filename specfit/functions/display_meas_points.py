@@ -10,7 +10,8 @@ from pathlib import Path
 class DisplayMeasPoints(QtWidgets.QWidget):
     def __init__(self, parent = None):
         super(DisplayMeasPoints, self).__init__(parent)
-        screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        screen_properties = QtGui.QGuiApplication.primaryScreen(
+            ).availableGeometry()
         screen_width = screen_properties.width()
         screen_height = screen_properties.height()
         self.homedir = Path.home()
@@ -38,11 +39,14 @@ class DisplayMeasPoints(QtWidgets.QWidget):
         Define the layout of the plot frame
         """
         self.figure_meas_points = figure.Figure(dpi = 80)
-        self.canvas_meas_points = pltqt.FigureCanvasQTAgg(self.figure_meas_points)
+        self.canvas_meas_points = pltqt.FigureCanvasQTAgg(
+            self.figure_meas_points)
         self.canvas_meas_points.setParent(self)
         self.canvas_meas_points.move(5,30)
-        self.toolbar_meas_points = pltqt.NavigationToolbar2QT(self.canvas_meas_points, self)
-        self.toolbar_meas_points.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
+        self.toolbar_meas_points = pltqt.NavigationToolbar2QT(
+            self.canvas_meas_points, self)
+        self.toolbar_meas_points.setStyleSheet(
+            "color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         self.toolbar_meas_points.setGeometry(0,380, 590, 50)
 
     def show_display_meas_points(self):
@@ -58,7 +62,7 @@ class DisplayMeasPoints(QtWidgets.QWidget):
 
     def load_data(self):
         self.reset_2_default()
-        folderpath = QtWidgets.QFileDialog.getExistingDirectory()         # function for a folder-GUI
+        folderpath = QtWidgets.QFileDialog.getExistingDirectory()
         file_path_list = glob(folderpath+"/*spx")
         self.retrieve_positions_spx(file_path_list)
 
@@ -73,7 +77,9 @@ class DisplayMeasPoints(QtWidgets.QWidget):
 
     def display_meas_points(self):
         # create an axis
-        self.ax_canvas_meas_points = self.figure_meas_points.add_subplot(111, projection="3d")
+        self.ax_canvas_meas_points = self.figure_meas_points.add_subplot(
+            111,
+            projection="3d")
         self.ax_canvas_meas_points.grid(False)
         self.ax_canvas_meas_points.xaxis.set_pane_color((1,1,1,1))
         self.ax_canvas_meas_points.yaxis.set_pane_color((1,1,1,1))

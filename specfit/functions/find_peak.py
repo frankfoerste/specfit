@@ -1,9 +1,11 @@
 import sys
 from numpy import NaN, Inf, arange, isscalar, asarray, array
 
-def peakdet(v, delta, x = None):
+def peakdet(
+        v,
+        delta,
+        x=None):
     """
-    Converted from MATLAB script at http://billauer.co.il/peakdet.html
     Returns two arrays
     """
     maxtab = []

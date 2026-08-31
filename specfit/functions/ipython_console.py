@@ -9,7 +9,9 @@ class IPythonConsole(QWidget):
         self.ipython_widget.kernel_manager = QtInProcessKernelManager()
         self.ipython_widget.kernel_manager.start_kernel(show_banner=False)
         self.ipython_widget.kernel_manager.kernel.gui = 'qt'
-        self.ipython_widget.kernel_client = self.ipython_widget.kernel_manager.client()
+        self.ipython_widget.kernel_client = (
+            self.ipython_widget.kernel_manager.client()
+        )
         self.ipython_widget.kernel_client.start_channels()
 
     def exit_console(self, msg):
@@ -21,8 +23,11 @@ class IPythonConsole(QWidget):
         self.ipython_widget.close()
 
     def show(self,):
-        self.ipython_widget.kernel_manager.kernel.shell.run_cell('import numpy as np')
-        self.ipython_widget.kernel_manager.kernel.shell.run_cell('import matplotlib.pyplot as plt')
-        self.ipython_widget.kernel_manager.kernel.shell.run_cell('"to enter the SpecFit class, use specfit. e.g. specfit.row_height"')
+        self.ipython_widget.kernel_manager.kernel.shell.run_cell(
+            'import numpy as np')
+        self.ipython_widget.kernel_manager.kernel.shell.run_cell(
+            'import matplotlib.pyplot as plt')
+        self.ipython_widget.kernel_manager.kernel.shell.run_cell(
+            '"to enter the SpecFit class, use specfit. e.g. specfit.row_height"')
         self.ipython_widget.show()
         

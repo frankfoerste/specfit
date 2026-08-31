@@ -13,7 +13,7 @@ structured files like *.hdf5* to company specific formats like *Bruker*'s
 *.bcf* or *.spx* file. The complete list of currently supported files can be
 found under :ref:`supported files <ref-Installation>`.
 
-This documentation covers the overall functionality of SpecFit and a clear 
+This documentation covers the overall functionality of SpecFit and a clear
 code documentation.
 
 Technical overviews of the functions provided are listed.
@@ -47,6 +47,7 @@ Contents
    Detailed GUI Description <Detailed Description>
    Detailed Fitting Description <Detailed Fitting Description>
    Supported Formats <Supported Formats>
+   Contribution / Citation / Reference <Contribution-Citation-Reference>
 
 Indices and tables
 ==================

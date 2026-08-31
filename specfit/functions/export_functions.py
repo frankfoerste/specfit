@@ -10,7 +10,8 @@ def h5_to_tiff():
     This function creates tiff images from all arrays in provided h5 file
     """
     # define path where h5 file is stored
-    data_path = Path(QtWidgets.QFileDialog().getOpenFileName(filter = "*.h5")[0])
+    data_path = Path(QtWidgets.QFileDialog().getOpenFileName(
+        filter = "*.h5")[0])
     folder_path = data_path.parent
     (folder_path/"tiff").mkdir(parents=True, exist_ok=True)
     file_name = data_path.stem
@@ -20,7 +21,8 @@ def h5_to_tiff():
             if isinstance(f[meas], h5py.Group):
                 for line in f[meas]:
                     data = f[meas][line][()].squeeze()
-                    file_path = folder_path/"tiff"/f"{meas.split('.')[0]}_{line}.tiff"
+                    file_path = folder_path / "tiff" / f"{
+                        meas.split('.')[0]}_{line}.tiff"
                     image = Image.fromarray(data)
                     # Save the array as a .tif file
                     image.save(file_path, "tiff")

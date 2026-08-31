@@ -5,7 +5,7 @@ Sensitivity (Sobol) Analysis
 The Sobol method is a variance-based sensitivity analysis method. It is used to determine the contribution of each input parameter to the output variance. The Sobol method decomposes the output variance into contributions from each input parameter and their interactions. This allows for a comprehensive understanding of how input parameters influence the output.
 The Sobol method is particularly useful for complex models with multiple input parameters, as it can identify.
 
-To perform a Sobol sensitivity analysis, the class *ICDD_evaluation* in the **Evaluation_ICDD.py** script is utilised. 
+To perform a Sobol sensitivity analysis, the class *ICDD_evaluation* in the **Evaluation_ICDD.py** script is utilised.
 The class is initiated
 
    .. code-block:: python
@@ -47,7 +47,7 @@ Now all the data is available for analysis and the Sobol sensitivity analysis ca
 
 .. _ref-sensitivity_analysis:
 
-.. figure:: images/20260629_ST_plot.png
+.. figure:: _static/images/20260629_ST_plot.png
    :width: 100%
    :align: center
 

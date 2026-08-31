@@ -1,10 +1,13 @@
 import pickle
 import numpy as np
 import time as t
-import psutil # Module to determine system memory properties
+import psutil
 from pathlib import Path
 
-def spe2spec_para(file_path, print_warning=False):
+def spe2spec_para(
+        file_path,
+        print_warning=False
+        ):
     """
     This function reads out the spectrum of a .spe-file and reads out the
     detector parameters given in the .spe-file.
@@ -44,15 +47,31 @@ def spe2spec_para(file_path, print_warning=False):
                     data_start = True
                 elif "$MEAS_TIM" in line:
                     life_time = True
-    parameters = [a0, a1, Fano, FWHM, life_time, a0 + a1 * (channels), gating_time, real_time]
+    parameters = [
+        a0,
+        a1,
+        Fano,
+        FWHM,
+        life_time,
+        a0 + a1 * (channels),
+        gating_time,
+        real_time]
+
     return np.asarray(spectrum), parameters
 
-def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
-                       save_sum_spec=True, save_spectra=True,
-                       save_counts=True, save_parameters=True,
-                       save_any=True, print_warning=False,
-                       save_spec_as_dict=True,
-                       return_values=False):
+def many_spe2spec_para(
+        folder_path,
+        signal=None,
+        worth_fit_threshold=200,
+        save_sum_spec=True,
+        save_spectra=True,
+        save_counts=True,
+        save_parameters=True,
+        save_any=True,
+        print_warning=False,
+        save_spec_as_dict=True,
+        return_values=False
+        ):
     """
     This function reads out the spectrum of a .spe-file and reads out the
     detector parameters given in the .spe-file.
@@ -113,7 +132,9 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
         tensor_positions = np.array(tensor_positions, dtype=int)
     folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
-    if (folder_size / machine_memory) < 0.7:                              # for machines with big memory
+
+    # for machines with big memory
+    if (folder_size / machine_memory) < 0.7:
         print("machine memory big enough. creating spectra dict")
         for file_nr, spe_file in enumerate(sorted_folder):
             data_start = False
@@ -183,7 +204,10 @@ def many_spe2spec_para(folder_path, signal=None, worth_fit_threshold=200,
         else:
             return spectra, parameters
 
-def sum_from_single_files(folder_path, save_sum_spec=True):
+def sum_from_single_files(
+        folder_path,
+        save_sum_spec=True
+        ):
     folder_path = Path(folder_path)
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     first_spec = True
@@ -197,7 +221,9 @@ def sum_from_single_files(folder_path, save_sum_spec=True):
         np.save(f"{folder_path}/data/sum_spec", sum_spec)
     return sum_spec
 
-def spe2life_time(file_path):
+def spe2life_time(
+        file_path
+        ):
     """
     This function reads out the life-time in seconds of a .spe-file.
     """
@@ -211,7 +237,9 @@ def spe2life_time(file_path):
                 life_time = True
     return life_time
 
-def spe2real_time(file_path):
+def spe2real_time(
+        file_path
+        ):
     """
     This function reads out the real-time in seconds of a .spe-file.
     """
@@ -225,9 +253,13 @@ def spe2real_time(file_path):
                 life_time = True
     return life_time
 
-def norm2sec(spectrum, time):
+def norm2sec(
+        spectrum,
+        time
+        ):
     """
-    This function normalizes the given spectrum to seconds based on life or real time.
+    This function normalizes the given spectrum to seconds based on life or
+    real time.
 
     Parameters
     ----------
@@ -256,7 +288,8 @@ def spe2channels(file_path):
 
 def spe_log_content(file_path):
     """
-    This function reads out all the parameters of the scan saved in the .log_file.
+    This function reads out all the parameters of the scan saved in the
+    .log_file.
 
     Parameters
     ----------

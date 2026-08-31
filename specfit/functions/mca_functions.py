@@ -9,7 +9,11 @@ from glob import glob
 import matplotlib.pyplot as plt
 plt.ion()
 
-def mca2spec_para(file_path, XANES=True, print_warning=False):
+def mca2spec_para(
+        file_path,
+        XANES=True,
+        print_warning=False
+        ):
     """
     This function reads out the spectrum and detector parameters given in the
     .mca-file depending on which kind of .mca file is loaded (see function
@@ -91,13 +95,20 @@ def mca2spec_para(file_path, XANES=True, print_warning=False):
             print(f"ROI life-time:\t {life_time} s")
     return np.array(spectrum), np.array(parameters)
 
-def many_mca2spec_para(folder_path, XANES=False, signal=None ,
-                       worth_fit_threshold=200,
-                       save_sum_spec=True, save_spectra=True,
-                       save_counts=True, save_parameters=True,
-                       save_any=True, print_warning=False,
-                       save_spec_as_dict=True,
-                       return_values=False):
+def many_mca2spec_para(
+        folder_path,
+        XANES=False,
+        signal=None ,
+        worth_fit_threshold=200,
+        save_sum_spec=True,
+        save_spectra=True,
+        save_counts=True,
+        save_parameters=True,
+        save_any=True,
+        print_warning=False,
+        save_spec_as_dict=True,
+        return_values=False
+        ):
     """
     This function reads out the spectrum of a .mca-file and reads out the
     detector parameters given in the .mca-file.
@@ -156,9 +167,12 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
     spec_file_path = [file for file in folder_path.parent.glob("*.spec")][0]
     nr_scans, len_scans = read_nr_len_scans_from_spec(spec_file_path)
     scan_0, _ = [int(tmp.replace(".mca", "")) for tmp in str(sorted_folder[0]).split("/")[-1].split("_")[-2:]]
-    ionization_current = read_ionization_spec(spec_file_path, nr_scans,
-                                              len_scans=len_scans,
-                                              scan_0=scan_0)
+    ionization_current = read_ionization_spec(
+        spec_file_path,
+        nr_scans,
+        len_scans=len_scans,
+        scan_0=scan_0)
+
     # read out spectra
     folder_size = sum(f.stat().st_size for f in sorted_folder if f.is_file()) * 1E-9
     life_time = False
@@ -198,7 +212,7 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
             if len(spectrum) == 0:
                 print(f"mca_file {mca_file} corrupted")
                 continue
-            
+
             spectrum = np.asarray(spectrum)
             max_energy = a0 + a1 * (channels - 1)
             parameters.append([a0, a1, fano, fwhm, life_time, max_energy, gating_time, real_time])
@@ -228,24 +242,36 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
                 signal_progress.emit(file_nr)
             iterator += 1
         with h5py.File(folder_path/"data/data.h5", "w") as tofile:
-            tofile.create_dataset(f"{folder_name}/spectra",
-                                  data=np.array(list(spectra.values())),
-                                  compression="gzip", compression_opts=9)
+            tofile.create_dataset(
+                f"{folder_name}/spectra",
+                data=np.array(list(spectra.values())),
+                compression="gzip",
+                compression_opts=9)
         max_pixel_spec = np.max(np.array(list(spectra.values())), axis=0)
         sum_spec = calc_sum_spec(spectra)
     else:  # for machines with low memory
         print("machine memory to small. get a better machine ASAP!")
     with h5py.File(f"{folder_path}/data/data.h5", "a") as tofile:
-        tofile.create_dataset(f"{folder_name}/sum spec", data=sum_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{folder_name}/counts", data=counts,
-                              compression="gzip")
-        tofile.create_dataset(f"{folder_name}/parameters", data=parameters,
-                              compression="gzip")
-        tofile.create_dataset(f"{folder_name}/max pixel spec", data=max_pixel_spec,
-                              compression="gzip")
-        tofile.create_dataset(f"{folder_name}/len scans", data=np.array(list(len_scans.values())),
-                              compression="gzip")
+        tofile.create_dataset(
+            f"{folder_name}/sum spec",
+            data=sum_spec,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{folder_name}/counts",
+            data=counts,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{folder_name}/parameters",
+            data=parameters,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{folder_name}/max pixel spec",
+            data=max_pixel_spec,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{folder_name}/len scans",
+            data=np.array(list(len_scans.values())),
+            compression="gzip")
     print(f"mca loadingtime - {t.time() - start}")
     if return_values:
         if save_spec_as_dict is False:
@@ -253,7 +279,12 @@ def many_mca2spec_para(folder_path, XANES=False, signal=None ,
         else:
             return spectra, parameters
 
-def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
+def read_ionization_spec(
+        spec_file_path,
+        nr_scans,
+        len_scans,
+        scan_0=1
+        ):
     ionization_current = {}
     for la in len_scans.keys():
         ionization_current[la.split()[-1]] = []
@@ -268,7 +299,7 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
                     where = line.split().index("AS_IC")
                 elif "ionch1" in line:
                     where = line.split().index("ionch1")
-                else: 
+                else:
                     continue
                 nr_variables = len(line.split())-1
                 read_line = True
@@ -287,7 +318,7 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
                     if len_scans[scan] != 0:
                         # edit: AS_IC is in units of 10e-10, nomalize here
                         ionization_current[str(scan.split()[-1])].append(float(line.split()[where])/10E-10)
-                
+
     _ionization_current = ionization_current.copy()
     for scan in _ionization_current:
         if _ionization_current[scan] == []:
@@ -295,7 +326,9 @@ def read_ionization_spec(spec_file_path, nr_scans, len_scans, scan_0=1):
             nr_scans -= 1
     return ionization_current #norm_ion_cur  # edit: nicht auf 1 normieren, sondern auf 10e-10, s. Z 271
 
-def read_nr_len_scans_from_spec(spec_file_path):
+def read_nr_len_scans_from_spec(
+        spec_file_path
+        ):
     nr_scans = 0
     len_scans = {}
     current_scan_nr = ""
@@ -331,7 +364,10 @@ def read_nr_len_scans_from_spec(spec_file_path):
     print(np.unique(types_of_scan))
     return nr_scans, len_scans
 
-def sum_from_single_files(folder_path, save_sum_spec=True):
+def sum_from_single_files(
+        folder_path,
+        save_sum_spec=True
+        ):
     folder_path = Path(folder_path)
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
     first_spec = True
@@ -345,7 +381,9 @@ def sum_from_single_files(folder_path, save_sum_spec=True):
         np.save(folder_path/"data/sum_spec", sum_spec)
     return sum_spec
 
-def mca2life_time(file_path):
+def mca2life_time(
+        file_path
+        ):
     """
     This function reads out the life-time in seconds of a .mca-file.
     """
@@ -361,7 +399,9 @@ def mca2life_time(file_path):
                 break
     return life_time
 
-def mca_metadata(file_path):
+def mca_metadata(
+        file_path
+        ):
     """
     Function to read out the meta data in a .mca file
 
@@ -402,7 +442,9 @@ def mca_metadata(file_path):
                     break
     return dict(zip(metadata_names, metadata))
 
-def mca2real_time(file_path):
+def mca2real_time(
+        file_path
+        ):
     """
     This function reads out the real-time in seconds of a .mca-file.
     """
@@ -414,7 +456,10 @@ def mca2real_time(file_path):
                 break
     return real_time
 
-def norm2sec(spectrum, time):
+def norm2sec(
+        spectrum,
+        time
+        ):
     """
     This function normalizes the given spectrum to seconds based on life or real time.
 
@@ -430,7 +475,9 @@ def norm2sec(spectrum, time):
     spectrum[:] = [i / time for i in spectrum]
     return spectrum
 
-def mca2channels(file_path):
+def mca2channels(
+        file_path
+        ):
     """
     This function reads out the channe numbers.
     """
@@ -445,7 +492,10 @@ def mca2channels(file_path):
                     break
         return channels
 
-def mca_tensor_position(file_path, XANES=False):
+def mca_tensor_position(
+        file_path,
+        XANES=False
+        ):
     """
     This function reads out the specific position of the spectrum in the
     measurement-tensor.
@@ -484,10 +534,14 @@ def mca_tensor_position(file_path, XANES=False):
                         z = 1
                     elif mode in ["timescan"]:
                         return None
-                    
+
                     return [x, y, z]
 
-def mca_tensor_positions(folder_path, file_type=".mca", XANES=False):
+def mca_tensor_positions(
+        folder_path,
+        file_type=".mca",
+        XANES=False
+        ):
     """
     This function reads out the tensor position of all mca/txt-files in the
     given folder_path
@@ -527,14 +581,18 @@ def mca_tensor_positions(folder_path, file_type=".mca", XANES=False):
             positions.append(pos)
     return positions, len_scans
 
-def convert_string(string):
+def convert_string(
+        string
+        ):
     string = string.replace(",", ".")
     power = float(string[-2:])
     leading = float(string[:6])
     convert = 10**power*leading/1000
     return convert
 
-def calc_sum_spec(spectrum):
+def calc_sum_spec(
+        spectrum
+        ):
     """
     This function calculates the sum spectrum of all given spectra.
     """
@@ -543,7 +601,9 @@ def calc_sum_spec(spectrum):
     sum_spec = np.divide(values.sum(axis=0), nr_arrays)
     return sum_spec
 
-def check_mca_type(mca_file_path):
+def check_mca_type(
+        mca_file_path
+        ):
     """
     Function to decide what kind of .mca file is provided. Up to date only
     measurement files from beamlines and simulation files generated by the
@@ -566,12 +626,3 @@ def check_mca_type(mca_file_path):
                 return "XPS-FP2"
             else:
                 return "measurement"
-            
-
-# testing
-
-if __name__ == "__main__":
-    folder = Path("/home/frank/Documents/Measurement Data/XANES/Spinat/2026-01-13-Spinat/2026-01-13_STD-07_01/mca/")
-    data = many_mca2spec_para(folder_path=folder)
-    pos, len_scans = mca_tensor_positions(folder_path=folder)
-    print(pos)

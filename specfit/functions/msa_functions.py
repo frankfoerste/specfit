@@ -5,9 +5,12 @@ import xarray as xr
 import specfit.functions.utils as utils
 
 
-def msa2spec_sum_para(file_path, 
-                      return_values=False,
-                      signal_progress=None, signal_sum_spec=None):
+def msa2spec_sum_para(
+        file_path,
+        return_values=False,
+        signal_progress=None,
+        signal_sum_spec=None
+        ):
     """
     This function reads out the spectrum of a .msa-file and reads out the
     detector parameters given in the .msa-file. It returns an dict containing
@@ -29,13 +32,15 @@ def msa2spec_sum_para(file_path,
     folder_path = file_path.parent
     file_name = file_path.name
     Path(folder_path/"data").mkdir(parents=True, exist_ok=True)
-    write_operator = utils.get_hdf5_write_operator(hdf5_file=folder_path/"data/data.h5",
-                                                   file_name=file_name)
+    write_operator = utils.get_hdf5_write_operator(
+        hdf5_file=folder_path/"data/data.h5",
+        file_name=file_name)
     ds = xr.Dataset()
     if signal_sum_spec is not None:
         signal_sum_spec.emit("None")
     with open(file_path, "rb") as infile:
-        content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
+        content = infile.read().decode("utf-8","ignore").replace(
+            "\r","").split("\n")
     for counter, line in enumerate(content):
         if signal_progress is not None:
             signal_progress.emit(counter)
@@ -49,7 +54,8 @@ def msa2spec_sum_para(file_path,
         elif "#OFFSET" in line:
             a0 = float(line.split()[2])
         elif "#XPERCHAN" in line:
-            a1 = float(line.replace("    : ","").replace("#XPERCHAN","").replace("\r\n",""))
+            a1 = float(line.replace("    : ","").replace(
+                "#XPERCHAN","").replace("\r\n",""))
         # read out life_time
         elif "#LIVETIME" in line:
             life_time = float(line.replace("#LIVETIME  -s: ",""))
@@ -78,7 +84,8 @@ def msa2spec_sum_para(file_path,
             y0 = int(line.split()[2])*1e-3
         elif "#ZNULL" in line:
             x0 = int(line.split()[2])*1e-3
-    gating_time = 600e-9                                                          # has to be determined
+    # has to be determined
+    gating_time = 600e-9
     position_dimension = np.array([x_pos, y_pos, z_pos])
     steps = np.array([x_step, y_step, z_step])
     steps[steps==0] = 1
@@ -87,15 +94,20 @@ def msa2spec_sum_para(file_path,
     max_energy =  a0 + a1*channels
     if signal_sum_spec is not None:
         signal_sum_spec.emit("progress spectra")
-    spectra_tmp = content[start+1:end] # reads out the lines containing the spectra
-    spectra_tmp = np.asarray([np.array(line.split()).astype(np.float64) for line in spectra_tmp])
-    spectra_tmp = np.ndarray.flatten(spectra_tmp) # writes the intensities in one line
+        # reads out the lines containing the spectra
+    spectra_tmp = content[start+1:end]
+    spectra_tmp = np.asarray(
+        [np.array(line.split()).astype(np.float64) for line in spectra_tmp])
+    # writes the intensities in one line
+    spectra_tmp = np.ndarray.flatten(spectra_tmp)
     factor = 0.25
     zero_peak_position = 25
     zero_peak_frequency = 100
-    if owner == "PRAXIS":  # new to also handle SEM_EDX
+    # new to also handle SEM_EDX
+    if owner == "PRAXIS":
+        # reshapes intensity to channels*spectra
         spectra_tmp = np.reshape(spectra_tmp, (
-            int(np.ceil(len(spectra_tmp) / channels)), channels))  # reshapes intensity to channels*spectra
+            int(np.ceil(len(spectra_tmp) / channels)), channels))
         for i, _ in enumerate(spectra_tmp):
             life_time = np.sum(spectra_tmp[i][zero_peak_position - int(20 * factor):zero_peak_position + int(
                 20 * factor)]) / zero_peak_frequency
@@ -105,51 +117,70 @@ def msa2spec_sum_para(file_path,
             spectra_tmp[i] = np.divide(spectra_tmp[i], life_time)
     elif owner == "Thermo":
         spectra_tmp = np.divide(spectra_tmp, life_time)
+        # reshapes intensity to channels*spectra
         spectra_tmp = np.reshape(spectra_tmp, (
-            int(np.ceil(len(spectra_tmp) / channels)), channels))  # reshapes intensity to channels*spectra
+            int(np.ceil(len(spectra_tmp) / channels)), channels))
     if signal_sum_spec is not None:
         signal_sum_spec.emit("spectra done")
 
-    ds["parameters"] = xr.DataArray(data=[a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time],
-                                    dims=("parameter"),
-                                    coords={"parameter": ["a0", "a1", "Fano", "FWHM",
-                                                     "life_time", "max_energy",
-                                                     "gating_time", "real_time"],},
-                                    attrs={"units": ["keV", "keV", "a.u.", "keV",
-                                                     "s", "keV", "s", "s"]})
-    ds["spectra"] = xr.DataArray(data=spectra_tmp.reshape([x_pos, y_pos, z_pos, channels]),
-                                 dims=("X", "Y", "Z", "energy"),
-                                 coords={"energy": np.arange(ds["parameters"][0],
-                                                             ds["parameters"][5],
-                                                             ds["parameters"][1]),
-                                         "X": np.arange(x_pos),
-                                         "Y": np.arange(y_pos),
-                                         "Z": np.arange(z_pos),},
-                                 attrs={"units": "counts per second"})
-    ds["counts"] = xr.DataArray(data=ds["spectra"].sum(axis=-1),
-                                dims=("X", "Y", "Z"),
-                                attrs={"units": "counts per second"})
+    ds["parameters"] = xr.DataArray(
+        data=[a0,a1,0.110, 0.1, life_time, max_energy, gating_time, real_time],
+        dims=("parameter"),
+        coords={"parameter": [
+            "a0",
+            "a1",
+            "Fano",
+            "FWHM",
+            "life_time",
+            "max_energy",
+            "gating_time",
+            "real_time"],},
+        attrs={"units": [
+            "keV",
+            "keV",
+            "a.u.",
+            "keV",
+            "s",
+            "keV",
+            "s",
+            "s"]})
+    ds["spectra"] = xr.DataArray(
+        data=spectra_tmp.reshape([x_pos, y_pos, z_pos, channels]),
+        dims=("X", "Y", "Z", "energy"),
+        coords={"energy": np.arange(ds["parameters"][0],
+                                    ds["parameters"][5],
+                                    ds["parameters"][1]),
+                "X": np.arange(x_pos),
+                "Y": np.arange(y_pos),
+                "Z": np.arange(z_pos),},
+        attrs={"units": "counts per second"})
+    ds["counts"] = xr.DataArray(
+        data=ds["spectra"].sum(axis=-1),
+        dims=("X", "Y", "Z"),
+        attrs={"units": "counts per second"})
     ds["max pixel spec"] = ds["spectra"].max(axis=(0, 1, 2))
     ds["sum spec"] = ds["spectra"].mean(axis=(0, 1, 2))
 
-    ds["positions"] = xr.DataArray(data=build_positions(position_dimension, origin, steps),
-                                   dims=("spec_nr", "dimension"),
-                                   coords={"dimension": ["x", "y", "z"]},
-                                   attrs={"units": ["mm", "mm", "mm"]})
-    ds["tensor positions"] = xr.DataArray(data=build_tensor_position(position_dimension),
-                                   dims=("spec_nr", "dimension"),
-                                   coords={"dimension": ["x", "y", "z"]},
-                                   attrs={"units": ["mm", "mm", "mm"]})
+    ds["positions"] = xr.DataArray(
+        data=build_positions(position_dimension, origin, steps),
+        dims=("spec_nr", "dimension"),
+        coords={"dimension": ["x", "y", "z"]},
+        attrs={"units": ["mm", "mm", "mm"]})
+    ds["tensor positions"] = xr.DataArray(
+        data=build_tensor_position(position_dimension),
+        dims=("spec_nr", "dimension"),
+        coords={"dimension": ["x", "y", "z"]},
+        attrs={"units": ["mm", "mm", "mm"]})
     ds["position dimension"] = xr.DataArray([x_pos, y_pos, z_pos],
                                             dims=("dimension"))
-    
+
     # now save everything to a data h5 file
     if (folder_path/"data/data.h5").exists():
         with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             if file_name in tofile.keys():
                 del tofile[file_name]
     utils.set_xarray_units(ds)
-    
+
     # save the hdf5
     ds.to_netcdf(
         path=folder_path/"data/data.h5",
@@ -161,7 +192,9 @@ def msa2spec_sum_para(file_path,
     if return_values:
         return ds["spectra"], ds["sum spec"], ds["parameters"]
 
-def msa2positions(file_path):
+def msa2positions(
+        file_path
+        ):
     """
     This function reads out the positions of a .msa-file.
 
@@ -175,7 +208,8 @@ def msa2positions(file_path):
     [x_pos, y_pos, z_pos]
     """
     with open(file_path,"rb") as infile:
-        content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
+        content = infile.read().decode("utf-8","ignore").replace(
+            "\r","").split("\n")
     for line in content:
         # read out of the x,y,z positions to calculate the number of spectra
         if "#NXPOS" in line:
@@ -188,43 +222,56 @@ def msa2positions(file_path):
         # read out start and end of the spectra
     return [x_pos, y_pos, z_pos]
 
-def msa2life_time(file_path):
+def msa2life_time(
+        file_path
+        ):
     """
     This function reads out the Life-Time of a .msa-file .
     """
     with open(file_path,"rb") as infile:
-        content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
+        content = infile.read().decode("utf-8","ignore").replace(
+            "\r","").split("\n")
     for line in content:
         if "#LIVETIME" in line:
             life_time = float(line.replace("#LIVETIME  -s: ",""))
             break
     return life_time
 
-def msa2real_time(file_path):
+def msa2real_time(
+        file_path
+        ):
     """
     This function reads out the Life-Time of a .msa-file .
     """
     with open(file_path,"rb") as infile:
-        content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
+        content = infile.read().decode("utf-8","ignore").replace(
+            "\r","").split("\n")
     for line in content:
         if "#REALTIME" in line:
             real_time = float(line.replace("#REALTIME  -s: ",""))
             break
     return real_time
 
-def msa2channels(file_path):
+def msa2channels(
+        file_path
+        ):
     """
     This function reads out the number of channels of a .msa-file .
     """
     with open(file_path,"rb") as infile:
-        content = infile.read().decode("utf-8","ignore").replace("\r","").split("\n")
+        content = infile.read().decode("utf-8","ignore").replace(
+            "\r","").split("\n")
     for line in content:
         if "#NPOINTS" in line:
             channels = int(line.replace("#NPOINTS     : ",""))
             break
     return channels
 
-def build_positions(positions, origin, steps):
+def build_positions(
+        positions,
+        origin,
+        steps
+        ):
     """
     This function returns the measurement position array for x,y,z
 
@@ -246,13 +293,18 @@ def build_positions(positions, origin, steps):
     ends, pos = [], []
     for i in range(3):
         ends.append(np.round(origin[i]+steps[i]*positions[i],3))
-        pos.append(np.arange(origin[i], origin[i]+steps[i]*positions[i], steps[i]))
+        pos.append(np.arange(
+            origin[i],
+            origin[i] + steps[i] * positions[i],
+            steps[i]))
         if np.round(pos[i][-1], 3) == ends[i]:
             pos[i] = np.delete(pos[i], len(pos[i])-1)
     positions = np.array(np.meshgrid(pos[0], pos[1], pos[2])).T.reshape(-1,3)
     return sorted(positions, key=lambda x:x[1])
 
-def build_tensor_position(positions):
+def build_tensor_position(
+        positions
+        ):
     """
     This function returns the measurement tensor position array for x,y,z
 
@@ -269,11 +321,6 @@ def build_tensor_position(positions):
     pos_arr_x = np.arange(positions[0])
     pos_arr_y = np.arange(positions[1])
     pos_arr_z = np.arange(positions[2])
-    tensor_positions = np.array(np.meshgrid(pos_arr_x,pos_arr_y,pos_arr_z)).T.reshape(-1,3)
+    tensor_positions = np.array(
+        np.meshgrid(pos_arr_x,pos_arr_y,pos_arr_z)).T.reshape(-1,3)
     return sorted(tensor_positions, key=lambda x:x[1])
-
-if __name__ == "__main__":
-    folder = Path("C:\\Doktorarbeit\\development\\specfit\\example_measurements\\msa\\")
-    files = folder.glob("*.MSA")
-    for file in files:
-        msa2spec_sum_para(file_path=file)

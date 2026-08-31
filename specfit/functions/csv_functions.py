@@ -5,11 +5,15 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 plt.ion()
 
-def csv2spec_para(file_path, print_warning = False):
+def csv2spec_para(
+        file_path,
+        print_warning=False
+        ):
     """
     This function reads out the spectra of a .csv-file and reads out the
     detector parameters given in the .csv-file.
-    !!!OBS!!! only .csv file format as returned by XRS-FP2 simulations supported
+    !!!OBS!!! only .csv file format as returned by XRS-FP2 simulations
+    upported
 
     Parameters
     ----------
@@ -34,9 +38,17 @@ def csv2spec_para(file_path, print_warning = False):
     max_energy = a0 + a1 * (channels-1)
     gating_time = 3e-6
     life_time, real_time = 1, 1
-    parameters = np.array([a0,a1,Fano,FWHM, life_time, max_energy, gating_time, real_time])
+    parameters = np.array([
+        a0,
+        a1,
+        Fano,
+        FWHM,
+        life_time,
+        max_energy,
+        gating_time,
+        real_time])
     start = False
-    with open(file_path,"r") as infile:
+    with open(file_path, "r") as infile:
         for line in infile:
             if "Files Created (Actual):" in line:
                 samples = int(line.split(",")[-1])
@@ -47,21 +59,40 @@ def csv2spec_para(file_path, print_warning = False):
             if start:
                 line = line.split(",")
                 channel = int(line[0])-1
-                spectra[:,channel] = np.array([int(intensity) for intensity in line[1:]])
+                spectra[:,channel] = np.array(
+                    [int(intensity) for intensity in line[1:]])
+
     if (folder_path/"data/data.h5").exists():
         with h5py.File(folder_path/"data/data.h5", "r+") as tofile:
             del tofile[file_name]
+
     with h5py.File(folder_path/"data/data.h5", "w") as tofile:
-        tofile.create_dataset(f"{file_name}/spectra",
-                              data = spectra,
-                              compression = "gzip", compression_opts = 9)
-        tofile.create_dataset(f"{file_name}/sum spec", data = np.sum(spectra, axis = 0))
-        tofile.create_dataset(f"{file_name}/counts", data = [np.sum(spectra)])
-        tofile.create_dataset(f"{file_name}/parameters", data = parameters)
-        tofile.create_dataset(f"{file_name}/max pixel spec", data = spectra)
-        tofile.create_dataset(f"{file_name}/position dimension", data = np.array([1,1,1]))
-        tofile.create_dataset(f"{file_name}/tensor positions", data = np.array([[0,0,0]]))
-        tofile.create_dataset(f"{file_name}/positions", data = np.array([[0,0,0]]))
+        tofile.create_dataset(
+            f"{file_name}/spectra",
+            data=spectra,
+            compression="gzip",
+            compression_opts=9)
+        tofile.create_dataset(
+            f"{file_name}/sum spec",
+            data=np.sum(spectra,axis=0))
+        tofile.create_dataset(
+            f"{file_name}/counts",
+            data=[np.sum(spectra)])
+        tofile.create_dataset(
+            f"{file_name}/parameters",
+            data=parameters)
+        tofile.create_dataset(
+            f"{file_name}/max pixel spec",
+            data=spectra)
+        tofile.create_dataset(
+            f"{file_name}/position dimension",
+            data=np.array([1, 1, 1]))
+        tofile.create_dataset(
+            f"{file_name}/tensor positions",
+            data=np.array([[0, 0, 0]]))
+        tofile.create_dataset(
+            f"{file_name}/positions",
+            data=np.array([[0, 0, 0]]))
     return spectra, parameters
 
 def csv_position_dimension(file_path):
@@ -77,7 +108,7 @@ def csv_position_dimension(file_path):
             for line in infile:
                 if "Files Created (Actual):" in line:
                     samples = int(line.split(",")[-1])
-    return np.array([samples,1,1])
+    return np.array([samples, 1, 1])
 
 def csv_tensor_positions(file_path):
     """
@@ -93,7 +124,7 @@ def csv_tensor_positions(file_path):
             for line in infile:
                 if "Files Created (Actual):" in line:
                     samples = int(line.split(",")[-1])
-    tensor_positions = np.zeros((samples,3), dtype = int)
+    tensor_positions = np.zeros((samples, 3), dtype=int)
     tensor_positions[:,0] = np.arange(samples)
     return tensor_positions
 
@@ -110,5 +141,5 @@ def calc_sum_spec(spectrum):
     """
     values = np.asarray(list(spectrum.values()))
     nr_arrays = len(values)
-    sum_spec = np.divide(values.sum(axis = 0),nr_arrays)
+    sum_spec = np.divide(values.sum(axis=0),nr_arrays)
     return sum_spec

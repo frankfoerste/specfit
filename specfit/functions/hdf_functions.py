@@ -1,4 +1,3 @@
-import os
 import h5py
 import itertools
 import numpy as np
@@ -45,13 +44,18 @@ def hdf2spec_para(file_path, verbose=False):
                 try:
                     try:
                         sdd_name = "BRQM1:mca03"  # Quad detector
-                        pixels = sorted(hdf5_file[f"c1/main/{sdd_name}chan1"].keys(), key=int)
+                        pixels = sorted(
+                            hdf5_file[f"c1/main/{sdd_name}chan1"].keys(),
+                            key=int)
                     except KeyError:
                         sdd_name = "BRQM1:mca08"
-                        pixels = sorted(hdf5_file[f"c1/main/{sdd_name}chan1"].keys(), key=int)
+                        pixels = sorted(
+                            hdf5_file[f"c1/main/{sdd_name}chan1"].keys(),
+                            key=int)
                     spectra = np.zeros((len(pixels), 4096))
                     for i, pixel in enumerate(pixels):
-                        spectra[i, :] = hdf5_file[f"c1/main/{sdd_name}chan1/{pixel}"][:, 0]
+                        spectra[i, :] = hdf5_file[
+                            f"c1/main/{sdd_name}chan1/{pixel}"][:, 0]
                     spectra = da.from_array(spectra)
                     sum_spec = np.sum(spectra, axis=0)
                     max_pixel_spec = np.max(spectra, axis=0)
@@ -62,27 +66,38 @@ def hdf2spec_para(file_path, verbose=False):
                     FWHM = 0.0317839
                     gating_time = 1e3
                     try:
-                        life_time = hdf5_file[f"c1/main/{sdd_name}.R0"][f"{sdd_name}.R0"] / (gating_time * 4)
+                        life_time = (
+                            hdf5_file[f"c1/main/{sdd_name}.R0"][
+                                f"{sdd_name}.R0"] / (gating_time * 4)
+                        )
                     except KeyError:
                         # otherwise find at .ELTM
-                        life_time = hdf5_file[f"c1/main/{sdd_name}.ELTM"][f"{sdd_name}.ELTM"] / (gating_time * 4)
-                    real_time = hdf5_file[f"c1/main/{sdd_name}.ERTM"][f"{sdd_name}.ERTM"]
+                        life_time = hdf5_file[f"c1/main/{sdd_name}.ELTM"][
+                            f"{sdd_name}.ELTM"] / (gating_time * 4)
+                    real_time = hdf5_file[f"c1/main/{sdd_name}.ERTM"][
+                        f"{sdd_name}.ERTM"]
 
                     channels = int(len(spectra[0, :]))
-                    ringcurrent = hdf5_file["c1/main/bIICurrent:Mnt1chan1"]["bIICurrent:Mnt1chan1"]
+                    ringcurrent = hdf5_file["c1/main/bIICurrent:Mnt1chan1"][
+                        "bIICurrent:Mnt1chan1"]
                     spectra = spectra / life_time[:spectra.shape[0], None]
                     sum_spec = np.divide(sum_spec, life_time.sum())
                     if verbose:
                         print("pixel", pixels)
                         print(
-                            f"Life time: {life_time}, Real time: {real_time} \nDeadtime %: {1 - (life_time / real_time)}")
+                            f"Life time: {life_time}, Real time: {real_time} ",
+                            f"\nDeadtime %: {1 - (life_time / real_time)}")
                 except KeyError:
                     spectra = hdf5_file["Raw"][()]
                     shape = spectra.shape
                     if len(shape) == 3:
-                        spectra = np.reshape(spectra, (shape[0] * shape[1], shape[2]))
+                        spectra = np.reshape(
+                            spectra,
+                            (shape[0] * shape[1], shape[2]))
                     else:
-                        spectra = np.reshape(spectra, (shape[0] * shape[1] * shape[2], shape[3]))
+                        spectra = np.reshape(
+                            spectra,
+                            (shape[0] * shape[1] * shape[2], shape[3]))
                     sum_spec = hdf5_file["Spectrum"][()]
                     counts = np.sum(spectra, axis=-1)
                     max_pixel_spec = np.max(spectra, axis=0)
@@ -95,10 +110,13 @@ def hdf2spec_para(file_path, verbose=False):
                     FWHM = 0.14
                     life_time = int(h) * 3600 + int(m) * 60 + int(s)
                     real_time = int(h) * 3600 + int(m) * 60 + int(s)
-                    spectra = np.divide(spectra, life_time)  # norm the measurement to life_time
+
+                    # norm the measurement to life_time
+                    spectra = np.divide(spectra, life_time)
                     sum_spec = np.divide(sum_spec, life_time)
                     channels = parameter[0][19]
                     gating_time = 3e-6
+
         elif file_type == ".hdf5":
             spectra = da.from_array(hdf5_file["SDD/measurement/detector"])
             sum_spec = np.squeeze(hdf5_file["SDD/sum spectra/sumS"], axis=1)
@@ -113,11 +131,22 @@ def hdf2spec_para(file_path, verbose=False):
             real_time = 1
             channels = int(len(spectra[0]))
             spectra = np.divide(spectra, life_time[:, None])
-        parameters = np.array([a0, a1, Fano, FWHM, np.mean(life_time),
-                               a0 + a1 * (channels - 1), gating_time,
-                               np.mean(real_time)])
+        else:
+            return
+        parameters = np.array(
+            [
+                a0,
+                a1,
+                Fano,
+                FWHM,
+                np.mean(life_time),
+                a0 + a1 * (channels - 1),
+                gating_time,
+                np.mean(real_time)])
+
         if verbose:
             print("parameters", parameters.shape)
+
         if (save_path/"data/data.h5").exists():
             with h5py.File(save_path/"data/data.h5", "r+") as tofile:
                 if file_name in tofile.keys():
@@ -125,17 +154,29 @@ def hdf2spec_para(file_path, verbose=False):
             write_operator = "r+"
         else:
             write_operator = "w"
+
         with h5py.File(save_path/"data/data.h5", write_operator) as tofile:
-            tofile.create_dataset(f"{file_name}/max pixel spec", data=max_pixel_spec,
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/sum spec", data=sum_spec,
-                                  compression="gzip")
-            tofile.create_dataset(f"{file_name}/parameters", data=parameters,
-                                  compression="gzip")
-        da.to_hdf5(save_path/"data/data.h5", {f"{file_name}/counts": counts},
-                   compression="gzip")
-        da.to_hdf5(save_path/"data/data.h5", {f"{file_name}/spectra": spectra},
-                   compression="gzip")
+            tofile.create_dataset(
+                f"{file_name}/max pixel spec",
+                data=max_pixel_spec,
+                compression="gzip")
+            tofile.create_dataset(
+                f"{file_name}/sum spec",
+                data=sum_spec,
+                compression="gzip")
+            tofile.create_dataset(
+                f"{file_name}/parameters",
+                data=parameters,
+                compression="gzip")
+        da.to_hdf5(
+            save_path/"data/data.h5",
+            {f"{file_name}/counts": counts},
+            compression="gzip")
+        da.to_hdf5(
+            save_path/"data/data.h5",
+            {f"{file_name}/spectra": spectra},
+            compression="gzip")
+
     return spectra, parameters, sum_spec, channels
 
 def hdf_tensor_positions(file_path):
@@ -154,44 +195,57 @@ def hdf_tensor_positions(file_path):
     if file_type == ".hdf5": # For AnImaX mit python ansteuerung
         line_breaks = hdf5_file["SDD/scan index log/line breaks"][()]
         positions = [line_breaks[-2, 2] + 1, line_breaks[1, 1], 1]
-        tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                             range(positions[1]))),
-                                      dtype=np.uint32)
-        tensor_positions = np.hstack((tensor_positions,
-                                      np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
+        tensor_positions = np.asarray(
+            list(itertools.product(range(positions[0]), range(positions[1]))),
+            dtype=np.uint32)
+        tensor_positions = np.hstack((
+            tensor_positions,
+            np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
     elif file_type == ".h5":
         if "c1/main" in hdf5_file:
             for M in ("NEXAFS", "SmarM", "PI", "CounterSpec"):
                 if M == "NEXAFS":
                     try:
-                        axis1 = hdf5_file["c1/main/Energ:io0200Energy"].shape[0] / 2  # NEXAFS Energies
+                        # NEXAFS Energies
+                        axis1 = hdf5_file[
+                            "c1/main/Energ:io0200Energy"].shape[0] / 2
                         axis2 = 1
                         break
                     except KeyError:
                         continue
                 if M == "SmarM":
                     try:
-                        axis2 = hdf5_file["c1/main/SmarM:smaract0800001"].shape[0]  # PR_Y
+                        # PR_Y
+                        axis2 = hdf5_file[
+                            "c1/main/SmarM:smaract0800001"].shape[0]
                     except KeyError:
                         axis2 = 1
                     try:
-                        axis1 = hdf5_file["c1/main/SmarM:smaract0800000"].shape[0]  # PR_X
+                        # PR_X
+                        axis1 = hdf5_file[
+                            "c1/main/SmarM:smaract0800000"].shape[0]
                         break
                     except KeyError:
                         continue
                 if M == "PI":
                     try:
-                        axis2 = hdf5_file["c1/main/PISMC:animax0104002"].shape[0]  # PR_Y
+                        # PR_Y
+                        axis2 = hdf5_file[
+                            "c1/main/PISMC:animax0104002"].shape[0]
                     except KeyError:
                         axis2 = 1
                     try:
-                        axis1 = hdf5_file["c1/main/PISMC:animax0104000"].shape[0]  # PR_X
+                        # PR_X
+                        axis1 = hdf5_file[
+                            "c1/main/PISMC:animax0104000"].shape[0]
                         break
                     except KeyError:
                         continue
                 if M == "CounterSpec":
                     try:
-                        axis1 = hdf5_file["c1/main/Counter-mot"].shape[0]  # counter dummy
+                        # counter dummy
+                        axis1 = hdf5_file[
+                            "c1/main/Counter-mot"].shape[0]
                     except KeyError:
                         axis1 = 1
                     axis2 = 1
@@ -205,47 +259,63 @@ def hdf_tensor_positions(file_path):
                 width = max(axis1, axis2)
                 height = 1
             positions = [int(height), int(width), 1]
-            tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                                 range(positions[1]))),
-                                          dtype=np.uint32)
-            tensor_positions = np.hstack((tensor_positions,
-                                          np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
+            tensor_positions = np.asarray(
+                list(itertools.product(
+                    range(positions[0]), range(positions[1]))),
+                dtype=np.uint32)
+            tensor_positions = np.hstack((
+                tensor_positions,
+                np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
+
         elif "concentrations" in hdf5_file:
             shape = hdf5_file["spectra"].shape
             if len(shape) == 3:
                 positions = [shape[0], shape[1], 1]
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                                     range(positions[1]),
-                                                                     range(positions[2]))),
-                                              dtype=np.uint32)
+                tensor_positions = np.asarray(
+                    list(itertools.product(
+                        range(positions[0]),
+                        range(positions[1]),
+                        range(positions[2]))),
+                    dtype=np.uint32)
             else:
                 positions = list(shape[:-1])
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                                     range(positions[1]),
-                                                                     range(positions[2]))),
-                                              dtype=np.uint32)
+                tensor_positions = np.asarray(list(itertools.product(
+                    range(positions[0]),
+                    range(positions[1]),
+                    range(positions[2]))),
+                    dtype=np.uint32)
         else:
             shape = hdf5_file["Raw"].shape
             if len(shape) == 3:
                 positions = [shape[0], shape[1], 1]
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                                     range(positions[1]))),
-                                              dtype=np.uint32)
-                tensor_positions = np.hstack((tensor_positions,
-                                              np.zeros((len(tensor_positions), 1),
-                                                       dtype=np.uint32)))
+                tensor_positions = np.asarray(
+                    list(itertools.product(
+                        range(positions[0]),
+                        range(positions[1]))),
+                    dtype=np.uint32)
+                tensor_positions = np.hstack((
+                    tensor_positions,
+                    np.zeros((len(tensor_positions), 1), dtype=np.uint32)))
             else:
                 positions = list(shape[:-1])
-                tensor_positions = np.asarray(list(itertools.product(range(positions[0]),
-                                                                     range(positions[1]),
-                                                                     range(positions[2]))),
-                                              dtype=np.uint32)
+                tensor_positions = np.asarray(
+                    list(itertools.product(
+                        range(positions[0]),
+                        range(positions[1]),
+                        range(positions[2]))),
+                    dtype=np.uint32)
     with h5py.File(save_path/"data/data.h5", "r+") as tofile:
-        tofile.create_dataset(f"{file_name}/tensor positions", data=tensor_positions,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/positions", data=tensor_positions,
-                              compression="gzip")
-        tofile.create_dataset(f"{file_name}/position dimension", data=positions,
-                              compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/tensor positions",
+            data=tensor_positions,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/positions",
+            data=tensor_positions,
+            compression="gzip")
+        tofile.create_dataset(
+            f"{file_name}/position dimension",
+            data=positions,
+            compression="gzip")
     hdf5_file.close()
     return positions, tensor_positions

@@ -8,7 +8,7 @@ To install SpecFit please perform the following steps:
 can download an installer from here `Git Installer <https://git-scm.com/install/windows>`__.
 You also need a valid python installation on your system. The easiest way to
 install python and manage your python environments is using a Python
-distribution like `Anaconda <https://repo.anaconda.com/archive/>`__ or likewise. 
+distribution like `Anaconda <https://repo.anaconda.com/archive/>`__ or likewise.
 
 2. Open a command line programm (Command Prompt) and move to your repository
 folder:
@@ -16,8 +16,8 @@ folder:
    .. code-block:: bash
 
       cd move/to/repository/folder
-   
-3. Download the repository specfit from the GitHub repository under `SpecFit GitHub repository <https://github.com/frankfoerste/specfit.git>`__ 
+
+3. Download the repository specfit from the GitHub repository under `SpecFit GitHub repository <https://github.com/frankfoerste/specfit.git>`__
 using the following command
 
    .. code-block:: bash

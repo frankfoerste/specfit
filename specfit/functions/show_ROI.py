@@ -1,6 +1,4 @@
 import os
-import sys
-import h5py
 import time as t
 import numpy as np
 import dask.array as da
@@ -52,9 +50,13 @@ class ShowROI(QtWidgets.QWidget):
     delta_E : float
         FWHM /2 of the measurement
     """
-    def __init__(self, parent=None):
+    def __init__(
+            self,
+            parent=None
+            ):
         super(ShowROI, self).__init__()
-        self.screen_properties = QtGui.QGuiApplication.primaryScreen().availableGeometry()
+        self.screen_properties = QtGui.QGuiApplication.primaryScreen(
+            ).availableGeometry()
         self.screen_width = self.screen_properties.width()
         self.screen_height = self.screen_properties.height()
         self.popup_heigth = 500
@@ -66,32 +68,39 @@ class ShowROI(QtWidgets.QWidget):
                          self.popup_width, self.popup_heigth)
         self.time = 0
         self.elements = elements[5:84]
-        self.para_a0 = None  # this is the a0 entry which show_ROI inherits from the SpecFit Main Window
-        self.para_a1 = None  # this is the a1 entry which show_ROI inherits from the SpecFit Main Window
-        self.roi_low = None  # this is the low ROI entry which show_ROI inherits from the SpecFit Main Window
-        self.roi_high = None  # this is the high ROI entry which show_ROI inherits from the SpecFit Main Window
-        self.ROI_image = False  # this is to determine if a plot already exists
-        self.delta_E = 0.133  # energy range for the evaluation of the ROI intensity
-        self.rotation = "xy"  # initialize selected rotation
-        self.file_type = None  # initialize the file type of the shown data set
-        self.spec_nr = -1  # negativemeans sum_spec
+        # a0 entry which show_ROI inherits from the SpecFit Main Window
+        self.para_a0 = None
+        # a1 entry which show_ROI inherits from the SpecFit Main Window
+        self.para_a1 = None
+        # low ROI entry which show_ROI inherits from the SpecFit Main Window
+        self.roi_low = None
+        # high ROI entry which show_ROI inherits from the SpecFit Main Window
+        self.roi_high = None
+        # determine if a plot already exists
+        self.ROI_image = False
+        # energy range for the evaluation of the ROI intensity
+        self.delta_E = 0.133
+        # initialize selected rotation
+        self.rotation = "xy"
+        # initialize the file type of the shown data set
+        self.file_type = None
+        # negative means sum_spec
+        self.spec_nr = -1
         for i, _ in enumerate(self.elements):
             self.elements[i] = f"{self.elements[i][0]} - {self.elements[i][1]}"
         self.lines = lines[1:6]
         for i, _ in enumerate(self.lines):
             self.lines[i] = self.lines[i][0]
         self.layout_show_ROI = QtWidgets.QGridLayout()
-        self.setStyleSheet("QWidget { " \
-                        #    +"color: black; background-color:white;" \
-                           +"}"\
-                        #    +"background-color:white;"\
-                           +"QLabel {font-size: 10px; max-width: 60px} "\
-                           +"QLineEdit {font-size: 10px; max-height: 18px; max-width: 60px} "\
-                           +"QCheckBox {font-size: 10px; max-height: 18px; max-width: 60px} "\
-                           +"QPushButton {font-size: 10px; max-height: 18px; max-width: 80px}"\
-                           +"QRadioButton {font-size: 10px; max-height: 18px; max-width: 80px} "\
-                           +"QComboBox {font-size: 10px; max-height: 18px; max-width: 80px} "\
-                           +"QTextEdit {font-size: 10px; max-width: 60px}")
+        self.setStyleSheet(
+            "QWidget { }"
+            + "QLabel {font-size: 10px; max-width: 60px} "\
+            + "QLineEdit {font-size: 10px; max-height: 18px; max-width: 60px} "
+            + "QCheckBox {font-size: 10px; max-height: 18px; max-width: 60px} "
+            + "QPushButton {font-size: 10px; max-height: 18px; max-width: 80px}"
+            + "QRadioButton {font-size: 10px; max-height: 18px; max-width: 80px} "
+            + "QComboBox {font-size: 10px; max-height: 18px; max-width: 80px} "
+            + "QTextEdit {font-size: 10px; max-width: 60px}")
         self.rect_sizes = ["1x1", "3x3", "5x5", "7x7", "9x9", "11x11"]
         self.first_time_loaded = True
         self.parent = parent
@@ -115,7 +124,8 @@ class ShowROI(QtWidgets.QWidget):
         self.radio_xz = QtWidgets.QRadioButton("xz", self)
         self.radio_yz = QtWidgets.QRadioButton("yz", self)
         self.radio_xenergy = QtWidgets.QRadioButton("x_energy", self)
-        self.radio_xenergy.setVisible(False)       #only visible if angle file is loaded
+        # only visible if angle file is loaded
+        self.radio_xenergy.setVisible(False)
         self.slider_percentile = QtWidgets.QSlider(QtCore.Qt.Horizontal, self)
         self.slider_percentile.setMinimum(0)
         self.slider_percentile.setMaximum(100)
@@ -127,7 +137,8 @@ class ShowROI(QtWidgets.QWidget):
         self.combo_rect_size = QtWidgets.QComboBox(self)
         self.button_save_ROI = QtWidgets.QPushButton("save ROI", self)
         self.button_save_ROI.hide()
-        self.button_save_selection = QtWidgets.QPushButton("save selection", self)
+        self.button_save_selection = QtWidgets.QPushButton(
+            "save selection", self)
         self.button_save_selection.hide()
         # self.combo_rect_size
         self.entry_position = QtWidgets.QLineEdit("", self)
@@ -155,7 +166,8 @@ class ShowROI(QtWidgets.QWidget):
         self.layout_show_ROI.addWidget(self.combo_lines, 3, 5, 1, 1)
         self.layout_show_ROI.addWidget(self.button_show_ROI, 3, 6, 1, 1)
         self.layout_show_ROI.addWidget(self.button_reset_ROI, 3, 7, 1, 1)
-        self.button_reset_ROI.setStyleSheet("QPushButton {color : white; background-color:red}")
+        self.button_reset_ROI.setStyleSheet(
+            "QPushButton {color : white; background-color:red}")
         self.layout_show_ROI.addWidget(self.log_box, 3, 8, 1, 1)
         self.layout_show_ROI.addWidget(self.combo_rect_size, 4, 4, 1, 1)
         self.layout_show_ROI.addWidget(self.button_save_ROI, 4, 5, 1, 1)
@@ -163,9 +175,11 @@ class ShowROI(QtWidgets.QWidget):
         self.button_show_ROI.clicked.connect(self.evaluate_roi)
         self.button_reset_ROI.clicked.connect(self.reset_ROI)
         self.button_save_ROI.clicked.connect(self.save_ROI)
-        self.button_save_ROI.setStyleSheet("QPushButton {background-color:lightgreen}")
+        self.button_save_ROI.setStyleSheet(
+            "QPushButton {background-color:lightgreen}")
         self.button_save_selection.clicked.connect(self.save_selection)
-        self.button_save_selection.setStyleSheet("QPushButton {background-color:lightblue}")
+        self.button_save_selection.setStyleSheet(
+            "QPushButton {background-color:lightblue}")
         self.slider_layer.valueChanged.connect(self.plot_results)
         self.radio_xy.clicked.connect(partial(self.rotate_results, "xy"))
         self.radio_xz.clicked.connect(partial(self.rotate_results, "xz"))
@@ -200,17 +214,24 @@ class ShowROI(QtWidgets.QWidget):
         self.layout_show_ROI.addWidget(self.canvas_roi, 1, 4, 1, 5)
         self.layout_show_ROI.addWidget(self.canvas_spectrum, 1, 0, 1, 4)
         self.toolbar_ROI = pltqt.NavigationToolbar2QT(self.canvas_roi, self)
-        self.toolbar_ROI.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
-        self.toolbar_sum_spec = pltqt.NavigationToolbar2QT(self.canvas_spectrum, self)
-        self.toolbar_sum_spec.setStyleSheet("color: black; background-color:DeepSkyBlue; border: 1px solid #000")
+        self.toolbar_ROI.setStyleSheet(
+            "color: black; background-color:DeepSkyBlue; border: 1px solid #000")
+        self.toolbar_sum_spec = pltqt.NavigationToolbar2QT(
+            self.canvas_spectrum, self)
+        self.toolbar_sum_spec.setStyleSheet(
+            "color: black; background-color:DeepSkyBlue; border: 1px solid #000")
         self.layout_show_ROI.addWidget(self.toolbar_ROI, 5, 4, 1, 5)
         self.layout_show_ROI.addWidget(self.toolbar_sum_spec, 5, 0, 1, 3)
-        self.toolbar_ROI.actions()[0].setIcon(QtGui.QIcon(self.working_directory+"/data/icons/bug.png"))
+        self.toolbar_ROI.actions()[0].setIcon(
+            QtGui.QIcon(self.working_directory+"/data/icons/bug.png"))
         # establish connections with User action
-        self.canvas_roi.mpl_connect("button_press_event", self.retrieve_selection)
-        self.canvas_roi.mpl_connect("button_release_event", self.retrieve_selection)
-        #  self.canvas_roi.mpl_connect("button_press_event", self.create_fixed_bbox)
-        # self.canvas_roi.mpl_connect("button_release_event", self.create_drawn_rectangle)
+        self.canvas_roi.mpl_connect(
+            "button_press_event",
+            self.retrieve_selection)
+        self.canvas_roi.mpl_connect(
+            "button_release_event",
+            self.retrieve_selection)
+
         # create an axis
         self.ax_canvas_roi = self.figure_ROI.add_subplot(111)
         self.ax_canvas_spectrum = self.figure_sum_spec.add_subplot(111)
@@ -229,8 +250,14 @@ class ShowROI(QtWidgets.QWidget):
         self.show()
         self.activateWindow()
 
-    def load_spectra(self, folder_path, save_folder_path, save_data_path,
-                     load_type, one_dim=False):
+    def load_spectra(
+            self,
+            folder_path,
+            save_folder_path,
+            save_data_path,
+            load_type,
+            one_dim=False
+            ):
         """
         load spectra into the show ROI widget
         """
@@ -245,7 +272,9 @@ class ShowROI(QtWidgets.QWidget):
         self.tensor_positions = self.parent.data.tensor_positions
         self.parameters = self.parent.data.parameters[0]
         self.counts = self.parent.data.counts
-        self.len_x, self.len_y, self.len_z = self.parent.data.position_dimension
+        self.len_x, self.len_y, self.len_z = (
+            self.parent.data.position_dimension
+            )
         # check dimension of loaded data
         if one_dim:
             self.radio_xenergy.setVisible(True)
@@ -261,11 +290,14 @@ class ShowROI(QtWidgets.QWidget):
         self.y = np.unique(self.positions[:, 1])
         self.z = np.unique(self.positions[:, 2])
         # find the xyz-position of the origin
-        origin_idx = int(np.where((self.tensor_positions == np.array([0, 0, 0])).all(1))[0])
-        end_idx = int(np.where((self.tensor_positions == np.array([self.tensor_positions[:, 0].max(),
-                                                                   self.tensor_positions[:, 1].max(),
-                                                                   self.tensor_positions[:, 2].max()])).all(1))[0])
+        origin_idx = int(np.where((self.tensor_positions == np.array(
+            [0, 0, 0])).all(1))[0])
+        end_idx = int(np.where((self.tensor_positions == np.array(
+            [self.tensor_positions[:, 0].max(),
+             self.tensor_positions[:, 1].max(),
+             self.tensor_positions[:, 2].max()])).all(1))[0])
         # sort the unique points corresponding to the measurement
+
         if self.x[0] != self.positions[:, 0][origin_idx]:
             self.x = self.x[::-1]
         if self.y[0] != self.positions[:, 1][origin_idx]:
@@ -356,8 +388,10 @@ class ShowROI(QtWidgets.QWidget):
         """
         calculate the intensities of the given ROI
         """
-        index_high = (np.abs(self.energy - self.elements[1][0] - self.delta_E)).argmin()
-        index_low = (np.abs(self.energy - self.elements[1][0] + self.delta_E)).argmin()
+        index_high = (
+            np.abs(self.energy - self.elements[1][0] - self.delta_E)).argmin()
+        index_low = (
+            np.abs(self.energy - self.elements[1][0] + self.delta_E)).argmin()
         return self.spectra[..., index_low:index_high].sum(axis=-1).compute()
 
     def evaluate_energy(self):
@@ -365,22 +399,24 @@ class ShowROI(QtWidgets.QWidget):
         read out the energie from the loaded data
         """
         self.energy = self.parent.data.energies
-    
-    def slice_array(self, array, axis="xy", layer=0):
+
+    def slice_array(
+            self,
+            array,
+            axis="xy",
+            layer=0
+            ):
         """
         Function to get the layer of the 3D data based on the radio button
         selected and rotate it so that the first axis is at the bottom
         """
         if axis == 'xy':  # layer in z-axis
             return array[:, :, layer]
-            # return np.rot90(array[:, :, layer], k=-1)
         elif axis == 'xz':  # layer in y-axis
             return array[:, layer, :]
-            # return np.rot90(array[:, layer, :], k=-1)
         elif axis == 'yz':  # layer in x-axis
             return array[layer, :, :]
-            # return np.rot90(array[layer, :, :], k=-1)
-        
+
     def remove_rectangle(self, ):
         """
         Function to remove the rectangle shape in the ROI plot
@@ -399,12 +435,20 @@ class ShowROI(QtWidgets.QWidget):
         if not self.first_time_loaded:
             self.ax_canvas_spectrum.clear()
             self.evaluate_energy()
-            low_index = int((float(self.roi_low.text())-self.parameters[0])/self.parameters[1])
-            high_index = int((float(self.roi_high.text())-self.parameters[0])/self.parameters[1])
-            self.ax_canvas_spectrum.plot(self.energy, self.sum_spec)
-            self.ax_canvas_spectrum.set_xlim(float(self.roi_low.text()), float(self.roi_high.text()))
-            self.ax_canvas_spectrum.set_ylim(np.min(self.sum_spec[low_index: high_index])*0.9,
-                                             np.max(self.sum_spec[low_index: high_index])*1.1)
+            low_index = int(
+                (float(self.roi_low.text())-self.parameters[0]) /
+                self.parameters[1])
+            high_index = int(
+                (float(self.roi_high.text())-self.parameters[0]) /
+                self.parameters[1])
+            self.ax_canvas_spectrum.plot(
+                self.energy,
+                self.sum_spec)
+            self.ax_canvas_spectrum.set_xlim(
+                float(self.roi_low.text()), float(self.roi_high.text()))
+            self.ax_canvas_spectrum.set_ylim(
+                np.min(self.sum_spec[low_index: high_index])*0.9,
+                np.max(self.sum_spec[low_index: high_index])*1.1)
             self.ax_canvas_spectrum.set_xlabel("Energy / keV")
             self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
             self.ax_canvas_spectrum.set_title("Sum Spectrum")
@@ -415,9 +459,11 @@ class ShowROI(QtWidgets.QWidget):
         self.plot_sum_spec()
         self.delta_E = float(self.entry_delta_E.text())
         if not self.first_time_loaded:
-            self.ax_canvas_spectrum.axvspan(self.elements[1][0]-self.delta_E,
-                                            self.elements[1][0]+self.delta_E,
-                                            color="r", alpha=0.3)
+            self.ax_canvas_spectrum.axvspan(
+                self.elements[1][0]-self.delta_E,
+                self.elements[1][0]+self.delta_E,
+                color="r",
+                alpha=0.3)
             self.canvas_spectrum.draw_idle()
 
     def plot_results(self):
@@ -444,30 +490,32 @@ class ShowROI(QtWidgets.QWidget):
                                     axis=self.rotation,
                                     layer=layer)
         if not self.ROI_image:
-            self.ROI_image = self.ax_canvas_roi.imshow(data_layer,
-                                                    vmin=0,
-                                                    vmax=maximum,
-                                                    aspect=aspect,
-                                                    extent=extent,
-                                                    origin="lower")
+            self.ROI_image = self.ax_canvas_roi.imshow(
+                data_layer,
+                vmin=0,
+                vmax=maximum,
+                aspect=aspect,
+                extent=extent,
+                origin="lower")
         else:
             self.ROI_image.set_data(data_layer)
 
             self.ROI_image.set_extent(extent)
         self.ROI_image.set_clim(0, maximum)
-        try: 
+        try:
             self.colorbar.update_ticks()
-        except AttributeError: 
+        except AttributeError:
             self.colorbar = self.figure_ROI.colorbar(self.ROI_image,
                                                     ax=self.ax_canvas_roi)
         layer = ax3[layer]
         if self.roi_plotted is True:
-            self.ax_canvas_roi.set_title(f"ROI Counts {self.element_str} {line} | {dim3} position : {layer}")                                                                  
+            self.ax_canvas_roi.set_title(
+                f"ROI Counts {self.element_str} {line} | {dim3} position : {layer}")
         else:
             self.ax_canvas_roi.set_title(f"Counts | {dim3} position : {layer}")
         self.ax_canvas_roi.set_xlabel(dim1)
         self.ax_canvas_roi.set_ylabel(dim2)
-        
+
         self.canvas_roi.draw_idle()
 
     def rotate_results(self, rotation):
@@ -488,12 +536,13 @@ class ShowROI(QtWidgets.QWidget):
             self.slider_layer.setValue(0)
         else:
             self.plot_results()
-        
+
     def rotate_rectangle(self, new_idx):
         """
         Rotate the selection rectangle
         """
-        old_idx = [self.rect_data[idx] for idx in [f"dim{i}" for i in range(1,4)]]
+        old_idx = [self.rect_data[idx] for idx in [
+            f"dim{i}" for i in range(1,4)]]
         idx_transform = [old_idx.index(idx)+1 for idx in new_idx]
         self.rect.set_width(self.rect_data[f"dim{idx_transform[0]}_size"]*getattr(self, f"step_{new_idx[0]}"))
         self.rect.set_height(self.rect_data[f"dim{idx_transform[1]}_size"]*getattr(self, f"step_{new_idx[1]}"))
@@ -510,8 +559,10 @@ class ShowROI(QtWidgets.QWidget):
         """
         shows -only for angle-files- the spectra for every angle as a colormap
         """
+
         def x_axis(xticks, pos):
-            return  np.round(np.add(np.multiply(xticks, self.parameters[1]), self.parameters[0]), decimals =1 )
+            return np.round(np.add(np.multiply(xticks, self.parameters[1]), self.parameters[0]), decimals =1 )
+
         def y_axis(yticks, pos):
             try:
                 new_yticks = np.round(self.angles[int(abs(yticks))], decimals =4)
@@ -540,17 +591,19 @@ class ShowROI(QtWidgets.QWidget):
                 # positive_spectra = np.copy(self.spectra_array())
                 positive_spectra = self.spectra
                 positive_spectra[positive_spectra<0.001]= 1
-                self.plot_histo = self.ax_canvas_roi.imshow(positive_spectra,
-                                                            norm=LogNorm(vmin=1, ),
-                                                            origin="lower",
-                                                            extent=extent,
-                                                            aspect=aspect)
+                self.plot_histo = self.ax_canvas_roi.imshow(
+                    positive_spectra,
+                    norm=LogNorm(vmin=1, ),
+                    origin="lower",
+                    extent=extent,
+                    aspect=aspect)
             else:
-                self.plot_histo = self.ax_canvas_roi.imshow(self.spectra, 
-                                                            vmin=0, 
-                                                            origin="lower", 
-                                                            extent=extent,
-                                                            aspect=aspect)
+                self.plot_histo = self.ax_canvas_roi.imshow(
+                    self.spectra,
+                    vmin=0,
+                    origin="lower",
+                    extent=extent,
+                    aspect=aspect)
 
             self.ax_canvas_roi.xaxis.set_major_formatter(formatter_x)
             self.ax_canvas_roi.yaxis.set_major_formatter(formatter_y)
@@ -628,7 +681,7 @@ class ShowROI(QtWidgets.QWidget):
                 pass
             low_index = int((float(self.roi_low.text())-self.parameters[0])/self.parameters[1])
             high_index = int((float(self.roi_high.text())-self.parameters[0])/self.parameters[1])
-            
+
             self.rect_sum_spec = self.calc_rect_sum_spec(np.unique(self.spec_rect))
             self.parent.check_fit()
             self.parent.ax_canvas_spectrum.set_xlim(low_index*self.parameters[1]+self.parameters[0], high_index*self.parameters[1]+self.parameters[0])
@@ -651,7 +704,7 @@ class ShowROI(QtWidgets.QWidget):
         dim3 = 'xyz'.replace(dim1, '').replace(dim2, '')
         sorted_dims_idx = [[dim1, dim2, dim3].index(key) for key in sorted([dim1, dim2, dim3])]
         step_dim1 = getattr(self, f"step_{dim1}")
-        step_dim2 = getattr(self, f"step_{dim2}") 
+        step_dim2 = getattr(self, f"step_{dim2}")
         size_hor, size_ver = [int(i) for i in self.combo_rect_size.currentText().split("x")]
         size_hor *= step_dim1
         size_ver *= step_dim2
@@ -668,19 +721,19 @@ class ShowROI(QtWidgets.QWidget):
                                         width=size_ver, height=size_hor,
                                         linewidth=1, edgecolor="r",
                                         facecolor="None")
-        self.rect_data = {"dim1": dim1, "dim2": dim2, "dim3": dim3, 
+        self.rect_data = {"dim1": dim1, "dim2": dim2, "dim3": dim3,
                           "dim1_pos": pos1, "dim2_pos": pos2, "dim3_pos": pos3,
                           "dim1_size": size_hor, "dim2_size": size_ver, "dim3_size": getattr(self, f"step_{dim3}") }
         positions_rect = np.asarray([dim1_rect.flatten(), dim2_rect.flatten(), dim3_rect.flatten()]).T
-        # find the position indices for the selected rectangle 
+        # find the position indices for the selected rectangle
         indices = np.zeros(shape=len(positions_rect))
         for i, row in enumerate(positions_rect):
             indices[i] = np.where((self.positions == np.round(row[sorted_dims_idx], 3)).all(1))[0][0]
-            
+
         self.spec_nr = idx
         self.spec_rect = indices.reshape(dim1_rect.shape).astype(np.int32)
         self.draw_rectangle()
-        
+
     def create_drawn_rectangle(self, event):
         if "pos1_0" not in dir(self):
             self.pos1_0, self.pos2_0, self.pos3_0, self.tx0, self.ty0, self.tz0, self.idx0 = self.retrieve_pos_from_click(event)
@@ -696,45 +749,55 @@ class ShowROI(QtWidgets.QWidget):
         dim1, dim2 = self.rotation
         dim3 = 'xyz'.replace(dim1, '').replace(dim2, '')
         step_dim1 = getattr(self, f"step_{dim1}")
-        step_dim2 = getattr(self, f"step_{dim2}") 
-        step_dim3 = getattr(self, f"step_{dim3}") 
+        step_dim2 = getattr(self, f"step_{dim2}")
+        step_dim3 = getattr(self, f"step_{dim3}")
         ax1 = np.sort([pos1, self.pos1_0])
         ax2 = np.sort([pos2, self.pos2_0])
         ax3 = np.sort([pos3, self.pos3_0])
-        
+
         if np.diff(ax1) != 0:
             np.mgrid[ax1.min():ax1.max():step_dim1,
                         ax2.min():ax2.max():step_dim2]
             dim1_rect, dim2_rect = np.mgrid[ax1.min():ax1.max():step_dim1,
                                             ax2.min():ax2.max():step_dim2]
-            
+
             size_hor, size_ver = dim1_rect.shape
             dim3_rect = np.full((size_hor, size_ver), ax3[0])
         else:
             dim1_rect = ax1
             dim2_rect, dim3_rect = ax2, ax3
             size_hor = dim1_rect.shape
-        self.rect = patches.Rectangle(xy=(float(ax1[0]-step_dim1/2), float(ax2[0]-step_dim2/2)),
-                                        width=float(np.diff(ax1)), height=float(np.diff(ax2)),
-                                        linewidth=1, edgecolor="r",
-                                        facecolor="None")
-        self.rect_data = {"dim1": dim1, "dim2": dim2, "dim3": dim3, 
-                          "dim1_pos": pos1, "dim2_pos": pos2, "dim3_pos": pos3,
-                          "dim1_size": size_hor, "dim2_size": size_ver, "dim3_size": getattr(self, f"step_{dim3}") }
-        
+        self.rect = patches.Rectangle(
+            xy=(float(ax1[0]-step_dim1/2), float(ax2[0]-step_dim2/2)),
+            width=float(np.diff(ax1)),
+            height=float(np.diff(ax2)),
+            linewidth=1,
+            edgecolor="r",
+            facecolor="None")
+        self.rect_data = {
+            "dim1": dim1,
+            "dim2": dim2,
+            "dim3": dim3,
+            "dim1_pos": pos1,
+            "dim2_pos": pos2,
+            "dim3_pos": pos3,
+            "dim1_size": size_hor,
+            "dim2_size": size_ver,
+            "dim3_size": getattr(self, f"step_{dim3}") }
+
         positions_rect = np.asarray([dim1_rect.flatten(), dim2_rect.flatten(), dim3_rect.flatten()]).T
-        # find the position indices for the selected rectangle 
+        # find the position indices for the selected rectangle
         indices = np.zeros(shape=len(positions_rect))
         for i, row in enumerate(positions_rect):
             indices[i] = np.where((self.positions == np.round(row, 3)).all(1))[0][0]
-            
+
         self.spec_nr = idx
         self.spec_rect = indices.reshape(dim1_rect.shape).astype(np.int32)
 
         if size_hor == 1:
             self.spec_nr = idx
         self.draw_rectangle()
-        
+
     def calc_rect_sum_spec(self, keys):
         """
         This function calculates the sum spectrum from a given set of spec_nr
@@ -772,11 +835,11 @@ class ShowROI(QtWidgets.QWidget):
         keys : list of str
             list of strings which contain the spectrum number
         """
-        self.save_selection_path = QtWidgets.QFileDialog().getSaveFileName(self,
-                                                                           "select save path",
-                                                                           self.parent.data.file_path.replace(
-                                                                               self.parent.data.file_type,
-                                                                               "_selection.npy"))[0]
+        self.save_selection_path = QtWidgets.QFileDialog().getSaveFileName(
+            self,
+            "select save path",
+            self.parent.data.file_path.replace(
+                self.parent.data.file_type, "_selection.npy"))[0]
         spectra = []
         if isinstance(self.spec_rect, int):
             self.spec_rect = np.asarray([self.spec_rect])
@@ -791,10 +854,10 @@ class ShowROI(QtWidgets.QWidget):
         """
         This function saves the calculated ROI image into a selected file.
         """
-        self.save_roi_path = QtWidgets.QFileDialog().getSaveFileName(self,
-                                                                     "select save path",
-                                                                     self.parent.data.file_path.replace(
-                                                                         self.parent.data.file_type,
-                                                                         "_%s_%s_ROI.npy" % (
-                                                                             self.element_str, self.line)))[0]
+        self.save_roi_path = QtWidgets.QFileDialog().getSaveFileName(
+            self,
+            "select save path",
+            self.parent.data.file_path.replace(
+                self.parent.data.file_type,
+                "_%s_%s_ROI.npy" % (self.element_str, self.line)))[0]
         np.save(self.save_roi_path, self.results)

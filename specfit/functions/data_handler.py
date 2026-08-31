@@ -132,7 +132,8 @@ class DataHandler():
         self.len_spectrum = 0  # stores the len of the sum spec
         self.len_scans = 1  # number of scans in a measurement
         # stores all parameters parameters that are stored in
-        # Data = [a0,a1,Fano, FWHM_0, lifetime, max_energy, gating_time] a0+a1*x
+        # Data = [a0,a1,Fano, FWHM_0, lifetime, max_energy, gating_time]
+        # a0+a1*x
         self.parameters = None
         try:
             # do not change parameters if already defined
@@ -141,7 +142,7 @@ class DataHandler():
             # stores parameters defined by User in GUI,
             self.parameters_user = np.zeros(8)
         # if True use parameters_user else parameter_data
-        self.use_parameters = False  
+        self.use_parameters = False
         self.bg_zero = False  # do not calculate background
         self.strip_cycles = 10
         self.strip_width = 60
@@ -159,7 +160,7 @@ class DataHandler():
         # stores the short Form of all elements in List ['Ni','Cu']
         self.selected_elements = []
         # stores the selected Lines in a Nested List [[Ka,Kb],[Ka]]
-        self.selected_lines = []  
+        self.selected_lines = []
         # stores dict needed by specfit in Form
         # {'Cu': (True, ['K-line', 'L1'], 29)}
         self.specfit_addlines = {}
@@ -181,7 +182,7 @@ class DataHandler():
         self.use_lib = "xraylib"
 
     def _get_file_path(
-            self, 
+            self,
             angle_file,
             file_path
             ):
@@ -196,9 +197,7 @@ class DataHandler():
         if not file_path:
             try:
                 file_path = self.file_dialog.getOpenFileName(
-                    filter=(
-                        "(*.spx *.MSA *.txt *.spe *.mca *.dat *.hdf5 *.h5 "
-                        + f"*.bcf *.csv *.msa)")[0])
+                    filter=("(*.spx *.MSA *.txt *.spe *.mca *.dat *.hdf5 *.h5 *.bcf *.csv *.msa)"))[0]
                 self.file_path = Path(file_path)
                 self.label_loading_progress.showMessage(str(self.file_path))
                 assert self.file_path.exists()
@@ -236,7 +235,7 @@ class DataHandler():
         with h5py.File(self.save_data_folder_path/"data.h5", "r") as f:
             _in = self.file_name in f.keys()
         return _in
-        
+
     def get_reload(self, ):
         """
         Function to query if the measurement should be reloaded or not
@@ -260,8 +259,8 @@ class DataHandler():
         if use_user_parameter:
             self.energies = np.arange(
                 self.parameters_user[0],
-                self.parameters_user[5] + 
-                self.parameters_user[1] * 
+                self.parameters_user[5] +
+                self.parameters_user[1] *
                 self.len_spectrum,
                 self.parameters_user[1])
         else:
@@ -392,7 +391,7 @@ class DataHandler():
                         bcf.bcf2spec_para(file_path=self.file_path)
             else:
                 bcf.bcf2spec_para(file_path=self.file_path)
-                
+
         elif self.file_type == ".csv":
             self.loadtype = "csv_file"
             if (self.save_data_folder_path/"data.h5").is_file() and self.check_h5():
@@ -501,11 +500,11 @@ class DataHandler():
                 else:
                     self.spectra, self.parameters, self.tensor_positions, \
                     self.position_dimension, self.sum_spec = angles.txt2spec_para(self.file_path)
-        
+
         try:
             self.update_data_from_h5file(h5_path=self.save_data_folder_path / "data.h5")
         except FileNotFoundError:
-            return 
+            return
         self.parameters = np.array(self.parameters)
         if self.parameters.ndim == 1:
             self.parameters = np.expand_dims(self.parameters, axis=0)
@@ -554,7 +553,7 @@ class DataHandler():
                     else:  # for all different data types
                         self.tensor_positions, self.position_dimension, self.positions = self.tensor_positions_log_file(
                             file_list=self.file_list)
-                    
+
                     with h5py.File(self.save_data_folder_path / "data.h5", "r+") as tofile:
                         print("type(tensor_positions) ", type(self.tensor_positions))
                         if isinstance(self.tensor_positions, list):
@@ -576,11 +575,11 @@ class DataHandler():
                         else:
                             if f"{self.file_name}/tensor positions" not in tofile:
                                 tofile.create_dataset(
-                                    f"{self.file_name}/tensor positions", 
+                                    f"{self.file_name}/tensor positions",
                                     data=np.round(self.tensor_positions).astype(np.int32),
                                     compression=None)
                             else:
-                                data = tofile[f"{self.file_name}/tensor positions"] 
+                                data = tofile[f"{self.file_name}/tensor positions"]
                                 data[...] = np.round(self.tensor_positions).astype(np.int32)
                             if f"{self.file_name}/positions" not in tofile:
                                 tofile.create_dataset(
@@ -627,7 +626,7 @@ class DataHandler():
                     else:
                         if f"{self.file_name}/tensor positions" not in tofile:
                             tofile.create_dataset(
-                                f"{self.file_name}/tensor positions", 
+                                f"{self.file_name}/tensor positions",
                                 data=np.round(self.tensor_positions).astype(np.int32),
                                 compression=None,
                                 dtype=np.int32)
@@ -639,7 +638,7 @@ class DataHandler():
                                 f"{self.file_name}/positions",
                                 data=self.positions)
                         else:
-                            data = tofile[f"{self.file_name}/positions"] 
+                            data = tofile[f"{self.file_name}/positions"]
                             data[...] = self.positions
                     if f"{self.file_name}/position dimension" not in tofile:
                         tofile.create_dataset(
@@ -695,7 +694,7 @@ class DataHandler():
                         for i, index in enumerate(self.len_scans[1:]):
                             self.sum_len_scans.append(np.arange(self.len_scans[i], index))
                         print("len scans not in data.h5! For best support reload measurement")
-                    
+
             if self.file_type == ".mca":  #TODO
                 if len(self.len_scans) > 1:
                     tensor_0 = np.array([self.tensor_positions[0:self.len_scans[0]]])
@@ -772,7 +771,7 @@ class DataHandler():
 
         self.roi_start = 0.5
         self.roi_end = 25
-        
+
     def run_file_progress(self, file_nr):
         self.label_loading_progress.showMessage(
             f"file-progress - {file_nr} files")
@@ -1044,7 +1043,7 @@ class DataHandler():
                 for i, file in enumerate(file_list):
                     positions.append(spx.spx_position(file))
                 positions = np.asarray(positions)
-                
+
                 x = np.unique(positions[:, 0])
                 y = np.unique(positions[:, 1])
                 z = np.unique(positions[:, 2])
@@ -1147,7 +1146,7 @@ class DataHandler():
                         monoE[scan] = np.unique(positions[scan][2])
                         tensor_position[scan] = np.array([0, 0, 0])
                         position_dim[scan] = np.array([1, 1, 1])
-                
+
                 for scan in sorted(empty_scans, reverse=True):
                     x.pop(scan)
                     z.pop(scan)
@@ -1165,7 +1164,7 @@ class DataHandler():
                         print(f"index in self.len_scans could not be removed: {e}")
                     self.sum_len_scans = np.delete(self.sum_len_scans, scan)
                     positions.pop(scan)
-                
+
                 # TODO: store new data to data.h5
                 with h5py.File(self.save_data_folder_path / "data.h5", "r+") as tofile:
                     # remove old datasets if existing
@@ -1179,7 +1178,7 @@ class DataHandler():
                 positions = [1, 1, len(file_list)]
                 tensor_position = self.build_tensor_position(positions)
                 position_dim = [1, 1, len(file_list)]
-            
+
             return tensor_position, position_dim, positions
         else:
             log_file = glob(f"{self.folder_path}/*.log")[0]

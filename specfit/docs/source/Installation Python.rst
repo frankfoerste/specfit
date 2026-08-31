@@ -17,12 +17,12 @@ environment. You install a new virtual environment with
    .. code-block:: bash
 
       conda create --name specfit python=3.13
-   
+
 Once the installation is completed, you can change the Python environment to
-**specfit** using 
+**specfit** using
 
    .. code-block:: bash
-      
+
       conda activate specfit
 
 The block in the beginning of the line should now show **(specfit)** and you
