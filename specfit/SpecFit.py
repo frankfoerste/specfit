@@ -29,6 +29,7 @@ from specfit.functions.periodic_table import PeriodicTable as PSE
 import specfit.functions.specfit_fit_settings as sfs
 from specfit.functions.export_functions import h5_to_tiff
 from specfit.functions.ipython_console import IPythonConsole
+from specfit.functions.theme_manager import ThemeManager
 
 
 script_dir = Path.cwd()
@@ -109,9 +110,9 @@ class RoDatabase(object):
         """
         self.characteristic_lines = {}
         with open(
-            self.working_dir/ "specfit" /"data" / "characteristic_lines.dat",
-            "r",
-            encoding="ascii") as f:
+                self.working_dir / "specfit" / "data" / "characteristic_lines.dat",
+                "r",
+                encoding="ascii") as f:
             for line in f:
                 line = line.split()
                 self.characteristic_lines[line.pop(0)] = line
@@ -140,7 +141,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
     def __init__(self, parent=None):
         # initalize main window
         super(SpecFitGUIMain, self).__init__(parent)
-        self.__version__ = u"SpecFit - 1.1.1"
+        self.__version__ = "SpecFit - 1.1.1"
         self.working_directory = Path.cwd()
         self.start_logger()
         self.bg_color = "black"
@@ -189,6 +190,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         )
         self.batch_fitting = False
         # set default stylesheets
+        self.theme_manager = ThemeManager(
+            app=QtWidgets.QApplication.instance(),
+            theme_dir=self.working_directory / "specfit" / "themes")
+        self.theme_manager.current_theme = "dark"
+        self.theme_manager.toggle()
         self.setStyleSheet(
             "QWidget { }"
             + "border-width: 10px;"
@@ -449,6 +455,14 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.action_ipython_console.setStatusTip("start ipython console")
         self.action_ipython_console.triggered.connect(self.ipython_console)
 
+        # theme action
+        self.action_change_theme = QtGui.QAction(
+            QtGui.QIcon(str(
+                self.working_directory / "specfit" / "data" / "icons" /
+                "theme.png")), "Change Theme", self)
+        self.action_change_theme.setStatusTip("Change theme")
+        self.action_change_theme.triggered.connect(self.theme_manager.toggle)
+
         # exit action
         self.action_exit = QtGui.QAction(
             QtGui.QIcon(str(
@@ -483,6 +497,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.menu_settings.addAction(self.action_load_settings)
         self.menu_settings.addAction(self.action_save_settings)
         self.menu_settings.addAction(self.action_fit_settings)
+        self.menu_settings.addAction(self.action_change_theme)
 
         # Fit menu
         self.menu_fit = self.menubar.addMenu("&Fit")
@@ -523,6 +538,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.win_toolbar.addAction(self.action_show_plot3d)
         self.win_toolbar.addAction(self.action_fit)
         self.win_toolbar.addAction(self.action_ipython_console)
+        self.win_toolbar.addAction(self.action_change_theme)
         self.win_toolbar.addAction(self.action_exit)
 
         # create energy and fit parameter widget

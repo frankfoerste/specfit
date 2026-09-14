@@ -4,6 +4,7 @@ from PyQt6 import QtGui, QtWidgets, QtCore
 import matplotlib.colors as col
 from functools import partial
 
+
 class SpecFitFitSettings(QtWidgets.QWidget):
     def __init__(self, parent=None, _parent=None):
         # initalize main window
@@ -25,16 +26,22 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.window_heigth = 120
         self.window_width = 400
         self.setWindowTitle(self.__version__)
-        self.setGeometry((self.screen_width-self.window_width)//2,
-                         (self.screen_height-self.window_heigth)//2,
-                         self.window_width, self.window_heigth)
-        self.standard_style_sheet = 'QWidget {color: black; background-color:white; font-size: 10px} '\
-                           +'QLineEdit {max-height: 18px; border: 1px solid grey; border-radius: 6px; padding: 0 4px;} '\
-                           +'QLineEdit:focus {max-height: 18px; border: 1px solid red; border-radius: 6px; padding: 0 4px;} '\
-                           +'QCheckBox {max-height: 18px} '\
-                           +'QPushButton {max-height: 18px; border: 1px solid grey; border-radius: 6px; padding: 0 4p;} '\
-                           +'QPushButton:hover {max-height: 18px; border: 1px solid red; border-radius: 6px; padding: 0 4p;} '\
-                           +'QRadioButton {max-height: 18px}'
+        self.setGeometry(
+            (self.screen_width-self.window_width)//2,
+            (self.screen_height-self.window_heigth)//2,
+            self.window_width, self.window_heigth)
+        self.standard_style_sheet = 'QWidget {color: black; background-color:'\
+            + 'white; font-size: 10px} '\
+            + 'QLineEdit {max-height: 18px; border: 1px solid grey; border-ra'\
+            + 'dius: 6px; padding: 0 4px;} '\
+            + 'QLineEdit:focus {max-height: 18px; border: 1px solid red; bord'\
+            + 'er-radius: 6px; padding: 0 4px;} '\
+            + 'QCheckBox {max-height: 18px} '\
+            + 'QPushButton {max-height: 18px; border: 1px solid grey; border-'\
+            + 'radius: 6px; padding: 0 4p;} '\
+            + 'QPushButton:hover {max-height: 18px; border: 1px solid red; bo'\
+            + 'rder-radius: 6px; padding: 0 4p;} '\
+            + 'QRadioButton {max-height: 18px}'
         self.setStyleSheet(self.standard_style_sheet)
         # define used variables
         self.font_bold = QtGui.QFont()  #: a bold font
@@ -56,9 +63,9 @@ class SpecFitFitSettings(QtWidgets.QWidget):
 
     def __init__UI(self):
         # define labels
-        self.label_fit_parameter = QtWidgets.QLabel(u'fit parameter', self)
+        self.label_fit_parameter = QtWidgets.QLabel('fit parameter', self)
         self.label_fit_parameter.setFont(self.font_bold)
-        self.label_save_parameter = QtWidgets.QLabel(u'save parameter', self)
+        self.label_save_parameter = QtWidgets.QLabel('save parameter', self)
         self.label_save_parameter.setFont(self.font_bold)
         self.label_a0 = QtWidgets.QLabel('a0', self)
         self.label_a1 = QtWidgets.QLabel('a1', self)
@@ -69,52 +76,63 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.label_smooth_cycles = QtWidgets.QLabel('smooth cycles', self)
         self.label_smooth_width = QtWidgets.QLabel('smooth width', self)
         self.label_calc_minima_order = QtWidgets.QLabel('min order', self)
+        self.label_minRadRate = QtWidgets.QLabel('min rad rate', self)
         self.label_PU_factor = QtWidgets.QLabel('pile-up factor', self)
         self.label_PU_threshold = QtWidgets.QLabel('pile-up threshold', self)
         self.label_Escape_factor = QtWidgets.QLabel('escape factor', self)
-        self.label_Escape_threshold = QtWidgets.QLabel('escape threshold', self)
+        self.label_Escape_threshold = QtWidgets.QLabel(
+            'escape threshold', self)
         self.label_horizontal_separator_1 = QtWidgets.QLabel('', self)
         self.label_horizontal_separator_2 = QtWidgets.QLabel('', self)
+        self.label_horizontal_separator_3 = QtWidgets.QLabel('', self)
         self.label_horizontal_separator_1.setFixedHeight(2)
         self.label_horizontal_separator_2.setFixedHeight(2)
+        self.label_horizontal_separator_3.setFixedHeight(2)
         self.label_horizontal_separator_1.setStyleSheet(
             'QLabel {background-color : black}')
         self.label_horizontal_separator_2.setStyleSheet(
             'QLabel {background-color : black}')
+        self.label_horizontal_separator_3.setStyleSheet(
+            'QLabel {background-color : black}')
         self.specfit_fit_settings_layout.addWidget(
             self.label_fit_parameter, 0, 0, 1, 5)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_a0, 4, 0, 1, 1)
+            self.label_horizontal_separator_1, 1, 0, 1, 5)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_a1, 5, 0, 1, 1)
+            self.label_a0, 2, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_fano, 6, 0, 1, 1)
+            self.label_a1, 3, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_FWHM, 7, 0, 1, 1)
+            self.label_fano, 4, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_strip_cycles, 4, 2, 1, 1)
+            self.label_FWHM, 5, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_strip_width, 5, 2, 1, 1)
+            self.label_strip_cycles, 2, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_smooth_cycles, 6, 2, 1, 1)
+            self.label_strip_width, 3, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_smooth_width, 7, 2, 1, 1)
+            self.label_smooth_cycles, 4, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_calc_minima_order, 8, 2, 1, 1)
+            self.label_smooth_width, 5, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_PU_factor, 9, 2, 1, 1)
+            self.label_calc_minima_order, 6, 2, 1, 1)
+        self.specfit_fit_settings_layout.addWidget(
+            self.label_horizontal_separator_2, 7, 0, 1, 5)
+        self.specfit_fit_settings_layout.addWidget(
+            self.label_minRadRate, 8, 0, 1, 1)
+        self.specfit_fit_settings_layout.addWidget(
+            self.label_PU_factor, 10, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
             self.label_PU_threshold, 10, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_Escape_factor, 11, 2, 1, 1)
+            self.label_Escape_factor, 12, 2, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
             self.label_Escape_threshold, 12, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_horizontal_separator_1, 1, 0, 1, 5)
+            self.label_save_parameter, 13, 0, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.label_horizontal_separator_2, 15, 0, 1, 5)
-        self.specfit_fit_settings_layout.addWidget(
-            self.label_save_parameter, 14, 0, 1, 1)
+            self.label_horizontal_separator_3, 14, 0, 1, 5)
+        
         # define checkboxes
         self.check_calc_minima = QtWidgets.QCheckBox('calc minima', self)
         self.check_PU_Lines = QtWidgets.QCheckBox('fit pile-up', self)
@@ -133,15 +151,15 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.check_save_fitted_spectrum.setCheckState(
             QtCore.Qt.CheckState.Unchecked)
         self.specfit_fit_settings_layout.addWidget(
-            self.check_calc_minima, 8, 0, 1, 2)
+            self.check_calc_minima, 6, 0, 1, 2)
         self.specfit_fit_settings_layout.addWidget(
             self.check_PU_Lines, 9, 0, 1, 2)
         self.specfit_fit_settings_layout.addWidget(
             self.check_Escape_Lines, 11, 0, 1, 2)
         self.specfit_fit_settings_layout.addWidget(
-            self.check_save_background, 16, 0, 1, 2)
+            self.check_save_background, 15, 0, 1, 2)
         self.specfit_fit_settings_layout.addWidget(
-            self.check_save_fitted_spectrum, 17, 0, 1, 2)
+            self.check_save_fitted_spectrum, 16, 0, 1, 2)
         # define entry fields
         self.entry_a0 = QtWidgets.QLineEdit('', self)
         self.entry_a1 = QtWidgets.QLineEdit('', self)
@@ -152,34 +170,46 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         self.entry_smooth_cycles = QtWidgets.QLineEdit('1', self)
         self.entry_smooth_width = QtWidgets.QLineEdit('10', self)
         self.entry_calc_minima_order = QtWidgets.QLineEdit('15', self)
+        self.entry_minRadRate = QtWidgets.QLineEdit('5e-3', self)
         self.entry_PU_factor = QtWidgets.QLineEdit('0.1', self)
         self.entry_PU_threshold = QtWidgets.QLineEdit('1e-8', self)
         self.entry_Escape_factor = QtWidgets.QLineEdit('0.8', self)
         self.entry_Escape_threshold = QtWidgets.QLineEdit('1e-3', self)
-        self.specfit_fit_settings_layout.addWidget(self.entry_a0, 4, 1, 1, 1)
-        self.specfit_fit_settings_layout.addWidget(self.entry_a1, 5, 1, 1, 1)
+        self.specfit_fit_settings_layout.addWidget(self.entry_a0, 2, 1, 1, 1)
+        self.specfit_fit_settings_layout.addWidget(self.entry_a1, 3, 1, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_fano, 6, 1, 1, 1)
+            self.entry_fano, 4, 1, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_FWHM, 7, 1, 1, 1)
+            self.entry_FWHM, 5, 1, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_strip_cycles, 4, 3, 1, 1)
+            self.entry_strip_cycles, 2, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_strip_width, 5, 3, 1, 1)
+            self.entry_strip_width, 3, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_smooth_cycles, 6, 3, 1, 1)
+            self.entry_smooth_cycles, 4, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_smooth_width, 7, 3, 1, 1)
+            self.entry_smooth_width, 5, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_calc_minima_order, 8, 3, 1, 1)
+            self.entry_calc_minima_order, 6, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_PU_factor, 9, 3, 1, 1)
+            self.entry_minRadRate, 8, 3, 1, 1)
+        self.specfit_fit_settings_layout.addWidget(
+            self.entry_PU_factor, 10, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
             self.entry_PU_threshold, 10, 1, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
-            self.entry_Escape_factor, 11, 3, 1, 1)
+            self.entry_Escape_factor, 12, 3, 1, 1)
         self.specfit_fit_settings_layout.addWidget(
             self.entry_Escape_threshold, 12, 1, 1, 1)
+
+        # define checkfit button
+        self.button_checkfit = QtWidgets.QPushButton('Check Fit', self)
+        self.button_checkfit.clicked.connect(self.parent.check_fit)
+        self.button_checkfit.setStyleSheet(
+            "QPushButton {color : white; background-color:red}")
+        self.specfit_fit_settings_layout.addWidget(
+            self.button_checkfit, 17, 0, 1, 3)
+        
 
     def __init_connections(self, ):
         self.entry_a0.textChanged.connect(
@@ -200,12 +230,19 @@ class SpecFitFitSettings(QtWidgets.QWidget):
             partial(self.update_entries, self.parent.entry_smooth_width))
         self.entry_calc_minima_order.textChanged.connect(
             partial(self.update_entries, self.parent.entry_calc_minima_order))
+        self.entry_minRadRate.textChanged.connect(self.set_fit_parameters)
         self.check_calc_minima.stateChanged.connect(
             lambda state: self.parent.check_calc_minima.setChecked(
                 state == QtCore.Qt.CheckState.Checked))
 
     def update_entries(self, entry, text):
         entry.setText(text)
+
+    def set_fit_parameters(self,):
+        try:
+            self.parent.s.minRadRate = abs(float(self.entry_minRadRate.text()))
+        except ValueError:
+            print('enter a valid float value > 0')
 
     def set_PU_Escape_parameters(self,):
         if self.check_PU_Lines.isChecked():
@@ -215,7 +252,8 @@ class SpecFitFitSettings(QtWidgets.QWidget):
         else:
             self.parent.s.calc_PU = False
         if self.check_Escape_Lines.isChecked():
-            self.parent.s.Escape_factor = float(self.entry_Escape_factor.text())
+            self.parent.s.Escape_factor = float(
+                self.entry_Escape_factor.text())
             self.parent.s.Escape_threshold = float(
                 self.entry_Escape_threshold.text())
             self.parent.s.calc_Escape = True

@@ -1,0 +1,16 @@
+.responsive-image {
+    max-width: 100%;
+    height: auto;
+}
+
+.blue-text {
+    color: #48a0dcff;
+}
+
+.orange-text {
+    color: orange;
+}
+
+.red-text {
+    color: red;
+}

@@ -290,12 +290,13 @@ class ShowROI(QtWidgets.QWidget):
         self.y = np.unique(self.positions[:, 1])
         self.z = np.unique(self.positions[:, 2])
         # find the xyz-position of the origin
+        print(self.tensor_positions)
         origin_idx = int(np.where((self.tensor_positions == np.array(
-            [0, 0, 0])).all(1))[0])
+            [0, 0, 0])).all(1))[0][0])
         end_idx = int(np.where((self.tensor_positions == np.array(
             [self.tensor_positions[:, 0].max(),
              self.tensor_positions[:, 1].max(),
-             self.tensor_positions[:, 2].max()])).all(1))[0])
+             self.tensor_positions[:, 2].max()])).all(1))[0][0])
         # sort the unique points corresponding to the measurement
 
         if self.x[0] != self.positions[:, 0][origin_idx]:

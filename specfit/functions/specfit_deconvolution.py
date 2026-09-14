@@ -16,6 +16,7 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
+
 class SpecFit(object):
     """
     The SpecFit class allows the deconvolution and fitting of X-ray
@@ -60,7 +61,7 @@ class SpecFit(object):
         self.gating_time = 8e-3
         self.strip_cycles = 10
         self.strip_width = 60
-        self.smooth_cycles =  1
+        self.smooth_cycles = 1
         self.smooth_width = 10
         #: threshold for non-linear fit
         self.minchange = 1e-3
@@ -73,10 +74,11 @@ class SpecFit(object):
         self.Det = [-0.96, 0.01, 0.112, 0.0488]
         self.calc_PU = 0.1
         self.PU_factor = 0.1
-        self.PU_threshold = 1E-8
+        self.PU_threshold = 1e-8
         self.calc_Escape = 0.8
         self.Escape_factor = 0.8
-        self.Escape_threshold = 1E-3
+        self.Escape_threshold = 1e-3
+        self.minRadRate = 5e-3
         # attributes
         #: stores the PU lines list as a list of dicts [{E:g}, {E:g}]
         self.PU_Lines = None
@@ -95,15 +97,15 @@ class SpecFit(object):
         try:
             # selection = (r'KL.*_LINE|KM.*_LINE')
             # K-Lines
-            Kp=re.compile(
+            Kp = re.compile(
                 r"KL.*_LINE|KM.*_LINE|KN.*_LINE|KO.*_LINE|KP.*_LINE")
-            Kap=re.compile(r"KL.*_LINE")
-            Kbp=re.compile(r"KM.*_LINE|KN.*_LINE|KO.*_LINE|KP.*_LINE")
+            Kap = re.compile(r"KL.*_LINE")
+            Kbp = re.compile(r"KM.*_LINE|KN.*_LINE|KO.*_LINE|KP.*_LINE")
             # L-Lines
-            Lp=re.compile(r"L1.*_LINE|L2.*_LINE|L3.*_LINE")
-            L1p=re.compile(r"L1.*_LINE")
-            L2p=re.compile(r"L2.*_LINE")
-            L3p=re.compile(r"L3.*_LINE")
+            Lp = re.compile(r"L1.*_LINE|L2.*_LINE|L3.*_LINE")
+            L1p = re.compile(r"L1.*_LINE")
+            L2p = re.compile(r"L2.*_LINE")
+            L3p = re.compile(r"L3.*_LINE")
             # M-Lines
             Mp = re.compile(
                 r"M1.*_LINE|M2.*_LINE|M3.*_LINE|M4.*_LINE|M5.*_LINE")
@@ -112,20 +114,23 @@ class SpecFit(object):
             M3p = re.compile(r"M3.*_LINE")
             M4p = re.compile(r"M4.*_LINE")
             M5p = re.compile(r"M5.*_LINE")
-            Xdir=dir(xrl)
-            self.K_Lines=[getattr(xrl, l) for l in Xdir if Kp.match(l)]
-            self.Ka_Lines=[getattr(xrl, l) for l in Xdir if Kap.match(l)]
-            self.Kb_Lines=[getattr(xrl, l) for l in Xdir if Kbp.match(l)]
-            self.L_Lines=[getattr(xrl, l) for l in Xdir if Lp.match(l)]
-            self.L1_Lines=[getattr(xrl, l) for l in Xdir if L1p.match(l)]
-            self.L2_Lines=[getattr(xrl, l) for l in Xdir if L2p.match(l)]
-            self.L3_Lines=[getattr(xrl, l) for l in Xdir if L3p.match(l)]
-            self.M_Lines = [getattr(xrl, l) for l in Xdir if Mp.match(l)]
-            self.M1_Lines = [getattr(xrl, l) for l in Xdir if M1p.match(l)]
-            self.M2_Lines = [getattr(xrl, l) for l in Xdir if M2p.match(l)]
-            self.M3_Lines = [getattr(xrl, l) for l in Xdir if M3p.match(l)]
-            self.M4_Lines = [getattr(xrl, l) for l in Xdir if M4p.match(l)]
-            self.M5_Lines = [getattr(xrl, l) for l in Xdir if M5p.match(l)]
+            Kedgep = re.compile(r"K.*_SHELL")
+            Ledgep = re.compile(r"L.*_SHELL")
+            Medgep = re.compile(r"M.*_SHELL")
+            Xdir = dir(xrl)
+            self.K_Lines = [getattr(xrl, _l) for _l in Xdir if Kp.match(_l)]
+            self.Ka_Lines = [getattr(xrl, _l) for _l in Xdir if Kap.match(_l)]
+            self.Kb_Lines = [getattr(xrl, _l) for _l in Xdir if Kbp.match(_l)]
+            self.L_Lines = [getattr(xrl, _l) for _l in Xdir if Lp.match(_l)]
+            self.L1_Lines = [getattr(xrl, _l) for _l in Xdir if L1p.match(_l)]
+            self.L2_Lines = [getattr(xrl, _l) for _l in Xdir if L2p.match(_l)]
+            self.L3_Lines = [getattr(xrl, _l) for _l in Xdir if L3p.match(_l)]
+            self.M_Lines = [getattr(xrl, _l) for _l in Xdir if Mp.match(_l)]
+            self.M1_Lines = [getattr(xrl, _l) for _l in Xdir if M1p.match(_l)]
+            self.M2_Lines = [getattr(xrl, _l) for _l in Xdir if M2p.match(_l)]
+            self.M3_Lines = [getattr(xrl, _l) for _l in Xdir if M3p.match(_l)]
+            self.M4_Lines = [getattr(xrl, _l) for _l in Xdir if M4p.match(_l)]
+            self.M5_Lines = [getattr(xrl, _l) for _l in Xdir if M5p.match(_l)]
             self.xrl_lines = [
                 self.K_Lines,
                 self.Ka_Lines,
@@ -140,6 +145,9 @@ class SpecFit(object):
                 self.M3_Lines,
                 self.M4_Lines,
                 self.M5_Lines]
+            self.K_edges = [_l for _l in Xdir if Kedgep.match(_l)]
+            self.L_edges = [_l for _l in Xdir if Ledgep.match(_l)]
+            self.M_edges = [_l for _l in Xdir if Medgep.match(_l)]
         except:
             self.xrl_lines = [
                 [], [], [],
@@ -203,7 +211,7 @@ class SpecFit(object):
         for line in self.Lines:
             try:
                 element = xrl.AtomicNumberToSymbol(line["Z"])
-            except:
+            except TypeError:
                 element = xrl.SymbolToAtomicNumber(line["Z"])
             Result[f"{element}_{line['edge']}"] = {
                 "I": line["I"],
@@ -247,7 +255,8 @@ class SpecFit(object):
         if isinstance(ROI[0], float):
             self.ROI = [np.round(
                 ((E - self.Det[0])/self.Det[1]), 0).astype(int) for E in ROI]
-        else: self.ROI = ROI
+        else:
+            self.ROI = ROI
         self.Bins = np.arange(self.ROI[0], self.ROI[1])
         self.Meas = self.meas_load[self.ROI[0]:self.ROI[1]]
 
@@ -430,65 +439,95 @@ class SpecFit(object):
 
     def get_lines(
             self,
-            Zlist
+            Zlist,
+            verbose=False
             ):
         """
         needs Z as defined in addlines,
-        [[29, ['K-L3', 'K-L2', 'K-L1'], K-linie], []]
-        returns LL which is a list of dicts
-        [{'I':1, 'Z':29, 'edge':'K-line', 'g_sum':0.8,
-        'lines':[{'E':2.5, 'g':0.1}, {'E':2.6, 'g':0.2}, {}]}, {...}]
+        [[29, ['K-L3', 'K-L2', 'K-L1'], 'Ka'], []]
+        returns LineList which is a list of dicts
+        [{'I':1, 'Z':29, 'edge':'K', 'g_sum':0.8,
+        'lines':[
+            {'E':2.5, 'g':0.1, 'type': 'Fluorescence'},
+            {'E':2.6, 'g':0.2, 'type': 'Fluorescence'},
+            ...],
+        ]}, {...}]
         """
-        LL = []
+        LineList = []
         g_sum = {}
 
         # calculate self.energy
         self.get_E()
 
-        # create LL dictionary
+        # create LineList dictionary
         for Z in Zlist:
+            # get the Z, lines and name from the Zlist
             _Z, lines, name = Z
+            # create a unique name for the sum of the lines, e.g. 29-Ka
             sum_name = f"{_Z}-{name}"
+            # initialize the sum of the lines to 0
             g_sum[sum_name] = 0
+            # create a list to store the lines with their energies and
+            # intensities
             lines_list = []
+            # initialise the jump factor
             factor = 1
             for _l in lines:
+                # iterate over the L-Lines
                 if sum_name[-1] == "L":
                     if _l in self.L1_Lines:
-                        factor = xrl.JumpFactor(
-                            _Z,
-                            xrl.L1_SHELL) * xrl.FluorYield(_Z, xrl.L1_SHELL)
+                        edge = xrl.L1_SHELL
                     elif _l in self.L2_Lines:
-                        factor = xrl.JumpFactor(
-                            _Z,
-                            xrl.L2_SHELL) * xrl.FluorYield(_Z, xrl.L2_SHELL)
+                        edge = xrl.L2_SHELL
                     elif _l in self.L3_Lines:
-                        factor = xrl.JumpFactor(
-                            _Z,
-                            xrl.L3_SHELL) * xrl.FluorYield(_Z, xrl.L3_SHELL)
+                        edge = xrl.L3_SHELL
+                    factor = (
+                        xrl.JumpFactor(_Z, edge) * xrl.FluorYield(_Z, edge)
+                    )
+                if sum_name[-1] == "M":
+                    if _l in self.M1_Lines:
+                        edge = xrl.M1_SHELL
+                    elif _l in self.M2_Lines:
+                        edge = xrl.M2_SHELL
+                    elif _l in self.M3_Lines:
+                        edge = xrl.M3_SHELL
+                    elif _l in self.M4_Lines:
+                        edge = xrl.M4_SHELL
+                    elif _l in self.M5_Lines:
+                        edge = xrl.M5_SHELL
+                    else:
+                        continue
+                    factor = (
+                        xrl.JumpFactor(_Z, edge) * xrl.FluorYield(_Z, edge)
+                    )
                 try:
-                    g_sum[sum_name] += (xrl.RadRate( _Z, _l)*factor)
+                    # retrieve fluorescence information and fill dictionary
+                    g_sum[sum_name] += (xrl.RadRate(_Z, _l) * factor)
                     _lineE = xrl.LineEnergy(_Z, _l)
-                    _lineRadRate = xrl.RadRate( _Z, _l)
-                    if not(_lineE == 0.0 or _lineRadRate==0.0):
+                    _lineRadRate = xrl.RadRate(_Z, _l)
+                    # if not (_lineE == 0.0 or _lineRadRate == 0.0):
+                    if not (_lineE == 0.0 or _lineRadRate < self.minRadRate):
                         lines_list.append({
                             "E": xrl.LineEnergy(_Z, _l),
-                            "g": xrl.RadRate( _Z, _l) * factor,
+                            "g": xrl.RadRate(_Z, _l) * factor,
                             "type": "Fluorescence"})
                 except ValueError as e:
-                    pass
+                    if verbose:
+                        print(
+                            f"No Fluorescence value for Z={_Z}, line={_l}: {e}"
+                            )
 
-            LL.append({
-                "I":1,
-                "Z":_Z,
-                "edge":name,
+            LineList.append({
+                "I": 1,
+                "Z": _Z,
+                "edge": name,
                 "g_sum": g_sum[sum_name],
                 "lines": lines_list})
             for _l in lines_list:
                 _l["g"] /= g_sum[sum_name]
-            for _l in LL:
+            for _l in LineList:
                 _l["g_sum"] = 1
-        return LL
+        return LineList
 
     def addLines(
             self,
@@ -497,15 +536,15 @@ class SpecFit(object):
         """
         expected dict{'element':(True/False, ['linename', ...], Z), '':..., }
         example: {'Cu': (True, ['K-line', 'L1'], 29)}
-        build list Z which has the form: [[29, ['K-L3', 'K-L2', 'K-L1'],
-        K-linie], []]
+        build list Z which has the form
+        [[29, ['K-L3', 'K-L2', 'K-L1'], 'Ka'], []]
         """
         self.Z = []
         self.PU_Elements = []
         entry = []
         for element in Z_and_Lines:
             if not Z_and_Lines[element][0]:
-                print("False- element is not fittet")
+                print("False - element is not fittet")
                 continue
             for line in Z_and_Lines[element][1]:
                 # 'e.g. L1'
@@ -547,7 +586,8 @@ class SpecFit(object):
             E
             ):
         Fano, elFWHM = self.Det[2], self.Det[3]
-        if Fano < 0 or elFWHM < 0 or E <0: return 0.001
+        if Fano < 0 or elFWHM < 0 or E < 0:
+            return 0.001
         a = (elFWHM/2.35)**2 + E * 3.65e-3 * Fano
         if a < 0:
             # has to be examined
@@ -580,7 +620,7 @@ class SpecFit(object):
             return
 
         response = (
-            1/(np.sqrt(2*np.pi)*s) * np.exp(-((E - Ec)/s)**2 /2) *
+            1/(np.sqrt(2*np.pi)*s) * np.exp(-((E - Ec)/s)**2 / 2) *
             (4*s > np.abs(Ec-E)).astype(int)
         )
         return response
@@ -596,7 +636,7 @@ class SpecFit(object):
         and Zlist = self.PU_Elements: [29, 29, 21, ..], build [{E:g}{E:g}]
         """
         PUlines = []
-        self.dead_time = self.real_time-self.life_time
+        self.dead_time = self.real_time - self.life_time
         gating_time = self.gating_time
         self.sum_meas_load = np.sum(self.meas_load[200:])
         if self.calc_PU:
@@ -616,24 +656,24 @@ class SpecFit(object):
                         _sum = np.sum(
                             self.meas_load[channel_j1-10:channel_j1 + 10])
                         threshold = g1*(_sum * self.life_time) / 1E6
-                        if  threshold > self.PU_threshold:
+                        if threshold > self.PU_threshold:
                             linelist[iIdx]["lines"].append({
-                                "E":E1,
-                                "g":g1,
-                                "type" : "PU"})
+                                "E": E1,
+                                "g": g1,
+                                "type": "PU"})
 
                     # pileup with different sub-lines of the same line,
                     # 1.order
                     for j2 in range(j1, len_linelist):
-                        if j1 != j2 and j1<j2:
+                        if j1 != j2 and j1 < j2:
                             E2 = linelist[iIdx]["lines"][j1]["E"] \
                                  + linelist[iIdx]["lines"][j2]["E"]
                             if E2 < 41.84:
                                 _g1 = linelist[iIdx]["lines"][j1]["g"]
                                 _g2 = linelist[iIdx]["lines"][j2]["g"]
                                 g2 = (
-                                    _g1 * self.PU_factor \
-                                    * _g2 * self.PU_factor \
+                                    _g1 * self.PU_factor
+                                    * _g2 * self.PU_factor
                                     * gating_time*self.sum_meas_load)
                                 _sum = np.sum(
                                     self.meas_load[
@@ -641,63 +681,69 @@ class SpecFit(object):
                                 threshold = g2*(_sum * self.life_time)/1E6
                                 if threshold > self.PU_threshold:
                                     linelist[iIdx]["lines"].append({
-                                        "E":E2,
-                                        "g":g2,
-                                        "type" : "PU"})
+                                        "E": E2,
+                                        "g": g2,
+                                        "type": "PU"})
 
                     E3 = 3*linelist[iIdx]["lines"][j1]["E"]
 
                     if E3 < 41.84:
                         _g3 = linelist[iIdx]["lines"][j1]["g"]
-                        g3 = (_g3*self.PU_factor) ** 3 \
-                             * gating_time * self.sum_meas_load
+                        g3 = (
+                            (_g3*self.PU_factor) ** 3
+                            * gating_time * self.sum_meas_load
+                        )
                         _sum = np.sum(
                             self.meas_load[channel_j1-10:channel_j1 + 10])
                         threshold = g3 * (_sum * self.life_time) / 1E7
                         if threshold > self.PU_threshold:
                             linelist[iIdx]["lines"].append({
-                                "E":E3,
-                                "g":g3,
-                                "type" : "PU"})
+                                "E": E3,
+                                "g": g3,
+                                "type": "PU"})
 
                     # pileup with different sub-lines of the same line,
                     # 2.order
                     for j2 in range(j1, len_linelist):
-                        if j2 != j1 and j1<j2:
+                        if j2 != j1 and j1 < j2:
                             E4 = 2*linelist[iIdx]["lines"][j1]["E"] \
-                                    +linelist[iIdx]["lines"][j2]["E"]
+                                    + linelist[iIdx]["lines"][j2]["E"]
                             if E4 < 41.84:
                                 _g41 = linelist[iIdx]["lines"][j1]["g"]
                                 _g42 = linelist[iIdx]["lines"][j2]["g"]
-                                g4 = (_g41 * self.PU_factor) ** 2 \
-                                     * _g42 * self.PU_factor \
-                                     * gating_time * self.sum_meas_load
+                                g4 = (
+                                    (_g41 * self.PU_factor) ** 2
+                                    * _g42 * self.PU_factor
+                                    * gating_time * self.sum_meas_load
+                                )
                                 _sum = np.sum(
                                     self.meas_load[
                                         channel_j1-10:channel_j1 + 10])
                                 threshold = g4 * (_sum * self.life_time) / 1E7
                                 if threshold > self.PU_threshold:
                                     linelist[iIdx]["lines"].append({
-                                        "E":E4,
-                                        "g":g4,
-                                        "type" : "PU"})
+                                        "E": E4,
+                                        "g": g4,
+                                        "type": "PU"})
                             E5 = 1*linelist[iIdx]["lines"][j1]["E"] \
-                                +2*linelist[iIdx]["lines"][j2]["E"]
+                                + 2*linelist[iIdx]["lines"][j2]["E"]
                             if E5 < 41.84:
                                 _g51 = linelist[iIdx]["lines"][j1]["g"]
                                 _g52 = linelist[iIdx]["lines"][j2]["g"]
-                                g5 = (_g51 * self.PU_factor \
-                                    *(_g52 * self.PU_factor) ** 2 \
-                                    * gating_time * self.sum_meas_load)
+                                g5 = (
+                                    _g51 * self.PU_factor
+                                    * (_g52 * self.PU_factor) ** 2
+                                    * gating_time * self.sum_meas_load
+                                    )
                                 _sum = np.sum(
                                     self.meas_load[
                                         channel_j1-10:channel_j1 + 10])
                                 threshold = g5 * (_sum * self.life_time) / 1E7
                                 if threshold > self.PU_threshold:
                                     linelist[iIdx]["lines"].append({
-                                        "E":E5,
-                                        "g":g5,
-                                        "type" : "PU"})
+                                        "E": E5,
+                                        "g": g5,
+                                        "type": "PU"})
         # Escape lines
         if self.calc_Escape:
             for _s in self.Lines:
@@ -712,9 +758,10 @@ class SpecFit(object):
                             * self.Escape_factor
                         if g > self.Escape_threshold:
                             _s["lines"].append({
-                                "E":_l["E"] - 1.740,
+                                "E": _l["E"] - 1.740,
                                 "g": g,
-                                "type" : "Escape"})
+                                "type": "Escape"})
+        return PUlines
 
     def calc_M(self):
         """
@@ -731,7 +778,8 @@ class SpecFit(object):
         # self.fit_in_progress = True
         for _s, _ in enumerate(self.Lines):
 
-            # iterate over all selected lines (numbers from 0 to len(self.Lines))
+            # iterate over all selected lines (numbers from 0 to
+            # len(self.Lines))
             g_sum_pileup_escape = 0
 
             if self.Lines[_s]["edge"] == "K":
@@ -783,9 +831,10 @@ class SpecFit(object):
                          - self.Strip[self.Bins[0]:self.Bins[-1]+1]
             if self.NetSpec.max() < 1e-10:
                 try:
-                    self.factor = self.NetSpec[self.NetSpec>0].min()
+                    self.factor = self.NetSpec[self.NetSpec > 0].min()
                 except ValueError as e:
                     self.factor = 1e-11
+                    print(f"ValueError in linfit: {e}")
 
             else:
                 self.factor = 1
@@ -793,7 +842,7 @@ class SpecFit(object):
                 fun=self.residual_linfit,
                 x0=np.ones(self.M.shape[-1],
                            dtype=np.float64).flatten(),
-                bounds = (0, float("inf")),
+                bounds=(0, float("inf")),
                 jac="2-point",
                 method="trf",
                 args=(self.NetSpec/self.factor, self.M/self.factor)
@@ -801,7 +850,7 @@ class SpecFit(object):
         else:
             self.NetSpec = np.abs(
                 self.meas_load[..., self.Bins[0]:self.Bins[-1]+1] /
-              - self.Strip[..., self.Bins[0]:self.Bins[-1]+1])
+                - self.Strip[..., self.Bins[0]:self.Bins[-1]+1])
             self.M = np.broadcast_to(
                 self.M,
                 self.NetSpec.shape[:-1] + self.M.shape)
@@ -810,9 +859,9 @@ class SpecFit(object):
                 np.ones(
                     self.M.shape[:3]+(self.M.shape[4],),
                     dtype=np.float64).flatten(),
-                jac = "3-point",
-                method = "dogbox",
-                args = (self.NetSpec, self.M),
+                jac="3-point",
+                method="dogbox",
+                args=(self.NetSpec, self.M),
                 )
 
         I, resid = lsq_linear_result.x, lsq_linear_result.fun
@@ -844,7 +893,7 @@ class SpecFit(object):
                 NetSpec - np.sum(
                     M*params.reshape(M_shape[:3]+(1, M_shape[4])),
                     axis=-1),
-                    axis=-1)
+                axis=-1)
         resid = np.nan_to_num(resid)
         return np.abs(np.sum(resid)).flatten()
 
@@ -873,7 +922,8 @@ class SpecFit(object):
         iteration = 0
         while np.abs((oldresid - resid_std)/oldresid) > minchange:
             iteration += 1
-            if full: self.nl_fit()
+            if full:
+                self.nl_fit()
             oldresid = float(resid_std)
             Resid = self.linfit()
             resid_std = np.sqrt(np.divide(
@@ -901,14 +951,14 @@ class SpecFit(object):
             g_sum_pileup_escape_2 = 0
             if _s["edge"] == "K":
                 for _l in _s["lines"]:
-                        g_sum_pileup_escape_2 += _l["g"]
+                    g_sum_pileup_escape_2 += _l["g"]
                 # iterate over all transitions and create a gaussian
                 # distribution for every transition
                 for _l in _s["lines"]:
                     response = self.det_resp(
                         Ec=_l["E"],
                         E=self.energy,
-                        T=_l["type"]) *_s["I"]*_l["g"]
+                        T=_l["type"]) * _s["I"]*_l["g"]
                     spec += response / g_sum_pileup_escape_2*self.Det[1]
 
                 # iterate over all transitions and create a gaussian
@@ -927,7 +977,7 @@ class SpecFit(object):
             spec += udl
 
         if verbose:
-            integral = np.trapz(spec-self.Strip-self.NLDet, x=np.arange(0, 4096, 1))
+            np.trapz(spec-self.Strip-self.NLDet, x=np.arange(0, 4096, 1))
             self.get_result()
 
         return spec
@@ -975,9 +1025,8 @@ class SpecFit(object):
         for line in self.Lines:
             try:
                 result_keys.append(
-                    f"{xrl.AtomicNumberToSymbol(line["Z"])}_{line["edge"]}")
-            except:
+                    f"{xrl.AtomicNumberToSymbol(line['Z'])}_{line['edge']}")
+            except TypeError:
                 result_keys.append(
-                    f"{xrl.SymbolToAtomicNumber(line["Z"])}_{line["edge"]}")
+                    f"{xrl.SymbolToAtomicNumber(line['Z'])}_{line['edge']}")
         return result_keys
- 
