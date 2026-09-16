@@ -1,0 +1,53 @@
+QWidget {
+    background-color: #202124;
+    border-width: 10px;
+    color: #eeeeee;
+}
+
+QPushButton {
+    background-color: #303134;
+    color: #eeeeee;
+    font-size: 11px;
+    border: 1px solid #555555;
+    border-radius: 6px;
+    height: 18px;
+    max-height: 18px;
+}
+
+QPushButton:hover {
+    background-color: #3c4043;
+}
+
+QLabel {
+    font-size: 11px;
+}
+
+QLineEdit {
+    font-size: 11px;
+    max-height: 18px;
+}
+
+QCheckBox {
+    font-size: 11px;
+    max-height: 18px;
+}
+
+QToolButton {
+    color:#202124;
+    background-color:#202124;
+    border: 1px solid #202124;
+}
+
+QRadioButton {
+    font-size: 11px;
+    max-height: 18px;
+}
+
+QComboBox {
+    font-size: 11px;
+    max-height: 18px;
+}
+
+QTextEdit {
+    font-size: 11px
+}
