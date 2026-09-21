@@ -758,8 +758,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         # create an axis
         self.ax_canvas_spectrum = self.figure_sum_spec.add_subplot(111)
         self.ax_canvas_spectrum.set_title("Sum Spectrum")
-        self.ax_canvas_spectrum.set_xlabel("Energy / keV")
-        self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
+        self.ax_canvas_spectrum.set_xlabel("Energy | keV")
+        self.ax_canvas_spectrum.set_ylabel("Intensity | cps")
         self.ax_canvas_spectrum.set_xlim(0, 40)
         self.figure_sum_spec.tight_layout()
         self.plot_style = self.ax_canvas_spectrum.plot
@@ -950,9 +950,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.reset_2_default()
         self.data.elements = self.elements
         self.data.label_loading_progress = self.statusBar()
-        self.data.open_data_file(angle_file,
-                                 file_path=file_path,
-                                 _reload=_reload)
+        self.data.open_data_file(
+            angle_file,
+            file_path=file_path,
+            _reload=_reload)
         self.threshold_handler = FitThresholdPopup(self.data.folder_path)
         self.load_parameter_in_specfit_deconvolution()
         self.statusBar().showMessage("loading done")
@@ -972,6 +973,10 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         if str(self.data.file_path) in settings["recent files"]:
             settings["recent files"].remove(str(self.data.file_path))
 
+        # if batch fitting is active and the file loaded is an spx file, then
+        # make sure to set the loadtype to folder instead of file
+        if self.batch_fitting:
+            self.data.loadtype = "folder"
         settings["recent files"].insert(0, str(self.data.file_path))
         self.save_config(settings=settings)
         self.statusBar().showMessage("Loading done.")
@@ -1032,10 +1037,22 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         """
         self.batch_fitting = True
         self.data.folder_path = self.data._get_folder_path()
-        self.batch_files = list(self.data.folder_path.glob("*.bcf"))
+        
+        # check which file extensions are present the most
+        spx_files = list(self.data.folder_path.glob("*.spx"))
+        bcf_files = list(self.data.folder_path.glob("*.bcf"))
+        if len(spx_files) > len(bcf_files):
+            self.batch_files = list(self.data.folder_path.glob("*.spx"))
+            # set loadtype to folder instead of file
+            self.data.loadtype = 'folder'
+        else:
+            self.batch_files = list(self.data.folder_path.glob("*.bcf"))
         # load first file and display as usual in SpecFit
-        self.load_file(angle_file=False,
-                       file_path=self.batch_files[0])
+        self.load_file(
+            angle_file=False,
+            file_path=self.batch_files[0])
+        if self.data.loadtype == "file":
+            self.data.loadtype = 'folder'
         self.popup_properties.fill_text(
             f"files:\n{[path.name for path in self.batch_files]}\n")
         self.popup_properties.backup_text = str(
@@ -1075,8 +1092,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.data.file_dialog = QtWidgets.QFileDialog(self)
         self.pse_widget.tab_udl.reset_2_default()
         self.s.fit_in_progress = False
-        self.ax_canvas_spectrum.set_xlabel("Energy / keV")
-        self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
+        self.ax_canvas_spectrum.set_xlabel("Energy | keV")
+        self.ax_canvas_spectrum.set_ylabel("Intensity | cps")
         self.spectrum_nr = None
         self.canvas_spectrum.draw()
 
@@ -1228,8 +1245,8 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         self.ax_canvas_spectrum.set_xlim(
             self.data.roi_start,
             self.data.roi_end)
-        self.ax_canvas_spectrum.set_xlabel("Energy / keV")
-        self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
+        self.ax_canvas_spectrum.set_xlabel("Energy | keV")
+        self.ax_canvas_spectrum.set_ylabel("Intensity | cps")
         self.ax_canvas_spectrum.legend(loc="best")
 
         # actually show plot
@@ -1975,16 +1992,17 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
             self.save_file_path = Path(QtWidgets.QFileDialog().getSaveFileName(
                 self,
                 "select save path",
-                self.data.file_path.replace(self.data.file_type,
-                                            "_results.dat"))[0])
+                str(self.data.file_path).replace(
+                    self.data.file_type,
+                    "_results.dat"))[0])
             self.save_folder_path = self.save_file_path.parent
         elif self.data.loadtype in [
-            "folder",
-            "msa_file",
-            "hdf5_file",
-            "bcf_file",
-            "angle_file",
-            "csv_file"]:
+                "folder",
+                "msa_file",
+                "hdf5_file",
+                "bcf_file",
+                "angle_file",
+                "csv_file"]:
             self.save_folder_path = Path(
                 QtWidgets.QFileDialog().getExistingDirectory(
                     self,
@@ -2019,11 +2037,11 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
         elif self.data.loadtype == "angle_file":
             self.fit_angle_file()
         elif self.data.loadtype in [
-            "folder",
-            "msa_file",
-            "hdf5_file",
-            "bcf_file",
-            "csv_file"]:
+                "folder",
+                "msa_file",
+                "hdf5_file",
+                "bcf_file",
+                "csv_file"]:
             if self.batch_fitting:
                 for file_path in self.batch_files:
                     if self.stop_flag == 1:
@@ -2276,6 +2294,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 getResults = self.s.get_result()
                 # fill them into the results array on the corresponding
                 # position
+                print(f"getResults {getResults}")
                 for key in getResults.keys():
                     # if only one scan is present
                     if not isinstance(

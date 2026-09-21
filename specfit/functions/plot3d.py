@@ -409,7 +409,7 @@ class Plot3D(QtWidgets.QWidget):
         self.ax_canvas_histogram.set_title(
             "Histogram of %s"%self.thresholds[nr][0].text(), fontsize=10)
         self.ax_canvas_histogram.set_xlabel(
-            "Net Fluorescence / cps", fontsize=8)
+            "Net Fluorescence | cps", fontsize=8)
         self.ax_canvas_histogram.set_ylabel("# of occurence", fontsize = 8)
         occ, bins = self.thresholds["%d_histogram"%nr]
         self.ax_canvas_histogram.vlines(self.thresholds[nr][4], 0, np.max(occ),

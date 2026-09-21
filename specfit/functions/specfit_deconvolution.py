@@ -274,7 +274,7 @@ class SpecFit(object):
             only_minima_on_sum_spec=True
             ):
         """
-        To erase the background of an energy dispersive x-ray spectrum the
+        To erase the background of an energy dispersive X-ray spectrum the
         spectrum is smoothed and the so generated background is stripped off
 
         Parameters
@@ -447,10 +447,8 @@ class SpecFit(object):
         [[29, ['K-L3', 'K-L2', 'K-L1'], 'Ka'], []]
         returns LineList which is a list of dicts
         [{'I':1, 'Z':29, 'edge':'K', 'g_sum':0.8,
-        'lines':[
-            {'E':2.5, 'g':0.1, 'type': 'Fluorescence'},
-            {'E':2.6, 'g':0.2, 'type': 'Fluorescence'},
-            ...],
+        'lines':[{'E':2.5, 'g':0.1, 'type': 'Fluorescence'},
+        {'E':2.6, 'g':0.2, 'type': 'Fluorescence'}, ...],
         ]}, {...}]
         """
         LineList = []
@@ -815,12 +813,11 @@ class SpecFit(object):
         This function performs a linear fit with the given measurement
         parameter. No change of the parameter takes place.
         Procedure:
-            1) calculate striped spectrum (striped_spec)
-            2) calculate normalized gaussian (M)
-            3) perform least square fit with M and the on ROI range shortened
-               striped spectrum (NetSpec)
-            4) store the fitted intensities in the Lines dict (Lines) as
-            results
+        1) calculate striped spectrum (striped_spec)
+        2) calculate normalized gaussian (M)
+        3) perform least square fit with M and the on ROI range shortened
+        striped spectrum (NetSpec)
+        4) store the fitted intensities in the Lines dict (Lines) as results
         """
 
         if self.fit_in_progress is False:

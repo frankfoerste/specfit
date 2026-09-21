@@ -237,8 +237,8 @@ class ShowROI(QtWidgets.QWidget):
         self.ax_canvas_spectrum = self.figure_sum_spec.add_subplot(111)
         self.ax_canvas_roi.set_xlabel("")
         self.ax_canvas_roi.set_ylabel("")
-        self.ax_canvas_spectrum.set_xlabel("Energy / keV")
-        self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
+        self.ax_canvas_spectrum.set_xlabel("Energy | keV")
+        self.ax_canvas_spectrum.set_ylabel("Intensity | cps")
         self.roi_plotted = False
 
     def display_show_ROI(self, ):
@@ -450,8 +450,8 @@ class ShowROI(QtWidgets.QWidget):
             self.ax_canvas_spectrum.set_ylim(
                 np.min(self.sum_spec[low_index: high_index])*0.9,
                 np.max(self.sum_spec[low_index: high_index])*1.1)
-            self.ax_canvas_spectrum.set_xlabel("Energy / keV")
-            self.ax_canvas_spectrum.set_ylabel("Intensity / cps")
+            self.ax_canvas_spectrum.set_xlabel("Energy | keV")
+            self.ax_canvas_spectrum.set_ylabel("Intensity | cps")
             self.ax_canvas_spectrum.set_title("Sum Spectrum")
             self.canvas_spectrum.draw_idle()
 
