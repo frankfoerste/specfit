@@ -1922,21 +1922,35 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                     tofile.create_dataset(
                         results_key,
                         data=results[key])
-        if background:
+        
+        # save the background if checked
+        if background is not False:
             background_key = f"{self.data.file_name}/background"
             with h5py.File(
                 self.save_folder_path / "results.h5", "a") as tofile:
-                if background_key in list(tofile.keys()):
+                # read out stored results of h5 file as list
+                content = []
+                for meas in tofile.keys():
+                    for res in tofile[meas].keys():
+                        content.append(f"{meas}/{res}")
+                if background_key in content:
                     tofile[background_key][()] = background
                 else:
                     tofile.create_dataset(
                         background_key,
                         data=background)
-        if fitted_spectra:
-            fitted_spectra_key = "fitted spectra"
+        
+        # save the complete fitted spectrum if checked
+        if fitted_spectra is not False:
+            fitted_spectra_key = f"{self.data.file_name}/fitted spectra"
             with h5py.File(
                 self.save_folder_path / "results.h5", "a") as tofile:
-                if fitted_spectra_key in list(tofile.keys()):
+                # read out stored results of h5 file as list
+                content = []
+                for meas in tofile.keys():
+                    for res in tofile[meas].keys():
+                        content.append(f"{meas}/{res}")
+                if fitted_spectra_key in content:
                     tofile[fitted_spectra_key][()] = fitted_spectra
                 else:
                     tofile.create_dataset(
@@ -2294,7 +2308,7 @@ class SpecFitGUIMain(QtWidgets.QMainWindow):
                 getResults = self.s.get_result()
                 # fill them into the results array on the corresponding
                 # position
-                print(f"getResults {getResults}")
+                
                 for key in getResults.keys():
                     # if only one scan is present
                     if not isinstance(

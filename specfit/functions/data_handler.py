@@ -272,7 +272,8 @@ class DataHandler():
                 self.parameters[0][1])
 
         if len(self.energies) != len(self.sum_spec):
-            self.energies.resize(len(self.sum_spec))
+            _len_sum_spec = len(self.sum_spec)
+            self.energies = np.resize(self. energies, new_shape=_len_sum_spec)
 
         # now try to set the parmeters max energy value to the highest energy
         # value or set it to 40 as default

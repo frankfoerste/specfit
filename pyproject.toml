@@ -25,7 +25,7 @@ dependencies = [
     "psutil>=7",
     "PyQt6>=6.8",
     "pyqt6_sip>=13",
-    "qtconsole==5.6.1",
+    "qtconsole>=5.6.1",
     "scipy>=1.14",
     "scikit-image>=0.20",
     "tables>=3.10",
